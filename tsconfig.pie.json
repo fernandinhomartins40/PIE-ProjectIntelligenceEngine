@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.build.json",
+  "include": ["src/pie/**/*.ts"],
+  "exclude": ["src/pie/**/*.test.ts"],
+  "compilerOptions": { "outDir": "dist", "rootDir": "src" }
+}
