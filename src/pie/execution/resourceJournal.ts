@@ -411,9 +411,46 @@ export class VerificationJournal {
         "pie.recovery",
         "Remoção da raiz não comprovada.",
       );
+    this.#completeRoot(runId, token);
+  }
+  async finishLive(runId: string): Promise<void> {
+    const record = this.get(runId);
+    if (!sameActor(record, this.actor) || this.#claim(runId))
+      throw new AnalysisOutputError(
+        "pie.journal",
+        "Dono original não possui o recurso.",
+      );
+    if (!(await privateParent(record.root)))
+      throw new AnalysisOutputError(
+        "pie.journal",
+        "Pai da raiz não comprovado.",
+      );
+    try {
+      await lstat(record.root);
+    } catch (cause) {
+      if (
+        cause &&
+        typeof cause === "object" &&
+        "code" in cause &&
+        cause.code === "ENOENT" &&
+        (await privateParent(record.root))
+      ) {
+        this.#completeRoot(runId);
+        return;
+      }
+      throw cause;
+    }
+    throw new AnalysisOutputError(
+      "pie.journal",
+      "Raiz ainda existe; limpeza não concluída.",
+    );
+  }
+  #completeRoot(runId: string, token?: string): void {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const record = this.assertClaim(runId, token);
+      const record = token ? this.assertClaim(runId, token) : this.get(runId);
+      if (!token && (!sameActor(record, this.actor) || this.#claim(runId)))
+        throw new AnalysisOutputError("pie.journal", "Dono original mudou.");
       if (record.phase !== "removed")
         throw new AnalysisOutputError(
           "pie.recovery",

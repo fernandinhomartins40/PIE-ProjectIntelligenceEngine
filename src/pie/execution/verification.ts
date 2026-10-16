@@ -29,6 +29,7 @@ export class NodeVerification {
   #workspace: PreparedWorkspace | null = null;
   #rollback: PrivateRuntimeRoot | null = null;
   #execution: DockerExecution | null = null;
+  #journalRunId: string | null = null;
   #operation: Promise<VerificationRun> | undefined;
   #closing: Promise<void> | undefined;
   #stopping = new AbortController();
@@ -94,6 +95,7 @@ export class NodeVerification {
       endpoint: this.options.endpoint,
       executable: this.options.executable,
     });
+    if (this.options.journal) this.#journalRunId = id;
     this.#execution = new DockerExecution(
       plan.value,
       client,
@@ -203,6 +205,10 @@ export class NodeVerification {
     if (this.#rollback) {
       await this.#rollback.close();
       this.#rollback = null;
+    }
+    if (this.#journalRunId) {
+      await this.options.journal!.finishLive(this.#journalRunId);
+      this.#journalRunId = null;
     }
   }
   close(): Promise<void> {

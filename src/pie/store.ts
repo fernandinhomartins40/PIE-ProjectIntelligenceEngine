@@ -271,6 +271,20 @@ export class PieStore implements PiePersistence {
   }
 }
 
+/** Preflight existing observations without creating tables or migrating the database. */
+export function readStoredSnapshot(path: string, id: string): Snapshot {
+  const db = new DatabaseSync(path, { readOnly: true });
+  try {
+    const row = db
+      .prepare("SELECT payload FROM pie_snapshots WHERE id=?")
+      .get(id);
+    if (!row) throw new PieError("NOT_FOUND", "Snapshot não encontrado.");
+    return validateSnapshot(JSON.parse(String(row.payload)));
+  } finally {
+    db.close();
+  }
+}
+
 /** State must be outside audited trees, preserving OBSERVE semantics. */
 export async function openStore(
   path: string,

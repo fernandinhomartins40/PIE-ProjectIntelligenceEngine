@@ -1,6 +1,30 @@
-import { openStore } from "./store.js";
+import { openStore, readStoredSnapshot } from "./store.js";
 import { PieError } from "./contracts.js";
 import type { PiePersistence } from "./persistence.js";
+import { admitNodeTests } from "./execution/admission.js";
+import type { NodeTestGrant } from "./execution/contracts.js";
+
+/** Resolve actual snapshot authority before any local migration can write state. */
+export async function openVerificationPersistence(
+  path: string,
+  grant: NodeTestGrant,
+) {
+  let store: PiePersistence | undefined;
+  try {
+    if (process.env.PIE_DATABASE_URL) store = await openPersistence(path);
+    const snapshot = store
+      ? await store.snapshot(grant.snapshotId)
+      : readStoredSnapshot(path, grant.snapshotId);
+    const admission = await admitNodeTests(grant, snapshot);
+    if (!admission.ok) throw admission.error;
+    store ??= await openStore(path, snapshot.root);
+    await store.assertOutside(snapshot.root);
+    return { store, snapshot };
+  } catch (cause) {
+    await store?.close();
+    throw cause;
+  }
+}
 
 export async function openPersistence(
   path: string,

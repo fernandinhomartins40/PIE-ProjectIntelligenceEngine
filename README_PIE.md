@@ -12,4 +12,4 @@ O [README original REA](README.md), a [licença MIT](LICENSE) e os [notices de t
 
 O desenvolvimento e a publicação Git deste projeto usam a branch `main`, conforme orientação do responsável.
 
-Resultados de verificação persistidos podem ser lidos por `verification <run-id>` e `verifications <snapshot-id>`, pelas ferramentas MCP `pie_verification_get`/`pie_verifications_list` e pela API autenticada `GET /v1/verification/:id`/`GET /v1/verifications/:snapshotId`. A consulta verifica a evidência e não inicia testes. O executor permanece interno até completar recuperação de recursos e integração da autorização.
+Resultados de verificação persistidos podem ser lidos por `verification <run-id>` e `verifications <snapshot-id>`, pelas ferramentas MCP `pie_verification_get`/`pie_verifications_list` e pela API autenticada `GET /v1/verification/:id`/`GET /v1/verifications/:snapshotId`. A consulta verifica a evidência e não inicia testes. A CLI Linux oferece `verify` com arquivo de autorização explícito e journal obrigatório, `resources` e `recover`; requisitos e limites estão em [execução VERIFY](docs/PIE_DEVELOPMENT.md#execução-verify-pela-cli-linux).

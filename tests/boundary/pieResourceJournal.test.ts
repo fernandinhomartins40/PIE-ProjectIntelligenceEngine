@@ -55,6 +55,10 @@ it.skipIf(process.platform !== "linux")(
       await chmod(path, 0o644);
       await expect(VerificationJournal.open(path)).rejects.toThrow("privado");
       await chmod(path, 0o600);
+      await expect(journal.finishLive(runId)).rejects.toThrow("existe");
+      await rm(workspace, { recursive: true });
+      await journal.finishLive(runId);
+      expect(journal.get(runId).rootRemovedAt).not.toBeNull();
     } finally {
       journal.close();
       await rm(root, { recursive: true, force: true });

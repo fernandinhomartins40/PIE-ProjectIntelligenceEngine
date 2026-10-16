@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — comandos VERIFY
+
+CI 26b52a29f passou: run 38982553785, incluindo recovery Docker real. Nova CLI execution/cli.ts: verify <grant.json>, resources, recover <run-id>, flags --state-dir (privado 0700 externo), --docker-bin absoluto, --docker-host local. Journal obrigatório na CLI, sem pull/fallback host; estados não passed usam exit 1. resources omite tokens e não consulta liveness (ownerStatus not_checked); recover faz a verificação atual. Workflow interno ainda aceita journal opcional para consumidores em integração, mas CLI sempre fornece. finishLive registra raiz removida após cleanup; registro final impede futuras remoções no mesmo caminho.
+
+openVerificationPersistence faz preflight read-only de SQLite e valida grant/snapshot antes de migrations; não permitir banco dentro do alvo sob grant de raiz divergente. readStoredSnapshot é dono dessa leitura no adaptador. Testes locais comprovaram recusa Windows/estado sem criação e pré-leitura sem migração; positivos de CLI Linux/Docker aguardam CI do novo push. Teste real novo cobre pass persistido, consulta/resources/recover e snapshot alterado blocked. Próximo: acompanhar CI, corrigir problemas; incorporar verificação à fila/jobs e a workflows compartilhados para API/MCP/UI sem executar grants vindos do projeto. Falta concluir clientes Docker órfãos/retomada de auditoria e Windows/macOS. Não confundir CLI Node funcional com seis motores completos.
+
 ## Estado prioritário — recuperação com ownership
 
 CI 71bba20a7 passou: run 38981881975. Journal Linux ganhou claim transacional/fencing por token + identidade completa de processo/máquina/boot, eventos autenticados pelo dono original ou claim atual e token privado da raiz (.pie-owner). Novos campos default null preservam leitura de registros antigos, mas rootToken ausente impede afirmar ownership de raiz existente. Não inventar marca depois do crash. resourceRecovery.ts remove somente recursos comprovados, contêiner antes da raiz; creating sem ID visível permanece unknown/blocked, falha mantém claim e permite retry no mesmo dono. rootRemovedAt torna conclusão idempotente sem remover futuro diretório no mesmo caminho.

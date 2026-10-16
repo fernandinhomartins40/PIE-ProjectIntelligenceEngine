@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## CLI VERIFY explícita — 16/10/2026
+
+CI 38982553785 de 26b52a29f3a6defd2d6554fc2a2c8b4a13eb523d passou: claim concorrente, identidade da raiz, recuperação após saída real de processo e contêiner Docker real criado antes do encerramento abrupto.
+
+CLI adiciona verify com grant JSON estrito, executable/daemon local explícitos e journal obrigatório; resources lista registro paginado sem tokens e sem afirmar liveness; recover verifica ownership atual antes de agir. Estado precisa ser privado/existente/externo ao alvo. Pré-leitura SQLite read-only valida snapshot/autoridade antes de permitir migrations; teste real confirmou que banco interno ou raiz divergente não sofrem migração. Fluxo vivo registra rootRemovedAt após remoção da raiz. Resultado é persistido antes de retornar; todo estado diferente de passed usa exit 1. API/MCP ainda só consultam resultados.
+
+Local Windows: recusa sem criar estado comprovada por processo CLI real; casos positivos Linux/Docker explicitamente skipped. Suíte de autorização, fluxo indisponível, persistência e CLI: quatro aprovados + seis skipped em quatro arquivos (3,58s), mais pré-leitura/admissão três aprovados + dois skipped (2,73s). Typecheck/build e lint focado passaram. CI ampliada testa verify real, consulta persistida, resources sem tokens, recover idempotente e snapshot alterado blocked; aguardar resultado do novo commit. Escala de histórico/journal e custos de cada fluxo CLI não medidos nesta rodada; não afirmar suporte Windows/macOS, jobs VERIFY ou auditoria integral.
+
 ## Recuperação de recursos e claim — 16/10/2026
 
 CI 38981881975 de 71bba20a7b161eb4068de74a02fd957abae6626c terminou com sucesso, incluindo journal reaberto após saída real de processo e eventos integrados ao Docker. Novas regras de recuperação ainda dependem da CI desta entrega.

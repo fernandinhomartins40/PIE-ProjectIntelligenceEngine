@@ -128,6 +128,7 @@ it.skipIf(!process.env.PIE_TEST_DOCKER_IMAGE || process.platform !== "linux")(
       expect(journal.get(run.id)).toMatchObject({
         phase: "removed",
         runId: run.id,
+        rootRemovedAt: expect.any(String),
       });
       const stores: PiePersistence[] = [
         await openStore(join(root, "runs.sqlite"), repo),

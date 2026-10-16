@@ -23,6 +23,9 @@ import {
 } from "../../src/process/PrivateRuntimeRoot.js";
 import type { Snapshot } from "../../src/pie/contracts.js";
 import { sealEvidence, sha256 } from "../../src/pie/evidence.js";
+import { DatabaseSync } from "node:sqlite";
+import { openVerificationPersistence } from "../../src/pie/openPersistence.js";
+import type { NodeTestGrant } from "../../src/pie/execution/contracts.js";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "pie-execution-"));
@@ -40,7 +43,7 @@ async function fixture() {
   );
   return { root, repo, snapshot };
 }
-function grant(snapshot: Snapshot) {
+function grant(snapshot: Snapshot): NodeTestGrant {
   return {
     schemaVersion: 1,
     profile: "VERIFY",
@@ -63,6 +66,39 @@ function grant(snapshot: Snapshot) {
     },
   };
 }
+
+it("pré-leitura da autorização não migra banco dentro do alvo nem sob raiz divergente", async () => {
+  const { root, repo, snapshot } = await fixture();
+  const path = join(repo, "misplaced.sqlite");
+  const sql = new DatabaseSync(path);
+  sql.exec(
+    "CREATE TABLE pie_snapshots(id TEXT PRIMARY KEY,payload TEXT NOT NULL)",
+  );
+  sql
+    .prepare("INSERT INTO pie_snapshots(id,payload) VALUES(?,?)")
+    .run(snapshot.id, JSON.stringify(snapshot));
+  const other = join(root, "other");
+  await mkdir(other);
+  vi.stubEnv("PIE_DATABASE_URL", "");
+  try {
+    await expect(
+      openVerificationPersistence(path, {
+        ...grant(snapshot),
+        repositoryRoot: other,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      openVerificationPersistence(path, grant(snapshot)),
+    ).rejects.toThrow("fora do projeto");
+    expect(
+      sql.prepare("SELECT name FROM sqlite_master WHERE type='table'").all(),
+    ).toEqual([{ name: "pie_snapshots" }]);
+  } finally {
+    vi.unstubAllEnvs();
+    sql.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 it("vincula autorização a conteúdo, raiz, validade, testes e limites exatos", async () => {
   const { root, repo, snapshot } = await fixture();

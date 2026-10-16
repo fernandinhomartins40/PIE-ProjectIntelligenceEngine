@@ -26,6 +26,9 @@ export async function runPie(args: string[]): Promise<void> {
       "max-nodes": { type: "string" },
       "max-edges": { type: "string" },
       "api-only": { type: "boolean" },
+      "state-dir": { type: "string" },
+      "docker-bin": { type: "string" },
+      "docker-host": { type: "string" },
     },
   });
   const [command, target] = parsed.positionals;
@@ -38,6 +41,9 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Resultados persistidos: verification <run-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta não inicia testes.",
+    );
+    console.log(
+      "VERIFY Linux: verify <autorização.json> --state-dir <diretório-0700> --docker-bin <executável-absoluto> --docker-host <daemon-local>. Recursos: resources --state-dir <diretório> | recover <run-id> com as mesmas opções Docker. Sem pull automático.",
     );
     return;
   }
@@ -64,7 +70,17 @@ export async function runPie(args: string[]): Promise<void> {
             "recorded-graph-trace",
             "local-react-dashboard",
           ],
-          unavailable: ["audit-engines", "target-execution"],
+          unavailable: ["audit-engines"],
+          verification: {
+            supportedPlatforms: ["linux"],
+            readiness: "not-probed",
+            requires: [
+              "explicit-grant",
+              "private-state-directory",
+              "local-docker",
+              "preinstalled-digest-image",
+            ],
+          },
           upstreamProviders: "não verificados",
           postgresqlRuntime:
             "não verificado nesta máquina; exige PIE_DATABASE_URL e migrações",
@@ -73,6 +89,34 @@ export async function runPie(args: string[]): Promise<void> {
         2,
       ),
     );
+    return;
+  }
+  if (["verify", "resources", "recover"].includes(command)) {
+    const { verifyCli, resourcesCli, recoverCli } =
+      await import("./execution/cli.js");
+    const options = {
+      stateDirectory: parsed.values["state-dir"],
+      executable: parsed.values["docker-bin"],
+      endpoint: parsed.values["docker-host"],
+      limit: parsed.values.limit,
+      offset: parsed.values.offset,
+    };
+    if (command !== "resources" && !target)
+      throw new PieError(
+        "INVALID_INPUT",
+        "Informe arquivo de autorização ou run-id.",
+      );
+    const result =
+      command === "verify"
+        ? await verifyCli(
+            target!,
+            parsed.values.db ?? join(homedir(), ".pie", "pie.sqlite"),
+            options,
+          )
+        : command === "recover"
+          ? await recoverCli(target!, options)
+          : await resourcesCli(options);
+    console.log(JSON.stringify(result, null, 2));
     return;
   }
   if (

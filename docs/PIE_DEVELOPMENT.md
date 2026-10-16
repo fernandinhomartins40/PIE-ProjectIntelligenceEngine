@@ -116,3 +116,46 @@ IDs de arquivos vêm de graph; IDs de declarações vêm de declarations. A mesm
 O grafo de investigação combina imports já registrados com relações derivadas das declarações: declared_in liga declaração ao arquivo; field_of liga campo Prisma ao model do mesmo arquivo; depends liga serviços Compose quando origem e destino são únicos no mesmo arquivo. Destinos ausentes/ambíguos não são inventados. unresolvedRelations informa lacunas declarativas no snapshot inteiro. Ciclos são visitados uma vez por nó e limites permanecem explícitos em coverage.truncated.
 
 coverage.scope é recorded-relationships; discoveryStatus mantém a cobertura de arquivos do snapshot original, separada da truncagem da busca. Todas as evidências e limitações de origem permanecem acessíveis. Trace estático não comprova execução, teste, autorização, entitlement ou persistência de dados. Esse grafo derivado não substitui o grafo completo página→API→serviço→banco do plano. Ele é calculado a partir do snapshot persistido, sem reler código; carregamento paginado diretamente do backend ainda é pendente.
+
+
+## Execução VERIFY pela CLI Linux
+
+O runner Node usa Docker local explicitamente escolhido, imagem já instalada e fixada por digest, sem pull, sem rede, sem shell e sem montar o repositório original. Executa uma cópia privada dos arquivos observados cujos hashes ainda coincidam com o snapshot. Requer descoberta completa, autorização local ainda válida e estado privado 0700 fora do alvo. Windows/macOS são recusados neste fluxo até controles e testes equivalentes existirem. Os demais runners e motores continuam pendentes.
+
+Faça discover e use os valores reais de snapshot.id e snapshot.treeDigest no arquivo de autorização. O exemplo abaixo é um modelo com campos a substituir; não representa autorização nem imagem válidas:
+
+```json
+{
+  "schemaVersion": 1,
+  "profile": "VERIFY",
+  "allowTargetExecution": true,
+  "environment": "local",
+  "repositoryRoot": "/caminho/absoluto/do/projeto",
+  "snapshotId": "<UUID real do snapshot>",
+  "treeDigest": "<SHA-256 real do snapshot>",
+  "image": "<imagem já instalada>@sha256:<digest real>",
+  "expiresAt": "<data UTC futura em ISO 8601>",
+  "testFiles": ["tests/example.test.mjs"],
+  "limits": {
+    "timeoutMs": 30000,
+    "memoryMiB": 256,
+    "cpus": 1,
+    "pids": 32,
+    "workspaceMiB": 64,
+    "outputBytes": 65536,
+    "sourceBytes": 10000000
+  }
+}
+```
+
+O diretório de estado deve existir, pertencer ao operador e ter modo 0700; a CLI recusa permissões abertas e estado dentro do alvo. Selecione o executável e socket reais do Docker:
+
+```bash
+node scripts/pie.mjs verify /dados-pie/autorizacao.json --db /dados-pie/pie.sqlite --state-dir /dados-pie/privado --docker-bin /usr/bin/docker --docker-host unix:///var/run/docker.sock
+node scripts/pie.mjs resources --state-dir /dados-pie/privado --limit 50 --offset 0
+node scripts/pie.mjs recover UUID_DO_RUN --state-dir /dados-pie/privado --docker-bin /usr/bin/docker --docker-host unix:///var/run/docker.sock
+```
+
+VERIFY persiste resultado e evidência antes de retornar. Código de saída 0 exige passed; failed/skipped/blocked/inconclusive saem com código 1. Skips misturados com testes aprovados mantêm resultado inconclusivo. Uma mudança desde a descoberta bloqueia a cópia; não há execução direta no host como fallback. O banco SQLite é pré-lido sem migrações antes de validar a autoridade do snapshot. API/MCP e painel ainda não iniciam VERIFY.
+
+resources lista registros do journal sem tokens de controle e informa ownerStatus=not_checked: são fatos persistidos, não estado vivo consultado. recover verifica identidade do dono no momento da ação, nunca toma recurso de dono vivo/unverified, limpa contêiner antes da raiz e preserva recursos diante de incerteza. Não repete auditoria interrompida. Journal é obrigatório nesta CLI, com registro antes de create e conclusão depois de a raiz ser removida. Uma criação incerta ainda ausente pode exigir nova consulta; não descarte o diretório de estado enquanto houver limpeza pendente. Recuperação de clientes Docker órfãos e retomada automática de auditorias ainda não estão completas.
