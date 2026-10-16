@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
@@ -30,6 +30,15 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
   };
   try {
     expect((await fetch(`${api.url}/v1/projects`)).status).toBe(401);
+    expect(
+      (
+        await fetch(`${api.url}/v1/verify`, {
+          method: "POST",
+          headers,
+          body: "{}",
+        })
+      ).status,
+    ).toBe(403);
     expect(
       (
         await fetch(`${api.url}/v1/projects`, {
@@ -136,3 +145,29 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
     await rm(root, { recursive: true, force: true });
   }
 }, 20_000);
+
+it("API retém responsabilidade e permite repetir fechamento após falha de finalização", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-api-close-"));
+  const repo = join(root, "repo");
+  await mkdir(repo);
+  const store = await openStore(join(root, "state.sqlite"), repo);
+  const service = new PieService(store);
+  const api = await startPieApi(service, {
+    root: repo,
+    token: "fixture-close-token-32-characters-minimum",
+  });
+  const closing = vi
+    .spyOn(service, "close")
+    .mockRejectedValueOnce(new Error("fixture: final cleanup unavailable"));
+  try {
+    await expect(api.close()).rejects.toThrow("cleanup unavailable");
+    expect(store.projects().total).toBe(0);
+    await api.close();
+    expect(closing).toHaveBeenCalledTimes(2);
+    await api.close();
+  } finally {
+    closing.mockRestore();
+    await api.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

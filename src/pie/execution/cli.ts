@@ -1,11 +1,12 @@
-import { mkdir, lstat, realpath } from "node:fs/promises";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { privateState } from "./stateDirectory.js";
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { z } from "zod";
 import { PieError } from "../contracts.js";
 import { nodeTestGrantSchema } from "./contracts.js";
 import { readInventoryFile } from "../readFile.js";
 import { openVerificationPersistence } from "../openPersistence.js";
-import { NodeVerification } from "./verification.js";
+import { VerificationCoordinator } from "./coordinator.js";
 import { VerificationJournal } from "./resourceJournal.js";
 import {
   DockerCommand,
@@ -22,46 +23,6 @@ export interface ExecutionCliOptions {
   offset?: string | undefined;
 }
 
-/** No permissions are inferred from a manifest or executable found in the target tree. */
-async function privateState(
-  path?: string,
-  auditedRoot?: string,
-): Promise<string> {
-  if (process.platform !== "linux")
-    throw new PieError(
-      "POLICY_DENIED",
-      "Execução e recuperação VERIFY disponíveis somente no Linux comprovado.",
-    );
-  if (!path || !isAbsolute(path))
-    throw new PieError(
-      "INVALID_INPUT",
-      "Informe --state-dir absoluto e privado (modo 0700).",
-    );
-  const actual = await realpath(path);
-  const stat = await lstat(actual);
-  if (
-    !stat.isDirectory() ||
-    stat.uid !== process.getuid?.() ||
-    (stat.mode & 0o077) !== 0
-  )
-    throw new PieError(
-      "POLICY_DENIED",
-      "Diretório de estado deve pertencer ao usuário e ter modo 0700.",
-    );
-  if (auditedRoot) {
-    const root = await realpath(auditedRoot);
-    const delta = relative(root, actual);
-    if (
-      delta === "" ||
-      (!isAbsolute(delta) && delta !== ".." && !delta.startsWith(`..${sep}`))
-    )
-      throw new PieError(
-        "POLICY_DENIED",
-        "Estado VERIFY deve ficar fora do projeto auditado.",
-      );
-  }
-  return actual;
-}
 function selectedClient(
   options: ExecutionCliOptions,
   config: string,
@@ -97,40 +58,33 @@ export async function verifyCli(
   );
   const selected = selectedClient(options, state);
   const { store, snapshot } = await openVerificationPersistence(dbPath, grant);
-  let journal: VerificationJournal | undefined;
-  let owner: NodeVerification | undefined;
+  let coordinator: VerificationCoordinator | undefined;
   const controller = new AbortController();
   const cancel = () => controller.abort();
   process.once("SIGINT", cancel);
   process.once("SIGTERM", cancel);
   try {
-    journal = await VerificationJournal.open(join(state, "resources.sqlite"));
-    owner = new NodeVerification({
+    coordinator = await VerificationCoordinator.open(store, {
+      root: snapshot.root,
       executable: selected.executable,
       endpoint: selected.endpoint,
-      temporaryParent: state,
-      journal,
+      stateDirectory: state,
     });
-    const run = await owner.execute(grant, snapshot, controller.signal);
-    await store.saveVerification(run);
+    const run = await coordinator.run(grant, controller.signal);
     if (run.result.state !== "passed") process.exitCode = 1;
     return run;
   } finally {
     process.off("SIGINT", cancel);
     process.off("SIGTERM", cancel);
     try {
-      await owner?.close();
+      await coordinator?.close();
     } catch {
       process.stderr.write(
         "Limpeza pendente; consulte resources e recover antes de descartar o estado.\n",
       );
       process.exitCode = 1;
     }
-    try {
-      journal?.close();
-    } finally {
-      await store.close();
-    }
+    await store.close();
   }
 }
 

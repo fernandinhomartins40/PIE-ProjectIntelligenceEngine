@@ -20,6 +20,15 @@ export function validateVerificationRun(
       "INTEGRITY_ERROR",
       "Execução não corresponde ao contexto do snapshot.",
     );
+  if (
+    run.schemaVersion === 2 &&
+    (run.authorizedRoot !== snapshot.root ||
+      run.authorization.treeDigest !== snapshot.treeDigest)
+  )
+    throw new PieError(
+      "INTEGRITY_ERROR",
+      "Autorização não corresponde ao conteúdo ou raiz observados.",
+    );
   return run;
 }
 

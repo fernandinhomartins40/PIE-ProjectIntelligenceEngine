@@ -66,6 +66,31 @@ async function readAdapters(path: string, repo: string, run: VerificationRun) {
   }
 }
 
+async function legacyCompatibility(
+  store: PiePersistence,
+  run: VerificationRun,
+) {
+  if (run.schemaVersion !== 2) throw new Error("Expected new versioned run");
+  const {
+    evidence: _proof,
+    authorization: _grant,
+    authorizedRoot: _root,
+    ...base
+  } = run;
+  const payload = { ...base, schemaVersion: 1 as const, id: randomUUID() };
+  const snapshot = await store.snapshot(run.snapshotId);
+  const legacy = {
+    ...payload,
+    evidence: runEvidence(payload, snapshot, "local"),
+  };
+  await store.saveVerification(legacy);
+  const restored = await store.verification(legacy.id);
+  expect(restored.schemaVersion).toBe(1);
+  expect("authorization" in restored).toBe(false);
+  expect(restored).toEqual(legacy);
+  return legacy;
+}
+
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "pie-run-store-"));
   const repo = join(root, "repo");
@@ -184,6 +209,7 @@ it("SQLite registra execução/evidência atomicamente, imutáveis e reabríveis
   try {
     const run = await exercise(store, root, repo);
     await readAdapters(path, repo, run);
+    const legacy = await legacyCompatibility(store, run);
     const sql = new DatabaseSync(path);
     try {
       expect(() =>
@@ -203,6 +229,7 @@ it("SQLite registra execução/evidência atomicamente, imutáveis e reabríveis
     store.close();
     store = await openStore(path, repo);
     expect(await store.verification(run.id)).toEqual(run);
+    expect(await store.verification(legacy.id)).toEqual(legacy);
   } finally {
     store.close();
     await rm(root, { recursive: true, force: true });
@@ -221,6 +248,7 @@ it.skipIf(!url)(
     try {
       await store.connect();
       const run = await exercise(store, root, repo);
+      await legacyCompatibility(store, run);
       await expect(
         pool.query(
           "UPDATE pie_verification_runs SET created_at=now() WHERE id=$1",

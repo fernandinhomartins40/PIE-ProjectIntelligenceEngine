@@ -13,3 +13,5 @@ O [README original REA](README.md), a [licença MIT](LICENSE) e os [notices de t
 O desenvolvimento e a publicação Git deste projeto usam a branch `main`, conforme orientação do responsável.
 
 Resultados de verificação persistidos podem ser lidos por `verification <run-id>` e `verifications <snapshot-id>`, pelas ferramentas MCP `pie_verification_get`/`pie_verifications_list` e pela API autenticada `GET /v1/verification/:id`/`GET /v1/verifications/:snapshotId`. A consulta verifica a evidência e não inicia testes. A CLI Linux oferece `verify` com arquivo de autorização explícito e journal obrigatório, `resources` e `recover`; requisitos e limites estão em [execução VERIFY](docs/PIE_DEVELOPMENT.md#execução-verify-pela-cli-linux).
+
+O servidor pode habilitar `POST /v1/verify` com as mesmas opções explícitas de estado/Docker na inicialização. O padrão mantém execução desabilitada. CLI e API compartilham o coordenador; novos registros v2 preservam a autorização completa, enquanto registros v1 continuam legíveis sem dados inventados.

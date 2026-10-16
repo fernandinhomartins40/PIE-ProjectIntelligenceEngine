@@ -124,7 +124,8 @@ export class PieError extends Error {
       | "LIMIT_EXCEEDED"
       | "IO_ERROR"
       | "INTEGRITY_ERROR"
-      | "NOT_FOUND",
+      | "NOT_FOUND"
+      | "BUSY",
     message: string,
   ) {
     super(message);

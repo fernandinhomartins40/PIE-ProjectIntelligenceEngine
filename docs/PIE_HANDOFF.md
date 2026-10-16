@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — coordenador e API opt-in
+
+CI 5af61014b passou: run 38983218888 (CLI Node real, recursos/recover, persistência). Nova execution/coordinator.ts centraliza NodeVerification, gravação e cleanup; CLI já usa. API POST /v1/verify opt-in somente se serve recebe state-dir/docker-bin/docker-host; coordinator bound à raiz selecionada. Capacidade por coordenador 1, 429/BUSY; root/grant conflitante nega. API close guarda encerramento de rede separado e pode retry sem liberar store antes do verificador. Sem execução por padrão/MCP/UI. Testes HTTP Linux/Docker e fechamento durante execução estão na próxima CI; Windows só validou default/controle de sessão/close retry.
+
+Contratos de run agora discriminam v1/v2: novos resultados v2 incluem authorization completa e authorizedRoot, selados; v1 legível sem inventar escolhas ausentes. Isso altera a versão de saída de runs novos e deve constar no commit breaking. Compatibilidade SQLite e provas adulteradas testadas; CI Postgres ampliada usa o mesmo teste. stateDirectory.ts é dono da admissão do estado privado; não duplicar sua interpretação nos adaptadores. Próximo: acompanhar CI e corrigir, integrar MCP explicitamente habilitado e fila VERIFY com idempotência/cancelamento/sem retry cego após crash; adicionar UI de acompanhamento, demais runners e motores. Goal integral ativo na main, sem novas branches.
+
 ## Estado prioritário — comandos VERIFY
 
 CI 26b52a29f passou: run 38982553785, incluindo recovery Docker real. Nova CLI execution/cli.ts: verify <grant.json>, resources, recover <run-id>, flags --state-dir (privado 0700 externo), --docker-bin absoluto, --docker-host local. Journal obrigatório na CLI, sem pull/fallback host; estados não passed usam exit 1. resources omite tokens e não consulta liveness (ownerStatus not_checked); recover faz a verificação atual. Workflow interno ainda aceita journal opcional para consumidores em integração, mas CLI sempre fornece. finishLive registra raiz removida após cleanup; registro final impede futuras remoções no mesmo caminho.

@@ -158,13 +158,23 @@ export async function runPie(args: string[]): Promise<void> {
   if (command === "serve") {
     try {
       const { serveApiCommand } = await import("./apiCli.js");
-      await serveApiCommand(
-        new PieService(store),
-        target!,
-        dbPath,
-        parsed.values.port,
-        parsed.values["api-only"] ?? false,
-      );
+      await serveApiCommand(new PieService(store), target!, dbPath, {
+        port: parsed.values.port,
+        apiOnly: parsed.values["api-only"] ?? false,
+        ...([
+          parsed.values["state-dir"],
+          parsed.values["docker-bin"],
+          parsed.values["docker-host"],
+        ].some((value) => value !== undefined)
+          ? {
+              verification: {
+                stateDirectory: parsed.values["state-dir"],
+                executable: parsed.values["docker-bin"],
+                endpoint: parsed.values["docker-host"],
+              },
+            }
+          : {}),
+      });
     } catch (cause) {
       await store.close();
       throw cause;

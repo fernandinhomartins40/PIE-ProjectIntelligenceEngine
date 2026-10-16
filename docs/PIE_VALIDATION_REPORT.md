@@ -1,5 +1,17 @@
 # PIE — Registro de validação contínua
 
+## Coordenador compartilhado e API VERIFY — 16/10/2026
+
+CI 38983218888 do commit 5af61014badf5c8b4fca62cf5352cf94664b05b8 terminou com sucesso: CLI verify/resources/recover reais, journal vivo concluído, estado externo, pass persistido e snapshot alterado blocked.
+
+VerificationCoordinator passa a ser dono da operação e persistência, usado por CLI/API; limita uma execução por instância, mantém cleanup pendente e aguarda/cancela operações antes de liberar journal. Estado privado é validado no mesmo módulo para todos os adaptadores. API POST /v1/verify só funciona quando serve recebe as três opções explícitas de estado/Docker; default 403. Grant/snapshot ficam presos à raiz de inicialização, autenticação/CSRF preservados, capacidade ocupada 429/BUSY. API close agora pode repetir finalização falhada e só fecha o armazenamento depois do verificador.
+
+Registros novos usam schemaVersion 2 e preservam authorization completa e authorizedRoot, além do digest, para não perder escolhas de arquivos/limites. Leitores aceitam v1 sem fabricar dados ausentes. Prova selada cobre ambos os formatos; teste real SQLite de compatibilidade preserva v1, e adulteração de autorização v2 é recusada. Schemas CLI/MCP e leitores continuaram passando na rodada focada de persistência.
+
+Local Windows: API desabilitada por padrão, autenticação, sessão/CSRF e retry após falha de finalização testados; quatro aprovados+quatro skipped em quatro arquivos (3,59s). Rotas de execução HTTP Linux positivas e encerramento durante VERIFY explicitamente skipped aqui; CI ampliada cobre execução real, raiz incorreta recusada, 429 e cancelamento com prova persistida. Typecheck/build passaram; lint focado dos novos módulos sem avisos/erros. O teste de falha de close usa spy exclusivamente no teste; não prova falha real de provider. Nova API não representa fila de verificação, MCP de execução, UI VERIFY ou motores completos. Custos por execução/histórico continuam sem medição desta composição.
+
+Fechamento: seis testes aprovados em quatro arquivos de painel Chrome Windows/API/sessão (23,22s). Rodada de persistência/fluxo/MCP: três aprovados+dois skipped em três arquivos (8,20s), incluindo consulta de run v2 e fixtures de compatibilidade v1. Typecheck integral/web, build PIE e fronteiras em 2.043 fontes passaram. Testes de recuperação/execução Linux seguem dependentes da CI nova, sem substituição por mocks na aplicação.
+
 ## CLI VERIFY explícita — 16/10/2026
 
 CI 38982553785 de 26b52a29f3a6defd2d6554fc2a2c8b4a13eb523d passou: claim concorrente, identidade da raiz, recuperação após saída real de processo e contêiner Docker real criado antes do encerramento abrupto.

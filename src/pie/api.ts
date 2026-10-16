@@ -12,6 +12,7 @@ import { pageSchema } from "./graph.js";
 import type { JobQueue } from "./jobs/contracts.js";
 import { BrowserSessions } from "./browserSessions.js";
 import { loadWebAssets, WEB_CSP } from "./webAssets.js";
+import type { VerificationCoordinator } from "./execution/coordinator.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -59,11 +60,17 @@ export async function startPieApi(
     port?: number;
     queue?: JobQueue;
     webDirectory?: string;
+    verifier?: VerificationCoordinator;
   },
 ) {
   z.string().min(32).max(512).parse(options.token);
   await service.store.assertOutside(options.root);
   const authorizedRoot = await realpath(options.root);
+  if (options.verifier && options.verifier.options.root !== authorizedRoot)
+    throw new PieError(
+      "POLICY_DENIED",
+      "Verificador pertence a outra raiz autorizada.",
+    );
   const assets = options.webDirectory
     ? await loadWebAssets(options.webDirectory)
     : null;
@@ -154,6 +161,27 @@ export async function startPieApi(
           limit: Number(url.searchParams.get("limit") ?? 50),
         });
       const segments = url.pathname.split("/").filter(Boolean);
+      if (request.method === "POST" && url.pathname === "/v1/verify") {
+        if (!options.verifier) {
+          respond(response, 403, { error: { code: "VERIFICATION_DISABLED" } });
+          return;
+        }
+        const controller = new AbortController();
+        const cancel = () => {
+          if (!response.writableEnded) controller.abort();
+        };
+        response.once("close", cancel);
+        try {
+          respond(
+            response,
+            201,
+            await options.verifier.run(await body(request), controller.signal),
+          );
+        } finally {
+          response.off("close", cancel);
+        }
+        return;
+      }
       if (
         options.queue &&
         request.method === "POST" &&
@@ -219,7 +247,11 @@ export async function startPieApi(
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/context") {
-        respond(response, 200, { root: authorizedRoot, profile: "OBSERVE" });
+        respond(response, 200, {
+          root: authorizedRoot,
+          profile: "OBSERVE",
+          verificationEnabled: options.verifier !== undefined,
+        });
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/projects") {
@@ -304,7 +336,9 @@ export async function startPieApi(
             ? 403
             : code === "LIMIT_EXCEEDED"
               ? 413
-              : 400,
+              : code === "BUSY"
+                ? 429
+                : 400,
         {
           error: {
             code,
@@ -332,18 +366,23 @@ export async function startPieApi(
   if (!address || typeof address === "string")
     throw new PieError("IO_ERROR", "API sem endereço local.");
   let closing: Promise<void> | undefined;
+  let networkClosed: Promise<void> | undefined;
   return {
     url: `http://127.0.0.1:${address.port}`,
     close: () => {
       closing ??= (async () => {
-        const closed = new Promise<void>((accept, reject) =>
+        networkClosed ??= new Promise<void>((accept, reject) =>
           server.close((error) => (error ? reject(error) : accept())),
         );
+        await options.verifier?.close();
         await service.close();
         sessions?.clear();
         server.closeIdleConnections();
-        await closed;
-      })();
+        await networkClosed;
+      })().catch((cause) => {
+        closing = undefined;
+        throw cause;
+      });
       return closing;
     },
   };

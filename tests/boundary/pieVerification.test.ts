@@ -76,6 +76,19 @@ it("fluxo indisponível retorna prova blocked, preserva projeto e remove recurso
       },
     });
     expect(verifyRunEvidence(run)).toEqual(run);
+    expect(run.schemaVersion).toBe(2);
+    if (run.schemaVersion === 2) {
+      expect(run.authorization).toEqual(grant);
+      expect(() =>
+        verifyRunEvidence({
+          ...run,
+          authorization: {
+            ...run.authorization,
+            testFiles: ["other.test.mjs"],
+          },
+        }),
+      ).toThrow();
+    }
     expect(() => verifyRunEvidence({ ...run, image: "different" })).toThrow();
     expect(() =>
       verifyRunEvidence({ ...run, authorizationDigest: "0".repeat(64) }),

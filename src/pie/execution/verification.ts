@@ -1,4 +1,8 @@
-import { verificationRunSchema, type VerificationRun } from "./runContracts.js";
+import {
+  verificationRunSchema,
+  type VerificationRun,
+  type VerificationPayload,
+} from "./runContracts.js";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -171,8 +175,10 @@ export class NodeVerification {
         },
       };
     }
-    const payload: Omit<VerificationRun, "evidence"> = {
-      schemaVersion: 1,
+    const payload: Extract<VerificationPayload, { schemaVersion: 2 }> = {
+      schemaVersion: 2,
+      authorization: grant,
+      authorizedRoot: observed.root,
       id,
       projectId: observed.projectId,
       snapshotId: observed.id,
