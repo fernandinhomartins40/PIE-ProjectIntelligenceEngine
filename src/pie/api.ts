@@ -180,6 +180,10 @@ export async function startPieApi(
         respond(response, 200, await service.compare(await body(request)));
         return;
       }
+      if (request.method === "POST" && url.pathname === "/v1/trace") {
+        respond(response, 200, await service.trace(await body(request)));
+        return;
+      }
       if (
         request.method === "GET" &&
         segments.length === 3 &&

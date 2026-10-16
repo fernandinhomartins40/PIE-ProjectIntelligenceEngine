@@ -1,5 +1,15 @@
 # PIE — Continuidade
 
+## Estado prioritário — quinta entrega
+
+CI da quarta entrega passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38964648240 (0a7e01d0dd9eb3990c7cbabb4436f00cb8399d18). Banco real e adaptadores naquele commit validados no Linux. Não confundir com CI do próximo commit.
+
+knowledgeGraph.ts combina arquivos/imports e declarações persistidas; adiciona declared_in, field_of e depends Compose somente com alvos únicos no mesmo arquivo. Trace compartilhado por PieService.trace, CLI trace, POST /v1/trace e MCP pie_graph_trace. Limites maxDepth/maxNodes/maxEdges, direção e paginação, coverage.scope recorded-relationships, discoveryStatus e runtime false. Não inventa execução nem cadeia UI→DB. Não relê fontes. Duplicatas de fatos idênticos na mesma linha consolidadas pelo coletor com limitação explícita.
+
+Antes de publicar: última rodada ampliada tinha 51 aprovados+1 skipped, typecheck passou. Após ela foram fechados enums e ampliado teste PostgreSQL para trace; compilar/revalidar consumidores pertinentes e inspecionar próxima CI. T2.4 segue parcial; próximos eixos são relações de rotas/serviços e consulta escalável no backend, painel/execução/motores do plano. Goal ativo, main, commits/push autorizados, sem novas branches.
+
+Fechamento local: compilação/typecheck integral passaram após ajustes finais; revalidação focada 6 aprovados+1 skipped; fronteiras em 2.022 fontes passaram. Lint do novo grafo/coletor/testes sem avisos/erros. Nenhuma dependência nova. Pronto para commit/push na main e acompanhamento do teste PostgreSQL ampliado na CI. Próximo turno deve conferir o status remoto atual, então avançar a investigação integrada/experiência e os módulos restantes do plano.
+
 ## Estado atual prioritário — quarta entrega
 
 CI da terceira entrega passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38963487480, head d78d53ae255354d3983ec7964c7a0917d989130a. Migrações e teste dedicado de PostgreSQL real executados no Linux; não repetir como bloqueio global. Docker local ainda não está funcional. Sete gaps de notices continuam abertos para redistribuição.

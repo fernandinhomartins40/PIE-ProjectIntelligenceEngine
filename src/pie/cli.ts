@@ -21,6 +21,10 @@ export async function runPie(args: string[]): Promise<void> {
       format: { type: "string" },
       port: { type: "string" },
       key: { type: "string" },
+      direction: { type: "string" },
+      depth: { type: "string" },
+      "max-nodes": { type: "string" },
+      "max-edges": { type: "string" },
     },
   });
   const [command, target] = parsed.positionals;
@@ -53,6 +57,7 @@ export async function runPie(args: string[]): Promise<void> {
             "persistent-discovery-queue",
             "postgresql-prisma-adapter",
             "declarative-stack-inventory",
+            "recorded-graph-trace",
           ],
           unavailable: ["audit-engines", "target-execution", "dashboard"],
           upstreamProviders: "não verificados",
@@ -72,6 +77,7 @@ export async function runPie(args: string[]): Promise<void> {
       "history",
       "graph",
       "declarations",
+      "trace",
       "evidence",
       "export",
       "mcp",
@@ -162,6 +168,17 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "declarations":
         result = await service.declarations(target!, paging);
+        break;
+      case "trace":
+        result = await service.trace({
+          snapshotId: target,
+          nodeId: parsed.positionals[2],
+          direction: parsed.values.direction ?? "dependencies",
+          maxDepth: Number(parsed.values.depth ?? 4),
+          maxNodes: Number(parsed.values["max-nodes"] ?? 200),
+          maxEdges: Number(parsed.values["max-edges"] ?? 1000),
+          ...paging,
+        });
         break;
       case "compare":
         result = await service.compare({

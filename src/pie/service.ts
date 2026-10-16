@@ -6,6 +6,7 @@ import { discoverProject, projectName } from "./discovery.js";
 import { page } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
 import { compareSnapshots, comparisonInput } from "./compare.js";
+import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
@@ -131,6 +132,16 @@ export class PieService {
         declarations: page(snapshot.declarations, input),
         coverage: snapshot.coverage,
       };
+    });
+  }
+
+  trace(input: unknown) {
+    return this.#read(async () => {
+      const parsed = traceInput.parse(input);
+      return traceSnapshot(
+        await this.store.snapshot(parsed.snapshotId),
+        parsed,
+      );
     });
   }
 

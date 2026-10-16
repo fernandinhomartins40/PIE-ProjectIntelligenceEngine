@@ -104,3 +104,15 @@ As novas dependências têm arquivos originais de licença coletados de tarballs
 Cada fato é estático e unverified, com hash do arquivo, linha, evidência e identidade derivada da declaração. O limite usa o orçamento maxGraphEdges; ausência por falha/limite não equivale a inexistência. coverage.status continua restrito ao inventário de arquivos Git; limitações dos adaptadores devem ser lidas separadamente. Esta matriz não promete suporte universal às stacks.
 
 PostgreSQL real da entrega anterior foi verificado na [CI 38963487480](https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38963487480); Docker local continua com erro 500. Não extrapolar esse teste para a certificação de todo o produto.
+
+## Trace de relações registradas
+
+```powershell
+node scripts/pie.mjs trace UUID_DO_SNAPSHOT ID_DO_NO --direction dependencies --depth 4 --max-nodes 200 --max-edges 1000 --limit 50 --db C:/dados-pie/pie.sqlite
+```
+
+IDs de arquivos vêm de graph; IDs de declarações vêm de declarations. A mesma operação está em POST /v1/trace e MCP pie_graph_trace. Entrada: snapshotId, nodeId, direction (dependencies/dependents/both), maxDepth (0–32), maxNodes (1–1000), maxEdges (1–5000), offset e limit. Paginação de nós/arestas é independente da truncagem da busca; consultar páginas posteriores não amplia o orçamento.
+
+O grafo de investigação combina imports já registrados com relações derivadas das declarações: declared_in liga declaração ao arquivo; field_of liga campo Prisma ao model do mesmo arquivo; depends liga serviços Compose quando origem e destino são únicos no mesmo arquivo. Destinos ausentes/ambíguos não são inventados. unresolvedRelations informa lacunas declarativas no snapshot inteiro. Ciclos são visitados uma vez por nó e limites permanecem explícitos em coverage.truncated.
+
+coverage.scope é recorded-relationships; discoveryStatus mantém a cobertura de arquivos do snapshot original, separada da truncagem da busca. Todas as evidências e limitações de origem permanecem acessíveis. Trace estático não comprova execução, teste, autorização, entitlement ou persistência de dados. Esse grafo derivado não substitui o grafo completo página→API→serviço→banco do plano. Ele é calculado a partir do snapshot persistido, sem reler código; carregamento paginado diretamente do backend ainda é pendente.

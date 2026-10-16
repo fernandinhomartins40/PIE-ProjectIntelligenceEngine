@@ -35,6 +35,28 @@ async function verifyDeclarations(
     db,
   ]);
   expect(JSON.parse(cli.stdout)).toEqual(declared.structuredContent);
+  const value = declared.structuredContent as {
+    declarations: { items: Array<{ id: string }> };
+  };
+  const nodeId = value.declarations.items[0]!.id;
+  const trace = await client.callTool({
+    name: "pie_graph_trace",
+    arguments: { snapshotId, nodeId },
+  });
+  expect(trace.isError).not.toBe(true);
+  expect(trace.structuredContent).toMatchObject({
+    coverage: { runtime: false },
+    nodes: { total: 2 },
+  });
+  const cliTrace = await exec(process.execPath, [
+    script,
+    "trace",
+    snapshotId,
+    nodeId,
+    "--db",
+    db,
+  ]);
+  expect(JSON.parse(cliTrace.stdout)).toEqual(trace.structuredContent);
 }
 
 async function verifyQueueCli(script: string, repo: string, db: string) {

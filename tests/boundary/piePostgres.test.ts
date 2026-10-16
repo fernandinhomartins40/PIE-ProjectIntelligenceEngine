@@ -24,6 +24,10 @@ it.skipIf(!url)(
     await mkdir(repo);
     await promisify(execFile)("git", ["init", repo]);
     await writeFile(join(repo, "index.ts"), "export const fixture = true;");
+    await writeFile(
+      join(repo, "schema.prisma"),
+      "model Order {\n  id String @id\n}\n",
+    );
     await promisify(execFile)("git", ["-C", repo, "add", "."]);
     const store = new PostgresPieStore(url!);
     const peer = new PostgresPieStore(url!);
@@ -39,7 +43,16 @@ it.skipIf(!url)(
         repositoryRoot: repo,
       });
       const snapshot = await store.snapshot(run.snapshot.id);
-      expect(snapshot.nodes).toHaveLength(1);
+      expect(snapshot.nodes).toHaveLength(2);
+      const model = snapshot.declarations.find(
+        (fact) => fact.kind === "model",
+      )!;
+      const trace = await new PieService(peer).trace({
+        snapshotId: snapshot.id,
+        nodeId: model.id,
+      });
+      expect(trace.nodes.total).toBe(2);
+      expect(trace.coverage.runtime).toBe(false);
       expect((await store.evidence(snapshot.evidence[0]!.id)).state).toBe(
         "unverified",
       );
@@ -64,7 +77,7 @@ it.skipIf(!url)(
         "SELECT count(*)::int AS total FROM pie_graph_nodes WHERE snapshot_id=$1",
         [snapshot.id],
       );
-      expect(graph.rows[0].total).toBe(1);
+      expect(graph.rows[0].total).toBe(2);
       const orphan = { ...snapshot, id: randomUUID(), projectId: randomUUID() };
       await expect(peer.saveSnapshot(orphan)).rejects.toThrow();
       expect((await store.history(run.project.id)).total).toBe(1);

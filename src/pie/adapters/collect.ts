@@ -13,6 +13,8 @@ export function collectDeclarations(
 ) {
   const evidence: Evidence[] = [];
   const declarations: AdapterFact[] = [];
+  const identities = new Set<string>();
+  let repeated = 0;
   try {
     const parsed = readDeclarations(file.source.path, source, limit);
     if (!parsed) return { evidence, declarations, limitations: [] };
@@ -33,9 +35,15 @@ export function collectDeclarations(
         parent: declaration.parent,
         source: proof.source,
       };
+      const id = declarationIdentity(value);
+      if (identities.has(id)) {
+        repeated++;
+        continue;
+      }
+      identities.add(id);
       declarations.push({
         ...value,
-        id: declarationIdentity(value),
+        id,
         evidenceId: proof.id,
         method: "static",
         state: "unverified",
@@ -45,9 +53,14 @@ export function collectDeclarations(
     return {
       evidence,
       declarations,
-      limitations: parsed.limitations.map(
-        (value) => `${file.source.path}: ${value}`,
-      ),
+      limitations: [
+        ...parsed.limitations.map((value) => `${file.source.path}: ${value}`),
+        ...(repeated
+          ? [
+              `${file.source.path}: ${repeated} declarações idênticas na mesma linha foram consolidadas; ocorrências não distinguíveis por coluna.`,
+            ]
+          : []),
+      ],
     };
   } catch {
     return {

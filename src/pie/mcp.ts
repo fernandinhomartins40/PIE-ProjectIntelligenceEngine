@@ -6,6 +6,7 @@ import { pageSchema } from "./graph.js";
 import type { PieService } from "./service.js";
 import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
+import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import {
   discoveryOutput,
   graphOutput,
@@ -70,6 +71,17 @@ export function createPieMcp(
     },
     ({ snapshotId, ...paging }) =>
       guarded(() => service.declarations(snapshotId, paging)),
+  );
+  server.registerTool(
+    "pie_graph_trace",
+    {
+      description:
+        "Rastreia um nó de arquivo ou declaração pelo grafo observado: imports, origem, dependências Compose e campos Prisma. Direção, profundidade, orçamento de nós e paginação explícitos; não verifica runtime.",
+      inputSchema: traceInput,
+      outputSchema: withError(traceOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.trace(input)),
   );
   server.registerTool(
     "pie_change_impact",

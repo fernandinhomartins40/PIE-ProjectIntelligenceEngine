@@ -48,9 +48,25 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
     const graph = await fetch(`${api.url}/v1/graph/${result.snapshot.id}`, {
       headers,
     });
-    expect(await graph.json()).toMatchObject({
+    const graphData = (await graph.json()) as {
+      nodes: { items: Array<{ id: string }> };
+    };
+    expect(graphData).toMatchObject({
       nodes: { total: 1 },
       coverage: { runtime: false },
+    });
+    const trace = await fetch(`${api.url}/v1/trace`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        snapshotId: result.snapshot.id,
+        nodeId: graphData.nodes.items[0]!.id,
+      }),
+    });
+    expect(trace.status).toBe(200);
+    expect(await trace.json()).toMatchObject({
+      coverage: { runtime: false },
+      nodes: { total: 1 },
     });
     const declarations = await fetch(
       `${api.url}/v1/declarations/${result.snapshot.id}`,
