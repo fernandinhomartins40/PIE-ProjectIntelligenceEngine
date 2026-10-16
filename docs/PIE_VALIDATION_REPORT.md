@@ -1,5 +1,15 @@
 # PIE — Registro de validação contínua
 
+## Recuperação de recursos e claim — 16/10/2026
+
+CI 38981881975 de 71bba20a7b161eb4068de74a02fd957abae6626c terminou com sucesso, incluindo journal reaberto após saída real de processo e eventos integrados ao Docker. Novas regras de recuperação ainda dependem da CI desta entrega.
+
+Journal agora mantém claim de recuperação por identidade de processo/máquina/boot e token único em transação SQLite. Não toma recurso de dono vivo/unverified, não substitui recuperador vivo e compara novamente o registro após observações assíncronas. Eventos normais exigem dono original; eventos de recuperação exigem claim atual. Raiz tem token privado em .pie-owner além de dev/inode, UID, modo, caminho canônico e pai privado; registro antigo sem token permanece unverified quando a raiz existe. Isso evita autorizar remoção somente por PID, nome ou inode reutilizado.
+
+ResourceRecovery só limpa: revalida cliente/daemon escolhido, claim, raiz e contêiner por ID/nome/label; remove contêiner antes da raiz, registra conclusão e preserva recursos se identidade/cleanup incertos. Creating sem contêiner visível permanece blocked por handshake tardio possível. Conclusão repetida não remove diretório novo que reutilize o caminho antigo. Não retoma testes nem gera resultado passed para auditoria interrompida.
+
+Validação local Windows: cinco aprovados + cinco skipped em três arquivos (1,59s); testes Linux de claim concorrente, raiz substituída/marca alterada, cleanup tardio/retry e Docker real explicitamente não executados aqui. Build e typecheck passaram; lint focado sem avisos/erros após separar inspeção de identidade do fluxo de remoção. CI ampliada cria contêiner real por processo que sai abruptamente após created e tenta recuperar contêiner/raiz. Mocks de respostas Docker existem somente em regressão de transporte no teste; não comprovam o provider real. Nenhuma ferramenta pública de recovery nem retomada de auditoria foi anunciada. Claims não expiram por relógio: substituição exige prova de saída do processo, podendo bloquear se ele estiver travado ou não verificável.
+
 ## Journal de recursos VERIFY — 16/10/2026
 
 CI 38981437126 do commit a90af71c5c17279b6c5cf464c07913c79e3dd3e2 terminou com sucesso: migrations, PostgreSQL real, replay/imutabilidade e execução Docker aprovada persistida nos dois adaptadores. Não confundir essa aprovação com o novo journal.

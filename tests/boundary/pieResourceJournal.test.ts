@@ -1,10 +1,8 @@
-import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { chmod, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, rm, writeFile, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { promisify } from "node:util";
+import { orphanFixture } from "./pieOrphanFixture.js";
 import { expect, it } from "vitest";
 import { VerificationJournal } from "../../src/pie/execution/resourceJournal.js";
 
@@ -25,6 +23,7 @@ it.skipIf(process.platform !== "linux")(
         executable: "/usr/bin/docker",
       });
       expect(await journal.ownerStatus(runId)).toBe("present");
+      await expect(journal.claimRecovery(runId)).rejects.toThrow("vivo");
       journal.event(runId, { phase: "creating", containerId: null });
       const id = "1".repeat(64);
       journal.event(runId, { phase: "created", containerId: id });
@@ -67,30 +66,8 @@ it.skipIf(process.platform !== "linux")(
   "processo real deixa journal durável e sua saída é reconhecida sem depender só do PID",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "pie-journal-exit-"));
-    const script = join(root, "child.mjs");
-    const moduleUrl = pathToFileURL(
-      resolve("dist/pie/execution/resourceJournal.js"),
-    ).href;
-    await writeFile(
-      script,
-      `import {VerificationJournal} from ${JSON.stringify(moduleUrl)};
-import {mkdir} from 'node:fs/promises';
-import {join} from 'node:path';
-import {randomUUID} from 'node:crypto';
-const root=process.argv[2]; const workspace=join(root,'orphan'); await mkdir(workspace,{mode:0o700});
-const journal=await VerificationJournal.open(join(root,'journal.sqlite'));
-const record=await journal.register({runId:randomUUID(),root:workspace,endpoint:'unix:///var/run/docker.sock',executable:'/usr/bin/docker'});
-journal.event(record.runId,{phase:'creating',containerId:null});
-process.stdout.write(JSON.stringify(record),()=>process.exit(0));
-`,
-    );
     try {
-      const output = await promisify(execFile)(
-        process.execPath,
-        [script, root],
-        { timeout: 10_000, maxBuffer: 100_000 },
-      );
-      const { runId } = JSON.parse(output.stdout) as { runId: string };
+      const { runId } = await orphanFixture(root);
       const journal = await VerificationJournal.open(
         join(root, "journal.sqlite"),
       );
@@ -102,6 +79,58 @@ process.stdout.write(JSON.stringify(record),()=>process.exit(0));
         });
         // Owner exit does not prove that a delayed daemon-side create was absent.
         expect(journal.list()).toHaveLength(1);
+        const peer = await VerificationJournal.open(
+          join(root, "journal.sqlite"),
+        );
+        try {
+          const attempts = await Promise.allSettled([
+            journal.claimRecovery(runId),
+            peer.claimRecovery(runId),
+          ]);
+          expect(
+            attempts.filter((result) => result.status === "fulfilled"),
+          ).toHaveLength(1);
+          const claimed = attempts.find(
+            (result) => result.status === "fulfilled",
+          );
+          if (!claimed || claimed.status !== "fulfilled")
+            throw new Error("Missing recovery claim");
+          const claim = claimed.value;
+          expect(await journal.rootStatus(runId, claim.token)).toBe("owned");
+          const record = journal.get(runId);
+          expect(() => journal.assertClaim(runId, randomUUID())).toThrow();
+          expect(() =>
+            journal.event(runId, { phase: "removed", containerId: null }),
+          ).toThrow();
+          await writeFile(join(record.root, ".pie-owner"), "foreign");
+          expect(await journal.rootStatus(runId, claim.token)).toBe(
+            "unverified",
+          );
+          await writeFile(join(record.root, ".pie-owner"), record.rootToken!);
+          const moved = join(root, "retained-original");
+          await rename(record.root, moved);
+          await mkdir(record.root, { mode: 0o700 });
+          expect(await journal.rootStatus(runId, claim.token)).toBe(
+            "unverified",
+          );
+          await rm(record.root, { recursive: true });
+          await rename(moved, record.root);
+          expect(await journal.rootStatus(runId, claim.token)).toBe("owned");
+          journal.event(
+            runId,
+            { phase: "removed", containerId: null },
+            claim.token,
+          );
+          await rm(record.root, { recursive: true });
+          expect(await journal.rootStatus(runId, claim.token)).toBe("absent");
+          await chmod(root, 0o755);
+          expect(await journal.rootStatus(runId, claim.token)).toBe(
+            "unverified",
+          );
+          await chmod(root, 0o700);
+        } finally {
+          peer.close();
+        }
       } finally {
         journal.close();
       }

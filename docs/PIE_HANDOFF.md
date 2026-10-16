@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — recuperação com ownership
+
+CI 71bba20a7 passou: run 38981881975. Journal Linux ganhou claim transacional/fencing por token + identidade completa de processo/máquina/boot, eventos autenticados pelo dono original ou claim atual e token privado da raiz (.pie-owner). Novos campos default null preservam leitura de registros antigos, mas rootToken ausente impede afirmar ownership de raiz existente. Não inventar marca depois do crash. resourceRecovery.ts remove somente recursos comprovados, contêiner antes da raiz; creating sem ID visível permanece unknown/blocked, falha mantém claim e permite retry no mesmo dono. rootRemovedAt torna conclusão idempotente sem remover futuro diretório no mesmo caminho.
+
+Local Windows validou bloqueio e lifecycle anterior; positivos Linux/recovery estão skipped aqui. CI ampliada: claim concorrente, token inválido, diretório substituído/marca alterada, processo real encerrado, cleanup retry (transporte simulado só em teste) e contêiner Docker real deixado por processo que termina no handshake created, antes de executar teste. Aguardar nova CI e corrigir falhas reais. Próximo: ligar journal obrigatório ao serviço/CLI de execução e recovery, finalizar registro de raiz removida no fluxo vivo, ligar persistência de resultado antes de liberação e jobs VERIFY. Recovery não retoma auditoria nem transforma interrupção em passed. Windows/macOS e recuperação de clientes Docker órfãos após crash ainda não comprovados; não anunciar suporte integral.
+
 ## Estado prioritário — journal local de recursos
 
 CI a90af71c5 passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38981437126, com resultado Docker real persisted SQLite/Postgres e testes de imutabilidade. Novo VerificationJournal em execution/resourceJournal.ts, Linux-only, SQLite privado síncrono FULL, identidade de raiz dev/inode e processo start identity upstream, machine hash/boot. Registra prepared/creating/created/removed; eventos aguardados por DockerExecution antes do create e após identidade/cleanup. NodeVerification aceita options.journal, sem habilitar execução pública. Falha creating impede side effect do create; journal é dono da interpretação do registro.

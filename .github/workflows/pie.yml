@@ -50,7 +50,7 @@ jobs:
         run: |
           docker pull node:24.18.0-bookworm-slim
           export PIE_TEST_DOCKER_IMAGE="$(docker image inspect node:24.18.0-bookworm-slim --format '{{index .RepoDigests 0}}')"
-          node node_modules/vitest/vitest.mjs run tests/boundary/pieDockerReal.test.ts tests/boundary/pieVerification.test.ts
+          node node_modules/vitest/vitest.mjs run tests/boundary/pieDockerReal.test.ts tests/boundary/pieVerification.test.ts tests/boundary/pieResourceRecovery.test.ts
       - name: Verify installed browser and panel
         run: |
           test -x /usr/bin/google-chrome
