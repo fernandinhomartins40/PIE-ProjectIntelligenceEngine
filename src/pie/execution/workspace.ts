@@ -128,7 +128,8 @@ export async function prepareWorkspace(
       bytes += content.length;
       const destination = join(directory, node.path);
       await mkdir(dirname(destination), { recursive: true });
-      await writeFile(destination, content, { flag: "wx", mode: 0o400 });
+      // Private root remains owner-only; copied files must be readable by the sandbox UID.
+      await writeFile(destination, content, { flag: "wx", mode: 0o444 });
     }
     checkpoint();
     const retained = owner;

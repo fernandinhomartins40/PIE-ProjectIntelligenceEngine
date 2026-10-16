@@ -38,6 +38,13 @@ jobs:
       - run: npm run typecheck
       - run: node scripts/generate-third-party-inventory.mjs --check
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieNodeResults.test.ts
+      - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieDockerPlan.test.ts
+      - name: Verify Docker sandbox with real Node fixture
+        shell: bash
+        run: |
+          docker pull node:24.18.0-bookworm-slim
+          export PIE_TEST_DOCKER_IMAGE="$(docker image inspect node:24.18.0-bookworm-slim --format '{{index .RepoDigests 0}}')"
+          node node_modules/vitest/vitest.mjs run tests/boundary/pieDockerReal.test.ts
       - name: Verify installed browser and panel
         run: |
           test -x /usr/bin/google-chrome

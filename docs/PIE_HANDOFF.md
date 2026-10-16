@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — plano e validação Docker
+
+CI 935514f26 passou: run 38979741234. dockerPlan.ts gera comando fixo create e valida inspect antes de iniciar. Ownership por nome/token/ID é separado da validade. Limites, rede none, mounts readonly/nonrecursive, rootfs, UID, caps, env, comando, imagem e estado created conferidos. Testes de fixtures: pieDockerPlan, cinco aprovados somando NodeResults; DockerReal skipped localmente sem imagem explícita. CI passa a fazer pull somente para fixture Node 24.18.0-bookworm-slim, resolve digest, cria/inspeciona e executa teste real, cleanup por ID comprovado. Aguardar nova CI para corrigir eventual deriva do contrato real Docker; não tratar schema fixture como validação de provider.
+
+Próxima etapa: supervisor real da aplicação com runOwnedCommand, imagem/daemon local selecionados, ownership recuperável após create tardio, cancelamento/deadline/cleanup retry e retenção da cópia até confirmar remoção do contêiner. Não há runner pronto exposto. Cópia agora usa arquivos 0444 dentro da raiz privada para UID sem privilégios. Persistência de auditoria/resultados e integração CLI/MCP/API/UI continuam pendentes; escopo integral preservado.
+
 ## Estado prioritário — resultados Node
 
 CI a00018b9d passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38968901325. Caminho Linux da preparação privada validado, incluindo cleanup retry. Reporter próprio nodeReporter.ts usa eventos TestsStream, sem interpretar texto humanizado. nodeResults.ts possui protocolo JSONL estrito e normalização dos cinco estados; testes reais Node em pieNodeResults.test.ts. Não há executor Docker, persistência de runs, endpoints de execução nem fallback host. Arquivo vazio gera pass sintético no Node; resultado tratado como inconclusivo quando todos os casos têm identidade indistinguível de wrapper de arquivo. Não inferir testes registrados somente por saída zero.

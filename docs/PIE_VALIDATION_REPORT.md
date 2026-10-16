@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Configuração verificável do sandbox Docker — 16/10/2026
+
+CI 38979741234 de 935514f26218e257eac86afc62b5cc82ac8cf04d passou, incluindo normalização Node real. dockerPlan.ts agora produz criação sem pull automático, Node sem shell, imagem digest, UID/GID 65534, rede none, rootfs e cópia somente leitura, mounts sem submounts recursivos, capabilities removidas, no-new-privileges, memória/swap/CPU/PIDs e tmpfs limitado. Não monta projeto original nem socket. Parser de inspect separa identidade (nome/token/ID) de validade, recusa configuração divergente e ambiente inesperado antes do start. Mesmo um contêiner owned pode ser inválido e ainda removível pelo dono.
+
+Validação local: cinco testes aprovados + um teste Docker real skipped por ausência de PIE_TEST_DOCKER_IMAGE; lint focado sem avisos/erros, typecheck integral passou. Dados inspect nos testes de recusa são fixtures sintéticas e não comprovam enforcement real. CI adicionada para obter imagem Node explicitamente apenas na infraestrutura de testes, resolver digest, criar/inspecionar/iniciar fixture real e verificar UID, rootfs, rede, mounts e resultado Node. A aplicação não faz pull. Aguardar resultado dessa nova CI; ainda não há supervisor de contêiner, cancelamento com cleanup recuperável, persistência de runs ou integração de execução pública. Arquivos da cópia passam a 0444 dentro da raiz privada para leitura pelo UID do sandbox; raiz privada segue owner-only.
+
 ## Normalização de testes Node — 16/10/2026
 
 CI 38968901325 do commit a00018b9d3ace774f6c78554ff01e39a8f7b7dd3 passou no Linux, incluindo admissão VERIFY, cópia privada por hash, links, limites e retenção/retry de limpeza. Isso não comprova execução em contêiner.
