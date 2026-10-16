@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Normalização de testes Node — 16/10/2026
+
+CI 38968901325 do commit a00018b9d3ace774f6c78554ff01e39a8f7b7dd3 passou no Linux, incluindo admissão VERIFY, cópia privada por hash, links, limites e retenção/retry de limpeza. Isso não comprova execução em contêiner.
+
+Reporter próprio consome eventos públicos Node TestsStream e emite protocolo JSONL v1; parser estrito limita bytes/registros, recusa UTF-8 inválido, truncamento, múltiplos resumos, contagens incompatíveis e resumo sem casos correspondentes. Normalizador preserva casos parciais e separa passed/failed/skipped/blocked/inconclusive. Não aprova mistura com skip/TODO, cancelamento, processo incompleto, saída desconhecida ou apenas carregamento de arquivo sem testes distinguíveis.
+
+Três testes de fronteira passaram com processos Node 24.18.0 reais (1,93s testes; 2,85s total), cobrindo suite/pass, falha deliberada, skip inclusive razão vazia, TODO, mistura, arquivo vazio e erro no carregamento; mutações de protocolo/capture testam dados malformados e incompletos. Execução direta no host somente dessas fixtures sintéticas de teste; aplicação não ganhou fallback de execução host. Reporter e normalizador ainda internos, sem persistência de resultados ou exposição CLI/MCP/API. Não constituem runner isolado completo. Referência de protocolo: https://nodejs.org/docs/latest-v24.x/api/test.html#class-testsstream ; saída de reporters humanizados não interpretada.
+
 ## Preparação de execução VERIFY — 16/10/2026
 
 CI 38968024969 de 94e08801471e5393cfa4e3e7bc55108d23d46654 terminou com sucesso, incluindo PostgreSQL e Chrome Linux para paginação e relações. Base interna de execução adicionada sem anunciar runner pronto: admissão estrita por raiz/snapshot/conteúdo, autorização explícita/expiração, imagem por digest e limites; preparação de cópia privada dos arquivos observados verifica cada hash e mantém dono em falha de limpeza.

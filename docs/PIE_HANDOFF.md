@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — resultados Node
+
+CI a00018b9d passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38968901325. Caminho Linux da preparação privada validado, incluindo cleanup retry. Reporter próprio nodeReporter.ts usa eventos TestsStream, sem interpretar texto humanizado. nodeResults.ts possui protocolo JSONL estrito e normalização dos cinco estados; testes reais Node em pieNodeResults.test.ts. Não há executor Docker, persistência de runs, endpoints de execução nem fallback host. Arquivo vazio gera pass sintético no Node; resultado tratado como inconclusivo quando todos os casos têm identidade indistinguível de wrapper de arquivo. Não inferir testes registrados somente por saída zero.
+
+Próximo trabalho central: provider Docker com ownership de contêiner/cliente separados, sem pull automático, limites e rede none, verificação da configuração real antes de iniciar, deadline/cancelamento/finalização e retenção de cleanup. Integrar resultados e evidências persistidas e depois CLI/MCP/API/UI. Goal integral segue ativo; todos os motores continuam pendentes.
+
 ## Estado prioritário — base de execução VERIFY
 
 CI 38968024969 do commit 94e08801471e5393cfa4e3e7bc55108d23d46654 passou (PostgreSQL e painel paginado/trace Chrome Linux). Novos módulos internos src/pie/execution: grant Node VERIFY estrito (execução explícita, ambiente local, raiz/snapshot/treeDigest, imagem por digest, validade, testes e limites); admission usa Result e erros tagueados upstream; workspace usa PrivateRuntimeRoot e cópia de arquivos observados, por hashes, limites e cancelamento, sem executar alvo.
