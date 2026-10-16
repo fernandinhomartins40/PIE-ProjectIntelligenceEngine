@@ -128,6 +128,17 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
       expect(ajv.validateSchema(tool.inputSchema)).toBe(true);
       expect(ajv.validateSchema(tool.outputSchema as AnySchema)).toBe(true);
     }
+    const runs = await client.callTool({
+      name: "pie_verifications_list",
+      arguments: { snapshotId: discovered.snapshot.id },
+    });
+    expect(runs.structuredContent).toMatchObject({ total: 0, items: [] });
+    const runSchema = tools.tools.find(
+      (tool) => tool.name === "pie_verifications_list",
+    )!;
+    expect(
+      ajv.compile(runSchema.outputSchema as AnySchema)(runs.structuredContent),
+    ).toBe(true);
     const graph = await client.callTool({
       name: "pie_graph_query",
       arguments: { snapshotId: discovered.snapshot.id, limit: 1 },

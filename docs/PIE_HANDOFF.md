@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — persistência de runs e leitores
+
+CI e8b041065 passou: run 38980754712, fluxo Git/cópia/Docker/evidência real. Nova migração 202610160003_verification_runs e model Prisma VerificationRun; gerar client antes de build/check. runContracts/runIntegrity são donos dos contratos/validação; adaptadores não importam NodeVerification. SQLite/Postgres gravam run+evidência em transação; validação de integridade e contexto compartilhada, triggers imutáveis, histórico paginado. CLI verification/verifications, MCP pie_verification_get/list e API GET /v1/verification/:id e /v1/verifications/:snapshotId disponíveis apenas para leitura. Nome MCP correto da lista: pie_verifications_list.
+
+Teste real SQLite cobre replay, conflito, colisão de evidence ID com prova válida/rollback, bloqueio SQL update/delete, reabertura e consumidores CLI/API/MCP. CI adiciona pieRunPersistence com Postgres real e amplia fluxo Docker para salvar passed nos dois bancos. Aguardar CI do próximo commit; local não tem PostgreSQL/Docker positivo. Execução ainda interna: faltam journal/recovery de ownership, job de verificação, endpoint/CLI de grant, acompanhamento na UI e demais runners. Nunca liberar workspace enquanto contêiner pendente, nem repetir verificação após crash como se fosse retry seguro sem journal. Goal integral permanece ativo, main, sem branches.
+
 ## Estado prioritário — composição VERIFY
 
 CI 9d3112418 passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38980404425, incluindo supervisor Docker real pass/fail/cancel. NodeVerification agora integra admissão+workspace+reporter/config privados+DockerExecution, retendo workspace até cleanup do contêiner confirmado. close cancela e aguarda atividade; retry conserva ownership. Deadline global inclui preparação. runEvidence cobre hash do registro inteiro (resultado, imagem, autorização, IDs, timestamps e cleanup), além de sealEvidence. Não há resultado persistido ainda. Testes locais nove aprovados+três skipped; CI do próximo push terá fluxo integrado real em pieVerification.test.ts.

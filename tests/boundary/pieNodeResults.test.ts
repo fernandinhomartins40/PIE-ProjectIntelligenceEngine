@@ -7,6 +7,7 @@ import { expect, it } from "vitest";
 import { NODE_REPORTER_SOURCE } from "../../src/pie/execution/nodeReporter.js";
 import {
   normalizeNodeResult,
+  nodeResultSchema,
   parseNodeReport,
 } from "../../src/pie/execution/nodeResults.js";
 
@@ -105,6 +106,23 @@ it("mantém resultados parciais sem transformar truncamento ou saída zero em ap
     "inconclusive",
   );
   const lines = output.stdout.toString("utf8").trimEnd().split("\n");
+  const contradictoryCase = { ...JSON.parse(lines[0]!), outcome: "failed" };
+  expect(
+    parseNodeReport(
+      Buffer.from(`${JSON.stringify(contradictoryCase)}\n${lines.at(-1)}\n`),
+      limits,
+    ).ok,
+  ).toBe(false);
+  const passed = normalizeNodeResult(output.stdout, completed, limits);
+  expect(
+    nodeResultSchema.safeParse({
+      ...passed,
+      coverage: { ...passed.coverage, reportComplete: false },
+    }).success,
+  ).toBe(false);
+  expect(nodeResultSchema.safeParse({ ...passed, cases: [] }).success).toBe(
+    false,
+  );
   const summary = JSON.parse(lines.at(-1)!) as {
     counts: { tests: number; passed: number };
   };

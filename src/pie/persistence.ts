@@ -1,6 +1,10 @@
 import type { z } from "zod";
 import type { Snapshot, Evidence } from "./contracts.js";
 import type { historyOutput, projectsOutput } from "./outputContracts.js";
+import type {
+  VerificationRun,
+  verificationHistorySchema,
+} from "./execution/runContracts.js";
 
 type Awaitable<T> = T | Promise<T>;
 export interface ProjectRecord {
@@ -18,6 +22,12 @@ export interface PiePersistence {
   saveSnapshot(input: unknown): Awaitable<Snapshot>;
   snapshot(id: string): Awaitable<Snapshot>;
   evidence(id: string): Awaitable<Evidence>;
+  saveVerification(input: unknown): Awaitable<VerificationRun>;
+  verification(id: string): Awaitable<VerificationRun>;
+  verifications(
+    snapshotId: string,
+    input?: unknown,
+  ): Awaitable<z.infer<typeof verificationHistorySchema>>;
   history(
     projectId: string,
     input?: unknown,

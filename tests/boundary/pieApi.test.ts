@@ -45,6 +45,13 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
     });
     expect(discovery.status).toBe(201);
     const result = (await discovery.json()) as { snapshot: { id: string } };
+    expect(
+      await (
+        await fetch(`${api.url}/v1/verifications/${result.snapshot.id}`, {
+          headers,
+        })
+      ).json(),
+    ).toMatchObject({ total: 0, items: [] });
     const graph = await fetch(`${api.url}/v1/graph/${result.snapshot.id}`, {
       headers,
     });

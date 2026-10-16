@@ -271,6 +271,12 @@ export async function startPieApi(
       ) {
         const id = z.string().uuid().parse(segments[2]);
         switch (segments[1]) {
+          case "verification":
+            respond(response, 200, await service.verification(id));
+            return;
+          case "verifications":
+            respond(response, 200, await service.verifications(id, paging()));
+            return;
           case "graph":
             respond(response, 200, await service.graph(id, paging()));
             return;

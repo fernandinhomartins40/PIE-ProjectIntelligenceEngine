@@ -1,5 +1,15 @@
 # PIE — Registro de validação contínua
 
+## Persistência e consultas de resultados VERIFY — 16/10/2026
+
+CI 38980754712 de e8b0410654a462d660ceb4d1e3ed3c39818dd76e passou: descoberta Git → cópia privada → Docker real → evidência selada. A persistência desta entrega ainda não estava naquele commit.
+
+Contratos VerificationRun separados do workflow, sem dependência de executor nos adaptadores. SQLite/Postgres recebem gravação transacional do run e da evidência, idempotência por identidade e recusa de substituição histórica. Migração PostgreSQL 202610160003 adiciona tabela, FKs, índice e trigger de imutabilidade; SQLite migra de forma aditiva e passa a proibir também DELETE em snapshots/evidências. Validador compartilhado confere contexto do snapshot/revisão, data, digest do registro completo e equivalência entre evidência relacional e payload. Histórico por snapshot paginado, sem anexar runtime a snapshot estático anterior.
+
+CLI verification/verifications, API GET /v1/verification/:id e /v1/verifications/:snapshotId e MCP pie_verification_get/pie_verifications_list consultam os mesmos serviços, sem iniciar testes. Teste SQLite real comprovou reabertura, recusa de UPDATE/DELETE, idempotência, rollback de colisão com evidência validamente selada e paridade CLI/API/MCP em processos/servidores reais. Schemas convertidos SDK validados com Ajv nos testes MCP. Teste PostgreSQL foi explicitamente skipped localmente, incluído na CI com migrations; fluxo Docker real também foi ampliado para persistir resultado passed nos dois bancos. Não declarar essa ampliação comprovada antes do retorno da nova CI. Escala/custos do novo histórico ainda não medidos; saída é paginada e valida evidência antes de publicar fatos.
+
+Rodada ampliada local: dez aprovados + dois skipped em cinco arquivos (10,49s). Após fechar a consistência dos estados individuais com o resumo e a regra de aprovação completa, rodada focada: cinco aprovados + um skipped em três arquivos (8,97s). Lint dos novos contratos/persistência/testes sem avisos/erros; typecheck e build PIE passaram. Testes extras recusam resumo de passed com caso failed e payload aprovado sem casos ou com cobertura incompleta. Histórico valida metadados indexados e prova relacional pelo mesmo dono nos dois adaptadores. Datas de runs exigem precisão de milissegundos para conservar representação entre SQLite e PostgreSQL.
+
 ## Composição VERIFY e evidência vinculada — 16/10/2026
 
 CI 38980404425 de 9d3112418054671e3c7da44c918f5799cf435323 passou, incluindo supervisor com Docker real (sucesso, falha e cancelamento) e checagem de ausência de contêiner residual. O fluxo novo NodeVerification ainda aguarda a CI do próximo commit.

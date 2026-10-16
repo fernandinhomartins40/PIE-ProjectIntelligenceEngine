@@ -15,6 +15,9 @@ import { expect, it } from "vitest";
 import { discoverProject } from "../../src/pie/discovery.js";
 import { NodeVerification } from "../../src/pie/execution/verification.js";
 import { verifyRunEvidence } from "../../src/pie/execution/runEvidence.js";
+import { openStore } from "../../src/pie/store.js";
+import { PostgresPieStore } from "../../src/pie/postgresStore.js";
+import type { PiePersistence } from "../../src/pie/persistence.js";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "pie-verification-"));
@@ -117,8 +120,30 @@ it.skipIf(!process.env.PIE_TEST_DOCKER_IMAGE || process.platform !== "linux")(
         },
       });
       verifyRunEvidence(run);
+      const stores: PiePersistence[] = [
+        await openStore(join(root, "runs.sqlite"), repo),
+      ];
+      try {
+        const url = process.env.PIE_TEST_DATABASE_URL;
+        if (url) {
+          if (!new URL(url).pathname.endsWith("_test"))
+            throw new Error("Use banco dedicado _test.");
+          const postgres = new PostgresPieStore(url);
+          stores.push(postgres);
+          await postgres.connect();
+        }
+        for (const store of stores) {
+          await store.addProject(snapshot.projectId, snapshot.root, "fixture");
+          await store.saveSnapshot(snapshot);
+          await store.saveVerification(run);
+          expect(await store.verification(run.id)).toEqual(run);
+          expect(await store.evidence(run.evidence.id)).toEqual(run.evidence);
+        }
+      } finally {
+        await Promise.all(stores.map((store) => store.close()));
+      }
       expect(await readFile(join(repo, "fixture.test.mjs"), "utf8")).toBe(code);
-      expect(await readdir(root)).toEqual(["repo"]);
+      expect((await readdir(root)).sort()).toEqual(["repo", "runs.sqlite"]);
     } finally {
       await owner.close();
       await rm(root, { recursive: true, force: true });

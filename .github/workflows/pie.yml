@@ -35,11 +35,16 @@ jobs:
       - run: npm run pie:db:migrate
         env:
           PIE_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
+      - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieRunPersistence.test.ts
+        env:
+          PIE_TEST_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
       - run: npm run typecheck
       - run: node scripts/generate-third-party-inventory.mjs --check
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieNodeResults.test.ts
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieDockerPlan.test.ts tests/boundary/pieDockerLifecycle.test.ts tests/boundary/pieDockerCommand.test.ts
       - name: Verify Docker sandbox with real Node fixture
+        env:
+          PIE_TEST_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
         shell: bash
         run: |
           docker pull node:24.18.0-bookworm-slim

@@ -111,6 +111,12 @@ export class PieService {
   evidence(id: string) {
     return this.#read(async () => this.store.evidence(id));
   }
+  verification(id: string) {
+    return this.#read(async () => this.store.verification(id));
+  }
+  verifications(snapshotId: string, input: unknown = {}) {
+    return this.#read(async () => this.store.verifications(snapshotId, input));
+  }
 
   graph(snapshotId: string, input: unknown = {}) {
     return this.#read(async () => {

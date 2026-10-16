@@ -36,6 +36,9 @@ export async function runPie(args: string[]): Promise<void> {
     console.log(
       "Fila: enqueue <raiz-git> --key <chave> | job <id> | cancel-job <id> | work <raiz-git> (um job por execução). API: serve <raiz-git> --port <n>. PostgreSQL: configure PIE_DATABASE_URL e aplique pie:db:migrate antes de usar.",
     );
+    console.log(
+      "Resultados persistidos: verification <run-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta não inicia testes.",
+    );
     return;
   }
   if (command === "doctor") {
@@ -81,6 +84,8 @@ export async function runPie(args: string[]): Promise<void> {
       "declarations",
       "trace",
       "evidence",
+      "verification",
+      "verifications",
       "export",
       "mcp",
       "compare",
@@ -192,6 +197,12 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "evidence":
         result = await service.evidence(target!);
+        break;
+      case "verification":
+        result = await service.verification(target!);
+        break;
+      case "verifications":
+        result = await service.verifications(target!, paging);
         break;
       case "export":
         console.log(

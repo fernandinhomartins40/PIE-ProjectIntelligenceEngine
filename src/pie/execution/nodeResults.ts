@@ -41,6 +41,21 @@ export type NodeReport = {
 };
 type ReportFailure = { cause: AnalysisOutputError; partial: NodeReport };
 
+function consistentOutcomes(
+  cases: NodeReport["cases"],
+  counts: z.infer<typeof nodeCountsSchema>,
+): boolean {
+  const tests = cases.filter((item) => item.category === "test");
+  const outcomes = (state: z.infer<typeof nodeCaseSchema>["outcome"]) =>
+    tests.filter((item) => item.outcome === state).length;
+  return (
+    outcomes("passed") === counts.passed &&
+    outcomes("skipped") === counts.skipped &&
+    outcomes("todo") === counts.todo &&
+    outcomes("failed") === counts.failed + counts.cancelled
+  );
+}
+
 /** Strict, bounded protocol parser. Logs and diagnostic strings are never interpreted as results. */
 export function parseNodeReport(
   bytes: Uint8Array,
@@ -104,24 +119,51 @@ export function parseNodeReport(
       counts.suites
   )
     return fail("Resumo não corresponde aos casos recebidos.");
+  if (!consistentOutcomes(partial.cases, counts))
+    return fail("Estados dos casos divergem das contagens finais.");
   return ok(partial);
 }
 
-export const nodeResultSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  state: testState,
-  counts: nodeCountsSchema.nullable(),
-  cases: z.array(nodeCaseSchema),
-  durationMs: z.number().nonnegative().nullable(),
-  exitCode: z.number().int().nullable(),
-  signal: z.string().nullable(),
-  coverage: z.strictObject({
-    reportComplete: z.boolean(),
-    processCompleted: z.boolean(),
-    truncated: z.boolean(),
-    limitations: z.array(z.string()),
-  }),
-});
+export const nodeResultSchema = z
+  .strictObject({
+    schemaVersion: z.literal(1),
+    state: testState,
+    counts: nodeCountsSchema.nullable(),
+    cases: z.array(nodeCaseSchema),
+    durationMs: z.number().nonnegative().nullable(),
+    exitCode: z.number().int().nullable(),
+    signal: z.string().nullable(),
+    coverage: z.strictObject({
+      reportComplete: z.boolean(),
+      processCompleted: z.boolean(),
+      truncated: z.boolean(),
+      limitations: z.array(z.string()),
+    }),
+  })
+  .refine(
+    (value) =>
+      value.state !== "passed" ||
+      (value.coverage.reportComplete &&
+        value.coverage.processCompleted &&
+        !value.coverage.truncated &&
+        value.exitCode === 0 &&
+        value.signal === null &&
+        value.counts !== null &&
+        value.counts.tests > 0 &&
+        value.counts.passed === value.counts.tests &&
+        value.counts.failed +
+          value.counts.cancelled +
+          value.counts.skipped +
+          value.counts.todo ===
+          0 &&
+        value.cases.filter((item) => item.category === "test").length ===
+          value.counts.tests &&
+        value.cases.every((item) => item.outcome === "passed")),
+    {
+      message:
+        "Aprovação exige cobertura completa e casos aprovados consistentes.",
+    },
+  );
 export type NodeCapture = {
   started: boolean;
   completed: boolean;

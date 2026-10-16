@@ -1,12 +1,11 @@
+import { verificationRunSchema, type VerificationRun } from "./runContracts.js";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import canonicalize from "canonicalize";
-import { z } from "zod";
 import type { PrivateRuntimeRoot } from "../../process/PrivateRuntimeRoot.js";
 import { AnalysisError } from "../../domain/analysisErrorBase.js";
 import { AnalysisOutputError } from "../../domain/analysisErrorCore.js";
-import { evidenceSchema } from "../contracts.js";
 import { sha256 } from "../evidence.js";
 import { runEvidence, verifyRunEvidence } from "./runEvidence.js";
 import { admitNodeTests, type AdmittedNodeTests } from "./admission.js";
@@ -15,23 +14,8 @@ import { DockerCommand } from "./dockerCommand.js";
 import { DockerExecution } from "./dockerExecution.js";
 import { buildDockerPlan } from "./dockerPlan.js";
 import { NODE_REPORTER_SOURCE } from "./nodeReporter.js";
-import { normalizeNodeResult, nodeResultSchema } from "./nodeResults.js";
+import { normalizeNodeResult } from "./nodeResults.js";
 
-export const verificationRunSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  id: z.string().uuid(),
-  projectId: z.string().uuid(),
-  snapshotId: z.string().uuid(),
-  authorizationDigest: z.string().regex(/^[a-f0-9]{64}$/),
-  image: z.string(),
-  createdAt: z.iso.datetime(),
-  completedAt: z.iso.datetime(),
-  result: nodeResultSchema,
-  evidence: evidenceSchema,
-  cleanup: z.enum(["complete", "incomplete"]),
-  failure: z.object({ tag: z.string(), message: z.string() }).nullable(),
-});
-export type VerificationRun = z.infer<typeof verificationRunSchema>;
 export interface VerificationOptions {
   executable: string;
   endpoint: string;

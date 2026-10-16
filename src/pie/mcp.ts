@@ -8,6 +8,10 @@ import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import {
+  verificationRunSchema,
+  verificationHistorySchema,
+} from "./execution/runContracts.js";
+import {
   discoveryOutput,
   graphOutput,
   projectsOutput,
@@ -60,6 +64,29 @@ export function createPieMcp(
       return { ...result({ schemaVersion: 1, error }), isError: true };
     }
   };
+  server.registerTool(
+    "pie_verification_get",
+    {
+      description:
+        "Lê execução persistida e verifica vínculos e hashes da evidência. Não inicia testes nem altera o projeto.",
+      inputSchema: idInput,
+      outputSchema: withError(verificationRunSchema),
+      annotations: read,
+    },
+    ({ id }) => guarded(() => service.verification(id)),
+  );
+  server.registerTool(
+    "pie_verifications_list",
+    {
+      description:
+        "Lista resultados persistidos por snapshot, com estado e referência de evidência; paginado até 200. Skipped/blocked não significam aprovação.",
+      inputSchema: graphInput,
+      outputSchema: withError(verificationHistorySchema),
+      annotations: read,
+    },
+    ({ snapshotId, ...paging }) =>
+      guarded(() => service.verifications(snapshotId, paging)),
+  );
   server.registerTool(
     "pie_declarations_list",
     {

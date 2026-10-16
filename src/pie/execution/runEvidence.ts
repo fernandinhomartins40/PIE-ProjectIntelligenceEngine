@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Snapshot } from "../contracts.js";
 import { PieError } from "../contracts.js";
 import { sealEvidence, sha256, verifyEvidence } from "../evidence.js";
-import type { VerificationRun } from "./verification.js";
+import type { VerificationRun } from "./runContracts.js";
 
 export function runEvidence(
   payload: Omit<VerificationRun, "evidence">,

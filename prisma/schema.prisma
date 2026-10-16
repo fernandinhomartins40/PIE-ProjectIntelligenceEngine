@@ -25,6 +25,7 @@ model Snapshot {
   evidence  Evidence[]
   nodes     GraphNode[]
   edges     GraphEdge[]
+  verificationRuns VerificationRun[]
 
   @@index([projectId, createdAt, id])
   @@map("pie_snapshots")
@@ -35,9 +36,23 @@ model Evidence {
   snapshotId String   @map("snapshot_id") @db.Uuid
   payload    Json
   snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  verificationRun VerificationRun?
 
   @@index([snapshotId])
   @@map("pie_evidence")
+}
+
+model VerificationRun {
+  id String @id @db.Uuid
+  snapshotId String @map("snapshot_id") @db.Uuid
+  evidenceId String @unique @map("evidence_id") @db.Uuid
+  createdAt DateTime @map("created_at")
+  payload Json
+  snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+
+  @@index([snapshotId, createdAt, id])
+  @@map("pie_verification_runs")
 }
 
 model GraphNode {

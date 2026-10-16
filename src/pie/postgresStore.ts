@@ -6,6 +6,14 @@ import { verifyEvidence } from "./evidence.js";
 import { pageSchema } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import {
+  verificationRunSchema,
+  verificationHistorySchema,
+} from "./execution/runContracts.js";
+import {
+  validateVerificationRun,
+  validateStoredVerification,
+} from "./execution/runIntegrity.js";
 
 const json = (value: object): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -176,5 +184,110 @@ export class PostgresPieStore implements PiePersistence {
       offset,
       nextOffset: offset + limit < total ? offset + limit : null,
     };
+  }
+
+  async saveVerification(input: unknown) {
+    const parsed = verificationRunSchema.parse(input);
+    const snapshot = await this.snapshot(parsed.snapshotId);
+    const run = validateVerificationRun(parsed, snapshot);
+    await this.#client.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${run.id}))`;
+        const previous = await tx.verificationRun.findUnique({
+          where: { id: run.id },
+          include: { evidence: true },
+        });
+        if (previous) {
+          const stored = validateStoredVerification(
+            {
+              ...previous,
+              createdAt: previous.createdAt.toISOString(),
+              evidence: previous.evidence.payload,
+            },
+            snapshot,
+          );
+          if (canonicalize(stored) !== canonicalize(run))
+            throw new PieError(
+              "INTEGRITY_ERROR",
+              "Execução histórica não pode ser substituída.",
+            );
+          return;
+        }
+        await tx.evidence.create({
+          data: {
+            id: run.evidence.id,
+            snapshotId: run.snapshotId,
+            payload: json(run.evidence),
+          },
+        });
+        await tx.verificationRun.create({
+          data: {
+            id: run.id,
+            snapshotId: run.snapshotId,
+            evidenceId: run.evidence.id,
+            createdAt: new Date(run.createdAt),
+            payload: json(run),
+          },
+        });
+      },
+      { maxWait: 5000, timeout: 15_000 },
+    );
+    return run;
+  }
+  async verification(id: string) {
+    const row = await this.#client.verificationRun.findUnique({
+      where: { id },
+      include: { evidence: true, snapshot: true },
+    });
+    if (!row) throw new PieError("NOT_FOUND", "Execução não encontrada.");
+    return validateStoredVerification(
+      {
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+        evidence: row.evidence.payload,
+      },
+      validateSnapshot(row.snapshot.payload),
+    );
+  }
+  async verifications(snapshotId: string, input: unknown = {}) {
+    const snapshot = await this.snapshot(snapshotId);
+    const { offset, limit } = pageSchema.parse(input);
+    const [total, rows] = await this.#client.$transaction(
+      [
+        this.#client.verificationRun.count({ where: { snapshotId } }),
+        this.#client.verificationRun.findMany({
+          where: { snapshotId },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          skip: offset,
+          take: limit,
+          include: { evidence: true },
+        }),
+      ],
+      { isolationLevel: "RepeatableRead" },
+    );
+    return verificationHistorySchema.parse({
+      items: rows.map((row) => {
+        const run = validateStoredVerification(
+          {
+            ...row,
+            createdAt: row.createdAt.toISOString(),
+            evidence: row.evidence.payload,
+          },
+          snapshot,
+        );
+        return {
+          id: run.id,
+          snapshotId: run.snapshotId,
+          createdAt: run.createdAt,
+          completedAt: run.completedAt,
+          state: run.result.state,
+          cleanup: run.cleanup,
+          evidenceId: run.evidence.id,
+        };
+      }),
+      total,
+      offset,
+      nextOffset: offset + limit < total ? offset + limit : null,
+    });
   }
 }
