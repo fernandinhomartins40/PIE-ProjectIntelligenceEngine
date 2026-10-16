@@ -11,6 +11,32 @@ import { expect, it } from "vitest";
 
 const exec = promisify(execFile);
 
+async function verifyDeclarations(
+  client: Client,
+  script: string,
+  db: string,
+  snapshotId: string,
+) {
+  const declared = await client.callTool({
+    name: "pie_declarations_list",
+    arguments: { snapshotId, limit: 1 },
+  });
+  expect(declared.structuredContent).toMatchObject({
+    declarations: {
+      total: 1,
+      items: [{ name: "express", state: "unverified" }],
+    },
+  });
+  const cli = await exec(process.execPath, [
+    script,
+    "declarations",
+    snapshotId,
+    "--db",
+    db,
+  ]);
+  expect(JSON.parse(cli.stdout)).toEqual(declared.structuredContent);
+}
+
 async function verifyQueueCli(script: string, repo: string, db: string) {
   const enqueued = await exec(process.execPath, [
     script,
@@ -56,7 +82,11 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
     await mkdir(repo);
     await exec("git", ["init", repo]);
     await writeFile(join(repo, "index.ts"), "export const value = 1;");
-    await exec("git", ["-C", repo, "add", "index.ts"]);
+    await writeFile(
+      join(repo, "package.json"),
+      '{"dependencies":{"express":"5"}}',
+    );
+    await exec("git", ["-C", repo, "add", "index.ts", "package.json"]);
     const cli = await exec(process.execPath, [
       script,
       "discover",
@@ -164,6 +194,7 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
     ]);
     expect(exported.stdout).toContain('<html lang="pt-BR">');
     await verifyQueueCli(script, repo, db);
+    await verifyDeclarations(client, script, db, discovered.snapshot.id);
   } finally {
     await client.close();
     await transport.close();

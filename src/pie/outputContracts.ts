@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { adapterFactSchema } from "./adapters/contracts.js";
 import {
   evidenceSchema,
   graphNodeSchema,
@@ -35,6 +36,7 @@ export const discoveryOutput = z.strictObject({
   coverage: snapshotSchema.shape.coverage,
   nodeCount: count,
   evidenceCount: count,
+  declarationCount: count,
 });
 export const graphOutput = z.strictObject({
   snapshotId: z.string().uuid(),
@@ -49,5 +51,10 @@ export const historyOutput = pagedOutput(
   z.strictObject({ id: z.string().uuid(), created_at: z.iso.datetime() }),
 );
 export const evidenceOutput = evidenceSchema;
+export const declarationsOutput = z.strictObject({
+  snapshotId: z.string().uuid(),
+  declarations: pagedOutput(adapterFactSchema),
+  coverage: snapshotSchema.shape.coverage,
+});
 export const withError = <T extends z.ZodType>(success: T) =>
   z.union([success, errorOutput]);

@@ -1,5 +1,36 @@
-import { PieError, snapshotSchema, type Snapshot } from "./contracts.js";
+import {
+  PieError,
+  snapshotSchema,
+  type Snapshot,
+  type Evidence,
+} from "./contracts.js";
 import { verifyEvidence, sha256 } from "./evidence.js";
+import { declarationIdentity } from "./adapters/identity.js";
+
+function validateDeclarations(
+  snapshot: Snapshot,
+  evidenceById: ReadonlyMap<string, Evidence>,
+): void {
+  const ids = new Set<string>();
+  for (const declaration of snapshot.declarations) {
+    const proof = evidenceById.get(declaration.evidenceId);
+    if (
+      declarationIdentity(declaration) !== declaration.id ||
+      ids.has(declaration.id) ||
+      !proof ||
+      proof.method !== "static" ||
+      proof.confidence !== "derived" ||
+      proof.source.path !== declaration.source.path ||
+      proof.source.line !== declaration.source.line ||
+      proof.source.sha256 !== declaration.source.sha256
+    )
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "Declaração sem proveniência consistente.",
+      );
+    ids.add(declaration.id);
+  }
+}
 
 /** One owner validates the same snapshot semantics for every persistence adapter. */
 export function validateSnapshot(input: unknown): Snapshot {
@@ -37,6 +68,7 @@ export function validateSnapshot(input: unknown): Snapshot {
         "INTEGRITY_ERROR",
         "Aresta sem nó de origem ou destino.",
       );
+  validateDeclarations(snapshot, evidenceById);
   const files = snapshot.nodes.map((node) => {
     const source = node.evidenceIds
       .map((id) => evidenceById.get(id)!)

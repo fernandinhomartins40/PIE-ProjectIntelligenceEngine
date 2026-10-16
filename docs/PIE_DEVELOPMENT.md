@@ -88,3 +88,19 @@ API com `serve`: POST /v1/jobs recebe idempotencyKey e maxFiles, GET /v1/jobs/:i
 Teste PostgreSQL: configure PIE_TEST_DATABASE_URL para um banco dedicado com nome terminado em _test, aplique migrações usando PIE_DATABASE_URL e execute tests/boundary/piePostgres.test.ts. Sem URL, esse teste fica skipped; não conta como aprovação. O workflow .github/workflows/pie.yml provisiona PostgreSQL real no runner e não depende do Docker local. Seu resultado só deve ser marcado verificado após inspeção da execução.
 
 As novas dependências têm arquivos originais de licença coletados de tarballs conferidos pelo hash do lockfile. Sete identidades contêm lacunas explícitas de notice no arquivo de atribuições; revisão antes de distribuição permanece pendente, e o pacote continua privado.
+
+## Declarações de stacks e cobertura
+
+`node scripts/pie.mjs declarations UUID_DO_SNAPSHOT --db C:/dados-pie/pie.sqlite` consulta os fatos descobertos. API GET /v1/declarations/:snapshot e MCP pie_declarations_list oferecem a mesma paginação e as mesmas evidências. O comando discover inclui declarationCount. Snapshots antigos não são reanalisados silenciosamente: seu campo de declarações é vazio até nova descoberta.
+
+| Adaptador | Sintaxe examinada | Limites |
+|---|---|---|
+| node-manifest | package.json, mapas dependencies/devDependencies/peerDependencies/optionalDependencies e nomes de scripts | Não comprova instalação/uso; não retém comandos/versões |
+| composer-manifest | composer.json, require/require-dev e nomes de scripts | Declaração Laravel não é análise do código PHP |
+| compose | Arquivos compose/docker-compose YAML, services e depends_on lista/mapa | Sem execução/interpolação/include/extends/profiles; valores de secrets não coletados |
+| openapi | Arquivos openapi/swagger JSON/YAML, versão 3.0.x/3.1.x, operações HTTP literais em paths | Sem $ref externo, fetch, servidores, exemplos ou validação runtime |
+| prisma-schema | Arquivos .prisma, declarações model e campos em linhas próprias | Lexer limitado, ignora strings/comentários; não valida relações/constraints/migrations/banco |
+
+Cada fato é estático e unverified, com hash do arquivo, linha, evidência e identidade derivada da declaração. O limite usa o orçamento maxGraphEdges; ausência por falha/limite não equivale a inexistência. coverage.status continua restrito ao inventário de arquivos Git; limitações dos adaptadores devem ser lidas separadamente. Esta matriz não promete suporte universal às stacks.
+
+PostgreSQL real da entrega anterior foi verificado na [CI 38963487480](https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38963487480); Docker local continua com erro 500. Não extrapolar esse teste para a certificação de todo o produto.

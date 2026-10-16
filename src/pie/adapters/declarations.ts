@@ -1,0 +1,263 @@
+import { parseDocument, LineCounter, isMap, isScalar } from "yaml";
+import { posix } from "node:path";
+import { parseTree, findNodeAtLocation } from "jsonc-parser";
+import type { AdapterRead, Declaration } from "./contracts.js";
+
+const object = (value: unknown): Record<string, unknown> | null =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+function manifest(path: string, source: string): AdapterRead {
+  const parsed = object(JSON.parse(source));
+  if (!parsed) throw new Error("Manifest must be object");
+  const tree = parseTree(source);
+  if (!tree) throw new Error("Missing JSON syntax tree");
+  const fieldLine = (group: string, name: string) => {
+    const node = findNodeAtLocation(tree, [group, name]);
+    return source
+      .slice(0, node?.parent?.offset ?? node?.offset ?? 0)
+      .split("\n").length;
+  };
+  const node = posix.basename(path) === "package.json";
+  const adapter = node ? "node-manifest" : "composer-manifest";
+  const declarations: Declaration[] = [];
+  for (const group of node
+    ? [
+        "dependencies",
+        "devDependencies",
+        "peerDependencies",
+        "optionalDependencies",
+      ]
+    : ["require", "require-dev"]) {
+    for (const name of Object.keys(object(parsed[group]) ?? {}))
+      declarations.push({
+        adapter,
+        kind: "dependency",
+        name,
+        parent: group,
+        line: fieldLine(group, name),
+      });
+  }
+  // Persist script names, never their shell bodies or embedded credential values.
+  for (const name of Object.keys(object(parsed.scripts) ?? {}))
+    declarations.push({
+      adapter,
+      kind: "script",
+      name,
+      parent: null,
+      line: fieldLine("scripts", name),
+    });
+  return {
+    declarations,
+    limitations: [
+      "Dependências e scripts declarados não comprovam instalação, uso ou execução. Linhas JSON vêm da árvore sintática da propriedade.",
+    ],
+  };
+}
+
+function structured(path: string, source: string): AdapterRead {
+  const lineCounter = new LineCounter();
+  const document = parseDocument(source, { lineCounter, uniqueKeys: true });
+  if (document.errors.length) throw new Error("Invalid structured document");
+  const parsed = object(document.toJS({ maxAliasCount: 50 }));
+  if (!parsed) throw new Error("Expected structured object");
+  const lineAt = (segments: string[]): number => {
+    const parent = document.getIn(segments.slice(0, -1), true);
+    if (!isMap(parent)) return 1;
+    const key = parent.items.find(
+      (pair) => isScalar(pair.key) && pair.key.value === segments.at(-1),
+    )?.key;
+    return isScalar(key) && key.range
+      ? lineCounter.linePos(key.range[0]).line
+      : 1;
+  };
+  const declarations: Declaration[] = [];
+  const isCompose = /(?:^|\/)(?:docker-)?compose[^/]*\.ya?ml$/i.test(path);
+  if (isCompose) {
+    const services = object(parsed.services);
+    if (!services) throw new Error("Missing Compose services");
+    for (const [name, raw] of Object.entries(services)) {
+      const service = object(raw);
+      if (!service) continue;
+      const line = lineAt(["services", name]);
+      declarations.push({
+        adapter: "compose",
+        kind: "service",
+        name,
+        parent: null,
+        line,
+      });
+      const depends = Array.isArray(service.depends_on)
+        ? service.depends_on.filter(
+            (item): item is string => typeof item === "string",
+          )
+        : Object.keys(object(service.depends_on) ?? {});
+      for (const dependency of depends)
+        declarations.push({
+          adapter: "compose",
+          kind: "service_dependency",
+          name: dependency,
+          parent: name,
+          line,
+        });
+    }
+    return {
+      declarations,
+      limitations: [
+        "Compose declarado; interpolação, include, extends, profiles e comportamento de containers não resolvidos. Nenhum valor de environment, build ou secrets é retido.",
+      ],
+    };
+  }
+  if (typeof parsed.openapi !== "string" || !/^3\.[01]\./.test(parsed.openapi))
+    throw new Error("Only OpenAPI 3.0/3.1 declarations supported");
+  for (const [route, raw] of Object.entries(object(parsed.paths) ?? {})) {
+    if (!route.startsWith("/")) continue;
+    for (const method of [
+      "get",
+      "post",
+      "put",
+      "patch",
+      "delete",
+      "options",
+      "head",
+      "trace",
+    ]) {
+      if (!object(object(raw)?.[method])) continue;
+      const line = lineAt(["paths", route, method]);
+      declarations.push({
+        adapter: "openapi",
+        kind: "endpoint",
+        name: `${method.toUpperCase()} ${route}`,
+        parent: null,
+        line,
+      });
+    }
+  }
+  return {
+    declarations,
+    limitations: [
+      "Operações OpenAPI literais declaradas; $ref, servidores, autenticação efetiva, resposta e persistência não verificados. URLs e exemplos não são retidos nem acessados.",
+    ],
+  };
+}
+
+/** Lexer recognizes declarations while ignoring quoted literals and comments. */
+function prismaTokens(source: string) {
+  const tokens: Array<{ value: string; line: number }> = [];
+  let line = 1;
+  const pattern =
+    /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|[A-Za-z_][A-Za-z0-9_]*|[{}\n]|[^\s]/g;
+  for (const match of source.matchAll(pattern)) {
+    const value = match[0];
+    if (
+      value === '"' ||
+      (source.startsWith("/*", match.index) && !value.startsWith("/*"))
+    )
+      throw new Error("Unterminated Prisma literal or comment");
+    if (
+      !value.startsWith("//") &&
+      !value.startsWith("/*") &&
+      !value.startsWith('"')
+    )
+      tokens.push({ value, line });
+    line += (value.match(/\n/g) ?? []).length;
+  }
+  return tokens;
+}
+
+function prisma(source: string): AdapterRead {
+  const tokens = prismaTokens(source);
+  const declarations: Declaration[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (
+      token.value !== "model" ||
+      !tokens[i + 1] ||
+      tokens[i + 2]?.value !== "{"
+    )
+      continue;
+    const model = tokens[i + 1]!.value;
+    declarations.push({
+      adapter: "prisma-schema",
+      kind: "model",
+      name: model,
+      parent: null,
+      line: token.line,
+    });
+    i += 3;
+    let depth = 1;
+    let previousLine = -1;
+    for (; i < tokens.length && depth > 0; i++) {
+      const field = tokens[i]!;
+      if (field.value === "{") depth++;
+      if (field.value === "}") {
+        depth--;
+        continue;
+      }
+      if (
+        depth === 1 &&
+        field.line !== previousLine &&
+        /^[A-Za-z_]\w*$/.test(field.value) &&
+        /^[A-Za-z_]\w*$/.test(tokens[i + 1]?.value ?? "") &&
+        tokens[i + 1]?.line === field.line
+      )
+        declarations.push({
+          adapter: "prisma-schema",
+          kind: "field",
+          name: field.value,
+          parent: model,
+          line: field.line,
+        });
+      if (field.value !== "\n") previousLine = field.line;
+    }
+    i--;
+  }
+  return {
+    declarations,
+    limitations: [
+      "Lexer de model/campos Prisma; não valida semântica, migrations, constraints ou banco. Strings e comentários não geram declarações. Campos devem estar em linhas próprias.",
+    ],
+  };
+}
+
+export function readDeclarations(
+  path: string,
+  source: string,
+  limit: number,
+): AdapterRead | null {
+  let parsed: AdapterRead;
+  if (/(?:^|\/)(package|composer)\.json$/.test(path))
+    parsed = manifest(path, source);
+  else if (
+    /(?:^|\/)(?:(?:docker-)?compose[^/]*\.ya?ml|(?:openapi|swagger)[^/]*\.(?:json|ya?ml))$/i.test(
+      path,
+    )
+  )
+    parsed = structured(path, source);
+  else if (path.endsWith(".prisma")) parsed = prisma(source);
+  else return null;
+  const omitted = Math.max(0, parsed.declarations.length - limit);
+  const selected = parsed.declarations.slice(0, limit);
+  const declarations = selected.filter(
+    (item) =>
+      item.name.length > 0 &&
+      item.name.length <= 1000 &&
+      (item.parent?.length ?? 0) <= 1000,
+  );
+  const invalid = selected.length - declarations.length;
+  return {
+    declarations,
+    limitations: [
+      ...parsed.limitations,
+      ...(omitted
+        ? [`${omitted} declarações omitidas por limite de recursos.`]
+        : []),
+      ...(invalid
+        ? [
+            `${invalid} identificadores vazios ou acima do limite não foram retidos.`,
+          ]
+        : []),
+    ],
+  };
+}

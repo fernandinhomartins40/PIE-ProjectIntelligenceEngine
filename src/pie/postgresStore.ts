@@ -86,7 +86,10 @@ export class PostgresPieStore implements PiePersistence {
           where: { id: snapshot.id },
         });
         if (existing) {
-          if (canonicalize(existing.payload) !== canonicalize(snapshot))
+          if (
+            canonicalize(validateSnapshot(existing.payload)) !==
+            canonicalize(snapshot)
+          )
             throw new PieError(
               "INTEGRITY_ERROR",
               "Snapshot histórico não pode ser substituído.",

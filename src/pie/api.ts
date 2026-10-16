@@ -190,6 +190,9 @@ export async function startPieApi(
           case "graph":
             respond(response, 200, await service.graph(id, paging()));
             return;
+          case "declarations":
+            respond(response, 200, await service.declarations(id, paging()));
+            return;
           case "evidence":
             respond(response, 200, await service.evidence(id));
             return;

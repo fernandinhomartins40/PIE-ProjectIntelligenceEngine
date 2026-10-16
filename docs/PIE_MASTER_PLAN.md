@@ -14,13 +14,13 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 | T0.2 | P0 | Auditar arquitetura, licenças, CLI/MCP, testes e extensões | em andamento | Inspeção local; baseline de runtime pendente |
 | T0.3 | P0 | Baseline upstream e caracterização de CLI/MCP/evidências | parcial | Build empacotado, CLI help e catálogo MCP com 207 ferramentas verificados; 36 testes evidence/ledger passaram; provedores reais pendentes |
 | T1.1 | P0 | Contratos versionados, estados, identidade, escopo e políticas OBSERVE/VERIFY/CHANGE | parcial | Schemas explícitos CLI/MCP, validação Ajv e controles OBSERVE testados; Result e runner pendentes |
-| T1.2 | P0 | PostgreSQL, migrations, evidência imutável, redação e histórico | parcial | Adaptador Prisma 7.10.1, schemas/migrações e integridade compartilhada implementados; DB real ainda não validado |
-| T1.3 | P0 | Fila persistente, workers, cancelamento, recuperação e limites | parcial | Fila SQLite real com leases, idempotência, recuperação e worker OBSERVE testados; implementação PostgreSQL e CI preparados; runners isolados pendentes |
+| T1.2 | P0 | PostgreSQL, migrations, evidência imutável, redação e histórico | parcial | Migrações e teste dedicado PostgreSQL real passaram na CI Linux 38963487480; retenção/redação completa e demais entidades ainda pendentes |
+| T1.3 | P0 | Fila persistente, workers, cancelamento, recuperação e limites | parcial | Fila SQLite e teste concorrente PostgreSQL real passaram; worker OBSERVE testado; daemon, runners isolados e demais tipos de jobs pendentes |
 | T1.4 | P1 | API local autenticada; CLI e MCP sobre os mesmos serviços | parcial | API loopback com Bearer, raiz fixa, limites e teste integrado; jobs/API completa pendentes |
 | T1.5 | P1 | Painel pt-BR conectar → investigar → resolver/validar | pendente | T1.4; E2E, teclado, telas 360–1440px |
 | T2.1 | P1 | Inventário Git limitado, snapshots e proveniência por hash | parcial | Implementado e testado em Windows; snapshot atômico hostil não garantido |
 | T2.2 | P1 | AST TS/JS/Node/React/Next e imports/rotas/serviços/testes | parcial | Imports/reexports relativos AST; rotas/frameworks e aliases pendentes |
-| T2.3 | P1 | Laravel/PHP, Prisma/Postgres, Docker/Compose, Nginx e OpenAPI | pendente | T2.1; cobertura e versões explícitas |
+| T2.3 | P1 | Laravel/PHP, Prisma/Postgres, Docker/Compose, Nginx e OpenAPI | parcial | Manifests Node/Composer, serviços/dependências Compose, operações OpenAPI 3.0/3.1 e model/campos Prisma integrados; PHP/Nginx e cobertura completa pendentes |
 | T2.4 | P1 | Grafo tipado, trace, impacto e descoberta incremental | parcial | Comparação de snapshots e impacto pelos dois grafos em CLI/MCP/API; cache/incremental pendentes |
 | T3.1 | P0 | Runners de testes com autorização, isolamento e resultado não ambíguo | pendente | T1.3; skipped/blocked não passam |
 | T3.2 | P1 | Playwright, HTTP, DB de teste, logs e traces redigidos | pendente | T3.1; persistência após reload |

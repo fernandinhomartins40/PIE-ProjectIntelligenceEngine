@@ -1,5 +1,17 @@
 # PIE — Continuidade
 
+## Estado atual prioritário — quarta entrega
+
+CI da terceira entrega passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38963487480, head d78d53ae255354d3983ec7964c7a0917d989130a. Migrações e teste dedicado de PostgreSQL real executados no Linux; não repetir como bloqueio global. Docker local ainda não está funcional. Sete gaps de notices continuam abertos para redistribuição.
+
+Descoberta agora coleta declarações estáticas de manifests Node/Composer, Compose, OpenAPI 3.0/3.1 e model/campos Prisma. Código em src/pie/adapters; identities/evidências compartilhadas com integridade do snapshot. Novos campos declarations (default vazio para histórico) e declarationCount; consulta paginada CLI declarations, API /v1/declarations/:id e MCP pie_declarations_list. Não há parser PHP/Nginx, resolução $ref nem execução de serviços. Exports JSON contêm fatos; MD/HTML ainda são inventário de arquivos. Testes integrados novos em pieAdapters.test.ts e consumidores CLI/MCP/API.
+
+Antes do push: confirmar typecheck final e suíte ampliada. Próximo eixo: completar inventário/trace de relações (rotas/serviços/tabelas) e paginação PostgreSQL de fatos/grafo, depois painel com dados reais; seguir os seis motores e runners do plano sem reduzir escopo. Goal permanece ativo na main.
+
+Fechamento local: 50 aprovados + 1 skipped em 9 arquivos; compilação PIE, typecheck integral e fronteiras em 2.021 fontes passaram. Novo teste em pieAdapters possui 3 cenários integrados. Nenhuma dependência nova. Preservada idempotência de snapshots legados sem campo declarations. Código pronto para publicar na main e monitorar a nova CI. Próxima etapa deve construir relações rastreáveis e experiência de investigação real, mantendo o escopo integral aberto.
+
+## Histórico da terceira entrega
+
 ## Estado atual prioritário — terceira entrega
 
 Continuar na main, sem novas branches. PostgreSQL/Prisma e duas migrações implementados em prisma/, postgresStore.ts e jobs/postgresQueue.ts; modo SQLite preservado por PiePersistence. Geração Prisma obrigatória antes de typecheck/build, já integrada nos scripts. Não há conexão padrão: PIE_DATABASE_URL habilita PostgreSQL explicitamente. Banco local real não validado: Docker Desktop iniciado, daemon retorna HTTP 500. Workflow .github/workflows/pie.yml preparado para banco real; conferir resultado depois do push.

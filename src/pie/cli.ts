@@ -52,6 +52,7 @@ export async function runPie(args: string[]): Promise<void> {
             "json-md-html-export",
             "persistent-discovery-queue",
             "postgresql-prisma-adapter",
+            "declarative-stack-inventory",
           ],
           unavailable: ["audit-engines", "target-execution", "dashboard"],
           upstreamProviders: "não verificados",
@@ -70,6 +71,7 @@ export async function runPie(args: string[]): Promise<void> {
       "projects",
       "history",
       "graph",
+      "declarations",
       "evidence",
       "export",
       "mcp",
@@ -157,6 +159,9 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "graph":
         result = await service.graph(target!, paging);
+        break;
+      case "declarations":
+        result = await service.declarations(target!, paging);
         break;
       case "compare":
         result = await service.compare({

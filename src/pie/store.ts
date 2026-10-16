@@ -7,6 +7,7 @@ import { pageSchema } from "./graph.js";
 import { projectsOutput, historyOutput } from "./outputContracts.js";
 import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import canonicalize from "canonicalize";
 
 /** SQLite is the optional local mode; PostgreSQL remains a separate planned backend. */
 export class PieStore implements PiePersistence {
@@ -90,7 +91,10 @@ export class PieStore implements PiePersistence {
       .prepare("SELECT payload FROM pie_snapshots WHERE id=?")
       .get(snapshot.id);
     if (existing) {
-      if (existing.payload !== payload)
+      if (
+        canonicalize(validateSnapshot(JSON.parse(String(existing.payload)))) !==
+        canonicalize(snapshot)
+      )
         throw new PieError(
           "INTEGRITY_ERROR",
           "Snapshot histórico não pode ser substituído.",

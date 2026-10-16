@@ -2,7 +2,7 @@
 
 Projeto em desenvolvimento nesta pasta, derivado do REA com histórico e licenças preservados. O escopo integral e os critérios de aceite estão em [docs/PIE_MASTER_PLAN.md](docs/PIE_MASTER_PLAN.md) e [docs/blueprint/](docs/blueprint/).
 
-Implementação atual: inventário Git, imports AST TS/JS, comparação de snapshots e impacto, evidências com SHA-256, histórico SQLite local, CLI, MCP stdio, API local autenticada e exportação JSON/Markdown/HTML. As capacidades pendentes estão explícitas no plano; o produto completo ainda não está concluído.
+Implementação atual: inventário Git e declarações de stacks, imports AST TS/JS, comparação de snapshots e impacto, evidências com SHA-256, persistência SQLite/PostgreSQL, fila de descoberta, CLI, MCP stdio, API local autenticada e exportação JSON/Markdown/HTML. As capacidades pendentes estão explícitas no plano; o produto completo ainda não está concluído.
 
 Instruções de execução: [docs/PIE_DEVELOPMENT.md](docs/PIE_DEVELOPMENT.md). Evidências de testes: [docs/PIE_VALIDATION_REPORT.md](docs/PIE_VALIDATION_REPORT.md).
 

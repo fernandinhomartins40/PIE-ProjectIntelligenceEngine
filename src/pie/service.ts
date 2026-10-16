@@ -83,6 +83,7 @@ export class PieService {
       coverage: snapshot.coverage,
       nodeCount: snapshot.nodes.length,
       evidenceCount: snapshot.evidence.length,
+      declarationCount: snapshot.declarations.length,
     };
   }
 
@@ -117,6 +118,17 @@ export class PieService {
         snapshotId,
         nodes: page(snapshot.nodes, input),
         edges: page(snapshot.edges, input),
+        coverage: snapshot.coverage,
+      };
+    });
+  }
+
+  declarations(snapshotId: string, input: unknown = {}) {
+    return this.#read(async () => {
+      const snapshot = await this.store.snapshot(snapshotId);
+      return {
+        snapshotId,
+        declarations: page(snapshot.declarations, input),
         coverage: snapshot.coverage,
       };
     });

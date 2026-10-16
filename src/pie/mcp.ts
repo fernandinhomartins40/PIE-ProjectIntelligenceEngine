@@ -5,6 +5,7 @@ import { PieError } from "./contracts.js";
 import { pageSchema } from "./graph.js";
 import type { PieService } from "./service.js";
 import { comparisonInput, comparisonOutput } from "./compare.js";
+import { declarationsOutput } from "./outputContracts.js";
 import {
   discoveryOutput,
   graphOutput,
@@ -58,6 +59,18 @@ export function createPieMcp(
       return { ...result({ schemaVersion: 1, error }), isError: true };
     }
   };
+  server.registerTool(
+    "pie_declarations_list",
+    {
+      description:
+        "Lista declarações estáticas de manifests Node/Composer, Compose, OpenAPI 3.0/3.1 e modelos/campos Prisma, com evidências, origem e limitações. Não verifica runtime. Paginado até 200.",
+      inputSchema: graphInput,
+      outputSchema: withError(declarationsOutput),
+      annotations: read,
+    },
+    ({ snapshotId, ...paging }) =>
+      guarded(() => service.declarations(snapshotId, paging)),
+  );
   server.registerTool(
     "pie_change_impact",
     {

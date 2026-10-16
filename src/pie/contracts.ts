@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { adapterFactSchema } from "./adapters/contracts.js";
+import { digestSchema, sourceSchema } from "./source.js";
+export { digestSchema, sourceSchema } from "./source.js";
 
 export const verificationState = z.enum([
   "verified",
@@ -27,7 +30,6 @@ export const revisionSchema = z
   .string()
   .regex(/^[a-f0-9]{40,64}$/)
   .nullable();
-export const digestSchema = z.string().regex(/^[a-f0-9]{64}$/);
 export const policySchema = z.strictObject({
   profile: z.enum(["OBSERVE", "VERIFY", "CHANGE"]),
   repositoryRoot: z.string().min(1),
@@ -42,11 +44,6 @@ export const policySchema = z.strictObject({
 });
 export type Policy = z.infer<typeof policySchema>;
 
-export const sourceSchema = z.strictObject({
-  path: z.string().min(1),
-  line: z.number().int().positive().nullable(),
-  sha256: digestSchema,
-});
 export const evidenceSchema = z.strictObject({
   schemaVersion: z.literal(1),
   id: z.string().uuid(),
@@ -106,6 +103,7 @@ export const snapshotSchema = z.strictObject({
   nodes: z.array(graphNodeSchema),
   edges: z.array(graphEdgeSchema),
   evidence: z.array(evidenceSchema),
+  declarations: z.array(adapterFactSchema).default([]),
   coverage: z.strictObject({
     scope: z.literal("git-tracked-files"),
     status: z.enum(["complete", "partial"]),

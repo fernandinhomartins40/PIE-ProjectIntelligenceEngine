@@ -18,6 +18,8 @@ import {
   type ImportReference,
 } from "./imports.js";
 import { readInventoryFile } from "./readFile.js";
+import { collectDeclarations } from "./adapters/collect.js";
+import type { AdapterFact } from "./adapters/contracts.js";
 
 const runFile = promisify(execFile);
 // Git hooks, package scripts and project executables are never launched.
@@ -169,6 +171,7 @@ export async function discoverProject(
   const nodes: Snapshot["nodes"] = [];
   const evidence: Snapshot["evidence"] = [];
   const imports: ImportReference[] = [];
+  const declarations: AdapterFact[] = [];
   const limitations = [
     "Somente arquivos rastreados pelo Git; arquivos novos não rastreados não foram examinados.",
     "Inventário e imports estáticos relativos TS/JS; não comprova rotas, serviços, permissões ou funcionamento.",
@@ -232,6 +235,14 @@ export async function discoverProject(
         kind: classify(path),
         evidenceIds: [item.id],
       });
+      const declared = collectDeclarations(
+        item,
+        buffer.toString("utf8"),
+        Math.max(0, policy.maxGraphEdges - declarations.length),
+      );
+      evidence.push(...declared.evidence);
+      declarations.push(...declared.declarations);
+      limitations.push(...declared.limitations);
       if (/\.[cm]?[jt]sx?$/.test(path)) {
         try {
           const parsed = readImports(
@@ -275,7 +286,9 @@ export async function discoverProject(
       "Estado Git mudou durante a descoberta; repetir em snapshot quiescente.",
     );
   const evidenceByPath = new Map(
-    evidence.map((item) => [item.source.path, item]),
+    evidence
+      .filter((item) => item.source.line === null)
+      .map((item) => [item.source.path, item]),
   );
   const resolved = resolveImports(nodes, imports, (path, line) => {
     const original = evidenceByPath.get(path)!;
@@ -316,6 +329,7 @@ export async function discoverProject(
     nodes,
     edges: resolved.edges,
     evidence,
+    declarations,
     coverage: {
       scope: "git-tracked-files",
       status: omitted > 0 || changed ? "partial" : "complete",

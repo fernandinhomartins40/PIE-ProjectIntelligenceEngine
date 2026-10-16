@@ -52,6 +52,14 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
       nodes: { total: 1 },
       coverage: { runtime: false },
     });
+    const declarations = await fetch(
+      `${api.url}/v1/declarations/${result.snapshot.id}`,
+      { headers },
+    );
+    expect(declarations.status).toBe(200);
+    expect(await declarations.json()).toMatchObject({
+      declarations: { total: 0 },
+    });
     expect(
       (
         await fetch(`${api.url}/v1/discover`, {
@@ -87,7 +95,10 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
       await (
         await fetch(`${api.url}/v1/jobs/${queued.id}`, { headers })
       ).json(),
-    ).toMatchObject({ state: "queued", payload: { repositoryRoot: await realpath(repo) } });
+    ).toMatchObject({
+      state: "queued",
+      payload: { repositoryRoot: await realpath(repo) },
+    });
     expect(
       await (
         await fetch(`${api.url}/v1/jobs/${queued.id}/cancel`, {
