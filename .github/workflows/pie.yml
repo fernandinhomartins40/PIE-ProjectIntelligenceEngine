@@ -40,7 +40,7 @@ jobs:
       - name: Verify installed browser and panel
         run: |
           test -x /usr/bin/google-chrome
-          node node_modules/vitest/vitest.mjs run tests/boundary/pieBrowserAuth.test.ts tests/boundary/pieWeb.test.ts
+          node node_modules/vitest/vitest.mjs run tests/boundary/pieBrowserAuth.test.ts tests/boundary/pieWeb.test.ts tests/boundary/pieWebTrace.test.ts
         env:
           PIE_BROWSER_EXECUTABLE: /usr/bin/google-chrome
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/piePostgres.test.ts tests/boundary/pieJobs.test.ts tests/boundary/pieAdapters.test.ts tests/boundary/pieTrace.test.ts tests/boundary/pieFoundation.test.ts tests/boundary/pieComparison.test.ts tests/boundary/pieApi.test.ts tests/boundary/mcp/pieMcp.test.ts

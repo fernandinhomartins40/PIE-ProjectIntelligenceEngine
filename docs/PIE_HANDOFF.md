@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — navegação paginada e relações
+
+CI da entrega b478b19b2: sucesso em https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38967326152, com PostgreSQL/Chrome Linux reais. Navegação agora percorre todas as páginas de projetos e histórico, preservando identidades selecionadas fora da página. Hook useProjectNavigation é dono dessas seleções; Dashboard/ProjectSelectors extraídos do App. Histórico começa na última página; comparação pode usar snapshot atual fixo e candidato de outra página.
+
+TraceResult mostra nós e relações com evidências; paginação considera max(totalNós,totalRelações), pois o contrato pagina as duas coleções com mesmo offset. IDs são mostrados quando o rótulo do endpoint está fora da página, sem buscar tudo silenciosamente. Novos E2E reais: 51 descobertas, 27 projetos de fixture, comparação entre páginas, e 26 arquivos/650 imports com relações além do fim dos nós. Três E2E passaram; conferir validação final e push desta entrega. Advertências de tamanho/complexidade continuam em componentes; modularizar donos de consultas/views antes de expandir os fluxos de execução. Próxima dependência central do plano: runners VERIFY autorizados, isolamento/ownership e evidência real de execução, sem atalhos nem simular motores.
+
 ## Estado prioritário — painel local em validação
 
 CI da quinta entrega passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38965547500 (8b5870a64882531ae377919f5f21b944fcf87112). Inclui PostgreSQL real com declarações e trace.

@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -36,8 +37,9 @@ it.skipIf(!existsSync(executablePath))(
       token,
       webDirectory: resolve("dist/pie-web"),
     });
-    const browser = await chromium.launch({ executablePath, headless: true });
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
     try {
+      browser = await chromium.launch({ executablePath, headless: true });
       const page = await browser.newPage();
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));
@@ -111,8 +113,111 @@ it.skipIf(!existsSync(executablePath))(
       await page.getByRole("button", { name: "Conectar ao PIE" }).waitFor();
       expect(errors).toEqual([]);
     } finally {
-      await browser.close();
+      await browser?.close();
       await api.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  60_000,
+);
+
+it.skipIf(!existsSync(executablePath))(
+  "histórico paginado preserva snapshot e permite comparar com outra página",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "pie-web-pages-"));
+    const repo = join(root, "repo");
+    await mkdir(repo);
+    await promisify(execFile)("git", ["init", repo]);
+    await writeFile(join(repo, "index.ts"), "export const value = 1;");
+    await promisify(execFile)("git", ["-C", repo, "add", "."]);
+    const store = await openStore(join(root, "api.sqlite"), repo);
+    const service = new PieService(store);
+    const token = "fixture-web-pagination-32-characters-minimum";
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    let api: Awaited<ReturnType<typeof startPieApi>> | undefined;
+    try {
+      let latest = "";
+      let first = "";
+      for (let index = 0; index < 51; index++) {
+        const result = await service.discover({
+          repositoryRoot: repo,
+          profile: "OBSERVE",
+          environment: "local",
+        });
+        if (!first) first = result.snapshot.id;
+        latest = result.snapshot.id;
+      }
+      // Synthetic catalog fixtures only; no fake snapshots or API responses.
+      for (let index = 0; index < 26; index++)
+        store.addProject(
+          randomUUID(),
+          join(root, `catalog-${index}`),
+          `catalog-${index}`,
+        );
+      api = await startPieApi(service, {
+        root: repo,
+        token,
+        webDirectory: resolve("dist/pie-web"),
+      });
+      browser = await chromium.launch({ executablePath, headless: true });
+      const page = await browser.newPage();
+      await page.goto(api.url);
+      await page.getByLabel("Credencial do serviço local").fill(token);
+      await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      const snapshots = page.getByRole("group", {
+        name: "Snapshots",
+        exact: true,
+      });
+      await snapshots.getByText("51–51 de 51", { exact: true }).waitFor();
+      expect(
+        await page
+          .getByLabel("Snapshot observado", { exact: true })
+          .inputValue(),
+      ).toBe(latest);
+      await snapshots
+        .getByRole("button", { name: "Anterior", exact: true })
+        .click();
+      await snapshots.getByText("1–50 de 51", { exact: true }).waitFor();
+      expect(
+        await page
+          .getByLabel("Snapshot observado", { exact: true })
+          .inputValue(),
+      ).toBe(latest);
+      await page.getByRole("button", { name: "Comparar versões" }).click();
+      await page.getByLabel("Comparar snapshot atual com").selectOption(first);
+      await page.getByRole("button", { name: "Comparar snapshots" }).click();
+      await page.getByText(/Conteúdo observado sem alteração/).waitFor();
+      const projects = page.getByRole("group", {
+        name: "Projetos",
+        exact: true,
+      });
+      const selected = await page
+        .getByLabel("Histórico do projeto", { exact: true })
+        .inputValue();
+      await projects
+        .getByRole("button", { name: "Próxima", exact: true })
+        .click();
+      await projects.getByText("26–27 de 27", { exact: true }).waitFor();
+      expect(
+        await page
+          .getByLabel("Histórico do projeto", { exact: true })
+          .inputValue(),
+      ).toBe(selected);
+      await page
+        .getByLabel("Histórico do projeto", { exact: true })
+        .selectOption({ index: 2 });
+      await page
+        .getByRole("heading", { name: "Comece pela primeira investigação" })
+        .waitFor();
+      expect(
+        await page
+          .getByLabel("Snapshot observado", { exact: true })
+          .inputValue(),
+      ).toBe("");
+    } finally {
+      await browser?.close();
+      if (api) await api.close();
+      else await service.close();
       await rm(root, { recursive: true, force: true });
     }
   },

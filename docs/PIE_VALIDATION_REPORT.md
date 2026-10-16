@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Navegação completa dos registros — 16/10/2026
+
+CI 38967326152 do commit b478b19b20619466028bc22f08c3d57d25503a57 terminou com sucesso: build, migrações, PostgreSQL real, typecheck, inventário e painel no Chrome Linux.
+
+Removidos cortes da UI em 200 projetos/50 snapshots: consultas paginadas com seleção independente da página e carregamento/cancelamento explícitos. Histórico inicia na última página e permite todas as anteriores; comparação usa candidatos da página consultada, preservando o snapshot atual. Componentes Dashboard/ProjectSelectors e hook useProjectNavigation assumem navegação antes misturada ao App.
+
+Trace agora mostra relações e respectivas evidências, além dos nós. Paginação usa o maior total das duas listas, evitando esconder arestas quando há mais relações que nós. Testes reais Chrome Windows: 3 aprovados em 21,70s, incluindo 51 descobertas persistidas, 27 projetos (26 entidades de catálogo sintéticas, sem falsos snapshots), comparação entre páginas e grafo de 26 arquivos/650 imports. Página 51–75 contém zero nós e 25 relações consultáveis. Nenhum mock de servidor/provedor. Revalidação final após ajustes: quatro testes aprovados em três arquivos, 22,78s, incluindo autenticação. Typechecks raiz/web, build e fronteiras passaram; lint sem erros, seis avisos de tamanho/complexidade nos componentes/hooks. Refatoração completa dos componentes de investigação permanece pendente; não há aceite integral de acessibilidade ou motores.
+
 ## Painel local — 16/10/2026
 
 React 18.3.1 integrado à API loopback real, sem hospedagem externa ou dados de demonstração. Sessão opaca HttpOnly/SameSite Strict, expiração de 30 minutos, limites de sessões/tentativas, origem/Host exatos, CSRF e CSP sem unsafe-inline/unsafe-eval. Bearer preservado; API-only continua sem aceitar Origin.

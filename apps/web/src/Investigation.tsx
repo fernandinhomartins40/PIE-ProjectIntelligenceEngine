@@ -1,3 +1,4 @@
+import { TraceResult } from "./TraceResult.js";
 import { useEffect, useRef, useState } from "react";
 import {
   api,
@@ -337,67 +338,12 @@ export function Investigation({
               </button>
             </form>
             {trace && (
-              <>
-                <Notice>
-                  {trace.nodes.total} nós alcançados · {trace.edges.total}{" "}
-                  relações ·{" "}
-                  {trace.coverage.truncated
-                    ? "Busca truncada pelos limites"
-                    : "Busca concluída nas relações registradas"}
-                  . Execução não verificada.
-                </Notice>
-                <div className="table-wrap">
-                  <table>
-                    <caption>Nós alcançados no trace</caption>
-                    <thead>
-                      <tr>
-                        <th>Nó</th>
-                        <th>Tipo</th>
-                        <th>Origem</th>
-                        <th>Evidência</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trace.nodes.items.map((node) => (
-                        <tr key={node.id}>
-                          <td>{node.label}</td>
-                          <td>{node.kind}</td>
-                          <td className="path">
-                            {node.path}
-                            {node.line ? `:${node.line}` : ""}
-                          </td>
-                          <td>
-                            <button
-                              onClick={() =>
-                                void showEvidence(node.evidenceIds[0]!)
-                              }
-                            >
-                              Ver evidência
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <Pager
-                  offset={offset}
-                  total={trace.nodes.total}
-                  limit={LIMIT}
-                  onChange={(value) => void runTrace(value, trace)}
-                />
-                <details>
-                  <summary>
-                    Limites e relações não resolvidas (
-                    {trace.coverage.unresolvedRelations})
-                  </summary>
-                  <ul>
-                    {trace.coverage.limitations.map((value, index) => (
-                      <li key={index}>{value}</li>
-                    ))}
-                  </ul>
-                </details>
-              </>
+              <TraceResult
+                trace={trace}
+                limit={LIMIT}
+                onEvidence={(id) => void showEvidence(id)}
+                onPage={(value) => void runTrace(value, trace)}
+              />
             )}
           </>
         )}
@@ -419,6 +365,12 @@ export function Investigation({
                   required
                 >
                   <option value="">Selecione uma observação anterior</option>
+                  {beforeId &&
+                    !history.some((item) => item.id === beforeId) && (
+                      <option value={beforeId}>
+                        Snapshot escolhido · {beforeId.slice(0, 8)}
+                      </option>
+                    )}
                   {history
                     .filter((item) => item.id !== snapshotId)
                     .map((item) => (
@@ -432,7 +384,7 @@ export function Investigation({
                 Comparar snapshots
               </button>
             </form>
-            {history.length < 2 && (
+            {history.filter((item) => item.id !== snapshotId).length === 0 && (
               <Notice>
                 São necessários dois snapshots do mesmo projeto para comparar
                 mudanças.
