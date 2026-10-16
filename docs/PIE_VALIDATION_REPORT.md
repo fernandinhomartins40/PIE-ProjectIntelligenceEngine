@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Composição VERIFY e evidência vinculada — 16/10/2026
+
+CI 38980404425 de 9d3112418054671e3c7da44c918f5799cf435323 passou, incluindo supervisor com Docker real (sucesso, falha e cancelamento) e checagem de ausência de contêiner residual. O fluxo novo NodeVerification ainda aguarda a CI do próximo commit.
+
+NodeVerification compõe admissão, cópia privada de bytes verificados, reporter/config privados e DockerExecution. É dono da cópia e do contêiner; cleanup do contêiner precede remoção dos arquivos montados. Falha mantém referências para close retry; close durante atividade cancela e aguarda operação. Deadline global inclui preparação e finalização. Resultado gera evidência selada vinculada a run/projeto/snapshot, autorização por digest, imagem e registro completo. verifyRunEvidence recusa alteração de resultado/projeto/imagem/autorização. Nomes de arquivos de teste com metacaracteres de glob são recusados para não expandir a seleção autorizada.
+
+Validação local: nove aprovados + três skipped em quatro arquivos, 3,56s. Lint dos módulos novos sem erros/avisos. Fluxo indisponível real preserva projeto, produz estado blocked e não deixa diretórios temporários; não prova Docker positivo neste Windows. CI adiciona descoberta Git → cópia privada → execução Docker → prova selada com teste real sem alteração do projeto. Sem persistência de runs/evidências, journal de recursos ou integração pública; referências em memória não garantem recuperação após crash. T3.1 continua parcial.
+
 ## Supervisão Docker — 16/10/2026
 
 CI 38980024074 do commit 7ee7e1c7542db0c294770c0ce8d835433009bc4f terminou com sucesso. Teste real Docker criou/inspecionou/iniciou fixture Node, comprovando restrições observadas (UID, mount/source readonly, rootfs, rede e ausência de socket) e resultado Node. Isso valida o plano anterior; não prova o novo supervisor ainda não publicado.

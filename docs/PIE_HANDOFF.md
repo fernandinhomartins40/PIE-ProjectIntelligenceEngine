@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — composição VERIFY
+
+CI 9d3112418 passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38980404425, incluindo supervisor Docker real pass/fail/cancel. NodeVerification agora integra admissão+workspace+reporter/config privados+DockerExecution, retendo workspace até cleanup do contêiner confirmado. close cancela e aguarda atividade; retry conserva ownership. Deadline global inclui preparação. runEvidence cobre hash do registro inteiro (resultado, imagem, autorização, IDs, timestamps e cleanup), além de sealEvidence. Não há resultado persistido ainda. Testes locais nove aprovados+três skipped; CI do próximo push terá fluxo integrado real em pieVerification.test.ts.
+
+Próxima dependência: persistir VerificationRun e evidência de teste de forma atômica, imutável e idempotente no SQLite/Postgres; validar vínculo com snapshot/revisão. Separar contratos puros do workflow antes de importá-los pela persistência. Adicionar histórico/leitura de runs compartilhados e journal/recovery de ownership antes de expor comandos de execução; não inventar remoção após crash. Input VERIFY é grant explícito por snapshot, sem execução host. Todos os motores/HTTP/Playwright de auditoria e correção/reteste continuam no escopo integral.
+
 ## Estado prioritário — supervisor de contêiner
 
 CI 7ee7e1c75 passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38980024074, incluindo Docker real (plano/configuração e execução fixture). Novos dockerCommand.ts/dockerExecution.ts usam runOwnedCommand e supervisão de processos upstream para clientes, separados do recurso daemon-side. Endpoint local/executável/config explícitos, ambiente mínimo sem credenciais herdadas. Supervisor cria/inspeciona/valida antes de iniciar, normaliza saída real e retém owner se limpeza incerta. Close retry trata handshake tardio sem confundir list vazio com ausência enquanto create não confirmado.

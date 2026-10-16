@@ -31,6 +31,7 @@ export type WorkspaceError =
   | AnalysisOutputError
   | AnalysisResourceConstraintError;
 export interface PreparedWorkspace {
+  readonly controlDirectory: string;
   readonly directory: string;
   readonly bytes: number;
   readonly files: number;
@@ -134,6 +135,7 @@ export async function prepareWorkspace(
     checkpoint();
     const retained = owner;
     return ok({
+      controlDirectory: retained.path,
       directory,
       bytes,
       files: snapshot.nodes.length,

@@ -107,7 +107,10 @@ export async function admitNodeTests(
   }
   if (
     grant.testFiles.some(
-      (path) => !paths.has(path) || !/\.(?:[cm]?js|[cm]?ts)$/.test(path),
+      (path) =>
+        !paths.has(path) ||
+        /[*?\[\]{}]/.test(path) ||
+        !/\.(?:[cm]?js|[cm]?ts)$/.test(path),
     )
   )
     return err(
