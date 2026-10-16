@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { lstat, realpath } from "node:fs/promises";
-import { basename, dirname, relative, resolve, sep } from "node:path";
+import { realpath } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   PieError,
@@ -11,7 +11,7 @@ import {
   type Snapshot,
 } from "./contracts.js";
 import { sealEvidence, sha256 } from "./evidence.js";
-import { containedPath } from "./policy.js";
+import { inventoryPath } from "./inventoryPath.js";
 import {
   readImports,
   resolveImports,
@@ -91,25 +91,6 @@ function classify(path: string): GraphNode["kind"] {
   )
     return "test";
   return "file";
-}
-
-/** Reject symlinks/junctions along the whole path, including intermediate parents. */
-async function checkPath(root: string, path: string): Promise<string> {
-  const candidate = containedPath(root, path);
-  let cursor = candidate;
-  while (cursor !== root) {
-    if ((await lstat(cursor)).isSymbolicLink())
-      throw new PieError("POLICY_DENIED", "Link simbólico não inspecionado.");
-    const parent = dirname(cursor);
-    if (parent === cursor)
-      throw new PieError("POLICY_DENIED", "Caminho não contido.");
-    cursor = parent;
-  }
-  const actual = await realpath(candidate);
-  const delta = relative(root, actual);
-  if (delta === ".." || delta.startsWith(`..${sep}`))
-    throw new PieError("POLICY_DENIED", "Destino fora do escopo.");
-  return candidate;
 }
 
 export async function discoverProject(
@@ -193,7 +174,7 @@ export async function discoverProject(
       continue;
     }
     try {
-      const candidate = await checkPath(root, path);
+      const candidate = await inventoryPath(root, path);
       const buffer = await readInventoryFile(
         candidate,
         Math.min(policy.maxFileBytes, policy.maxTotalBytes - bytesRead),

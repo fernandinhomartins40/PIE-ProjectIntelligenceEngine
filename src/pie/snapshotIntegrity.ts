@@ -6,6 +6,7 @@ import {
 } from "./contracts.js";
 import { verifyEvidence, sha256 } from "./evidence.js";
 import { declarationIdentity } from "./adapters/identity.js";
+import { snapshotFiles } from "./snapshotFiles.js";
 
 function validateDeclarations(
   snapshot: Snapshot,
@@ -69,17 +70,10 @@ export function validateSnapshot(input: unknown): Snapshot {
         "Aresta sem nó de origem ou destino.",
       );
   validateDeclarations(snapshot, evidenceById);
-  const files = snapshot.nodes.map((node) => {
-    const source = node.evidenceIds
-      .map((id) => evidenceById.get(id)!)
-      .find(
-        (evidence) =>
-          evidence.source.path === node.path && evidence.source.line === null,
-      );
-    if (!source)
-      throw new PieError("INTEGRITY_ERROR", "Nó sem evidência de arquivo.");
-    return [node.path, source.source.sha256];
-  });
+  const files = snapshotFiles(snapshot).map(({ node, source }) => [
+    node.path,
+    source.source.sha256,
+  ]);
   if (sha256(JSON.stringify(files)) !== snapshot.treeDigest)
     throw new PieError(
       "INTEGRITY_ERROR",

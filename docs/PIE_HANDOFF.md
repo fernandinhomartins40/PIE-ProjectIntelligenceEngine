@@ -1,5 +1,13 @@
 # PIE — Continuidade
 
+## Estado prioritário — base de execução VERIFY
+
+CI 38968024969 do commit 94e08801471e5393cfa4e3e7bc55108d23d46654 passou (PostgreSQL e painel paginado/trace Chrome Linux). Novos módulos internos src/pie/execution: grant Node VERIFY estrito (execução explícita, ambiente local, raiz/snapshot/treeDigest, imagem por digest, validade, testes e limites); admission usa Result e erros tagueados upstream; workspace usa PrivateRuntimeRoot e cópia de arquivos observados, por hashes, limites e cancelamento, sem executar alvo.
+
+inventoryPath agora é dono compartilhado da recusa de links/caminhos fora da raiz. snapshotFiles é dono das identidades consumidas por integridade/comparação/preparação: rejeita caminhos duplicados e evidências de arquivo conflitantes. Supersedidas interpretações privadas removidas. Windows local não possui native/windows/build/manifest.json/rea-windows-x64.node: runtime privado retorna capability unavailable, corretamente; não declarar cópia positiva nesta máquina. CI Linux contém teste positivo real, mais regressões de link/limite/cleanup; aguardar o novo commit para evidência. Um teste usa falha de limpeza simulada exclusivamente em fixture Vitest e retoma close no dono real.
+
+Não há comando/API/MCP de execução anunciados. Próximo passo: implementar provider Docker real sem pull automático, daemon local explicitamente selecionado, imagem inspecionada, rede none, caps removidas, usuário sem privilégios, rootfs somente leitura, tmpfs limitado e ownership de contêiner separado do cliente Docker. Reutilizar runOwnedCommand/ProviderProcess; preservar/reter cleanup se cancelamento ou handshake tardio falhar. Normalizar resultados reais (passed/failed/skipped/blocked/inconclusive) e persistir provas imutáveis antes de expor execução ao usuário. Node, outros test runners, HTTP, Playwright, todos os seis motores e correção/reteste seguem no escopo integral.
+
 ## Estado prioritário — navegação paginada e relações
 
 CI da entrega b478b19b2: sucesso em https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38967326152, com PostgreSQL/Chrome Linux reais. Navegação agora percorre todas as páginas de projetos e histórico, preservando identidades selecionadas fora da página. Hook useProjectNavigation é dono dessas seleções; Dashboard/ProjectSelectors extraídos do App. Histórico começa na última página; comparação pode usar snapshot atual fixo e candidato de outra página.

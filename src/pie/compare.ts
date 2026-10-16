@@ -1,3 +1,4 @@
+import { snapshotFiles } from "./snapshotFiles.js";
 import { z } from "zod";
 import { PieError, type Snapshot } from "./contracts.js";
 import { impactedNodes, page, pageSchema } from "./graph.js";
@@ -69,32 +70,17 @@ export function compareSnapshots(
       "INVALID_INPUT",
       "Compare snapshots do mesmo projeto e raiz.",
     );
-  const sides = (snapshot: Snapshot) => {
-    const evidence = new Map(snapshot.evidence.map((item) => [item.id, item]));
-    return new Map(
-      snapshot.nodes.map((node) => {
-        const proof = node.evidenceIds
-          .map((id) => evidence.get(id))
-          .find(
-            (item) =>
-              item?.source.path === node.path && item.source.line === null,
-          );
-        if (!proof)
-          throw new PieError(
-            "INTEGRITY_ERROR",
-            "Nó sem evidência de identidade do arquivo.",
-          );
-        return [
-          node.path,
-          {
-            nodeId: node.id,
-            sha256: proof.source.sha256,
-            evidenceIds: node.evidenceIds,
-          },
-        ];
-      }),
+  const sides = (snapshot: Snapshot) =>
+    new Map(
+      snapshotFiles(snapshot).map(({ node, source }) => [
+        node.path,
+        {
+          nodeId: node.id,
+          sha256: source.source.sha256,
+          evidenceIds: node.evidenceIds,
+        },
+      ]),
     );
-  };
   const old = sides(before);
   const current = sides(after);
   const changes: z.infer<typeof changeSchema>[] = [];

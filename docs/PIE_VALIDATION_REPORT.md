@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Preparação de execução VERIFY — 16/10/2026
+
+CI 38968024969 de 94e08801471e5393cfa4e3e7bc55108d23d46654 terminou com sucesso, incluindo PostgreSQL e Chrome Linux para paginação e relações. Base interna de execução adicionada sem anunciar runner pronto: admissão estrita por raiz/snapshot/conteúdo, autorização explícita/expiração, imagem por digest e limites; preparação de cópia privada dos arquivos observados verifica cada hash e mantém dono em falha de limpeza.
+
+Identidade de arquivos centralizada em snapshotFiles, consumida por integridade, comparação e preparação. inventoryPath centraliza recusa de links/escape; implementações supersedidas removidas. Teste rejeita duplicatas de caminho e provas conflitantes mesmo com hashes de evidência válidos. Corrigida documentação de serve (raiz é argumento posicional) e doctor deixou de listar painel como indisponível.
+
+Validação Windows: suíte ampliada teve 17 aprovados + 1 skipped antes da regressão adicional de limpeza. Typecheck integral, build PIE, fronteiras de 2.029 fontes e lint dos novos módulos passaram. Cópia positiva não comprovada localmente: native Windows ausente, e a preparação retorna AnalysisCapabilityUnavailableError sem escrever. Testes POSIX e retenção/retry aguardam execução na CI Linux; falha de cleanup é injetada só no teste, não na aplicação. Chamadas de filesystem são verificadas contra deadline após retornarem; ainda não há isolamento de testes, execução de alvo, prova de limites de contêiner ou relatórios de testes reais. T3.1 permanece parcial.
+
 ## Navegação completa dos registros — 16/10/2026
 
 CI 38967326152 do commit b478b19b20619466028bc22f08c3d57d25503a57 terminou com sucesso: build, migrações, PostgreSQL real, typecheck, inventário e painel no Chrome Linux.

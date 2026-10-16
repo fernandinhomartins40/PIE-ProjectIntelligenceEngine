@@ -6,7 +6,7 @@ Implementação atual: inventário Git e declarações de stacks, imports AST TS
 
 Instruções de execução: [docs/PIE_DEVELOPMENT.md](docs/PIE_DEVELOPMENT.md). Evidências de testes: [docs/PIE_VALIDATION_REPORT.md](docs/PIE_VALIDATION_REPORT.md).
 
-O painel React local acompanha `npm run pie:build`. Inicie `node scripts/pie.mjs serve --root CAMINHO_DO_PROJETO --db CAMINHO_FORA_DO_PROJETO` com `PIE_API_TOKEN` definido (32–512 caracteres) e abra a URL loopback impressa. A conexão usa sessão HttpOnly e CSRF; a credencial não vai para armazenamento do navegador. `--api-only` mantém apenas a API Bearer. O painel consulta descobertas reais, evidências, relações e comparação de snapshots; correções/retestes e os seis motores ainda estão pendentes.
+O painel React local acompanha `npm run pie:build`. Inicie `node scripts/pie.mjs serve CAMINHO_DO_PROJETO --db CAMINHO_DO_BANCO_FORA_DO_PROJETO` com `PIE_API_TOKEN` definido (32–512 caracteres) e abra a URL loopback impressa. A conexão usa sessão HttpOnly e CSRF; a credencial não vai para armazenamento do navegador. `--api-only` mantém apenas a API Bearer. O painel consulta descobertas reais, evidências, relações e comparação de snapshots; correções/retestes e os seis motores ainda estão pendentes.
 
 O [README original REA](README.md), a [licença MIT](LICENSE) e os [notices de terceiros](THIRD_PARTY_NOTICES.md) permanecem preservados. PIE é um projeto independente, sem afiliação oficial com REA. O pacote está privado para impedir publicação acidental sob a identidade npm upstream.
 

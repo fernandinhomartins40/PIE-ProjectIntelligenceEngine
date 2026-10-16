@@ -59,8 +59,9 @@ export async function runPie(args: string[]): Promise<void> {
             "postgresql-prisma-adapter",
             "declarative-stack-inventory",
             "recorded-graph-trace",
+            "local-react-dashboard",
           ],
-          unavailable: ["audit-engines", "target-execution", "dashboard"],
+          unavailable: ["audit-engines", "target-execution"],
           upstreamProviders: "não verificados",
           postgresqlRuntime:
             "não verificado nesta máquina; exige PIE_DATABASE_URL e migrações",
