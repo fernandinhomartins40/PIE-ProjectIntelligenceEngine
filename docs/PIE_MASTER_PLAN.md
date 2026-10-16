@@ -17,7 +17,7 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 | T1.2 | P0 | PostgreSQL, migrations, evidência imutável, redação e histórico | parcial | Migrações e teste dedicado PostgreSQL real passaram na CI Linux 38963487480; retenção/redação completa e demais entidades ainda pendentes |
 | T1.3 | P0 | Fila persistente, workers, cancelamento, recuperação e limites | parcial | Fila SQLite e teste concorrente PostgreSQL real passaram; worker OBSERVE testado; daemon, runners isolados e demais tipos de jobs pendentes |
 | T1.4 | P1 | API local autenticada; CLI e MCP sobre os mesmos serviços | parcial | API loopback com Bearer, raiz fixa, limites e teste integrado; jobs/API completa pendentes |
-| T1.5 | P1 | Painel pt-BR conectar → investigar → resolver/validar | pendente | T1.4; E2E, teclado, telas 360–1440px |
+| T1.5 | P1 | Painel pt-BR conectar → investigar → resolver/validar | parcial | React local com sessão/CSRF, descoberta, evidências, trace e comparação reais; Chrome Windows e telas 360–1440px testados; resolução/reteste, paginação integral de projetos/histórico e auditoria acessível completa pendentes |
 | T2.1 | P1 | Inventário Git limitado, snapshots e proveniência por hash | parcial | Implementado e testado em Windows; snapshot atômico hostil não garantido |
 | T2.2 | P1 | AST TS/JS/Node/React/Next e imports/rotas/serviços/testes | parcial | Imports/reexports relativos AST; rotas/frameworks e aliases pendentes |
 | T2.3 | P1 | Laravel/PHP, Prisma/Postgres, Docker/Compose, Nginx e OpenAPI | parcial | Manifests Node/Composer, serviços/dependências Compose, operações OpenAPI 3.0/3.1 e model/campos Prisma integrados; PHP/Nginx e cobertura completa pendentes |

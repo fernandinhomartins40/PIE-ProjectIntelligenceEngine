@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Painel local — 16/10/2026
+
+React 18.3.1 integrado à API loopback real, sem hospedagem externa ou dados de demonstração. Sessão opaca HttpOnly/SameSite Strict, expiração de 30 minutos, limites de sessões/tentativas, origem/Host exatos, CSRF e CSP sem unsafe-inline/unsafe-eval. Bearer preservado; API-only continua sem aceitar Origin.
+
+Executados: compilação PIE, typecheck raiz e web, geração/check do inventário de 892 dependências (325 runtime), fronteiras em 2.024 fontes. Suíte ampliada: 16 aprovados e E2E inicialmente falhou ao esperar histórico anterior; após corrigir sincronização e espera incompatível com CSP, E2E Chrome Windows aprovado em 3,63s (5,65s total). Autenticação real aprovada isoladamente e na suíte. PostgreSQL não executado localmente nesta rodada; CI anterior 38965547500 passou com banco real.
+
+E2E comprova conexão por teclado, descoberta Git/SQLite, arquivos/declarações/evidência/trace, segunda descoberta após alteração, comparação, reload com sessão, ausência de localStorage/sessionStorage e logout. Capturas ignoradas em .cache/pie-web para 360/768/1024/1440 px, sem overflow da página; mobile revisado. Sem erros JavaScript/CSP no fluxo final. Não comprova acessibilidade integral, motores, execução de alvos ou resolver/retestar. Projetos limitados aos primeiros 200 e histórico aos últimos 50 com aviso. Lint focado sem erros e dez avisos de complexidade/tamanho em API/componentes; refatoração pendente, sem supressões.
+
 Data inicial: 16/10/2026. Ambiente: Windows, PowerShell, workspace local autorizado.
 
 | Verificação executada | Resultado | Limite |

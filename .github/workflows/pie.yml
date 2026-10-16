@@ -2,9 +2,9 @@ name: PIE integration
 on:
   push:
     branches: [main]
-    paths: ["src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pieMcp.test.ts", "package*.json", ".github/workflows/pie.yml"]
+    paths: ["apps/web/**", "scripts/build-pie-web.mjs", "src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pieMcp.test.ts", "package*.json", ".github/workflows/pie.yml"]
   pull_request:
-    paths: ["src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pieMcp.test.ts", "package*.json", ".github/workflows/pie.yml"]
+    paths: ["apps/web/**", "scripts/build-pie-web.mjs", "src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pieMcp.test.ts", "package*.json", ".github/workflows/pie.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,6 +37,12 @@ jobs:
           PIE_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
       - run: npm run typecheck
       - run: node scripts/generate-third-party-inventory.mjs --check
+      - name: Verify installed browser and panel
+        run: |
+          test -x /usr/bin/google-chrome
+          node node_modules/vitest/vitest.mjs run tests/boundary/pieBrowserAuth.test.ts tests/boundary/pieWeb.test.ts
+        env:
+          PIE_BROWSER_EXECUTABLE: /usr/bin/google-chrome
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/piePostgres.test.ts tests/boundary/pieJobs.test.ts tests/boundary/pieAdapters.test.ts tests/boundary/pieTrace.test.ts tests/boundary/pieFoundation.test.ts tests/boundary/pieComparison.test.ts tests/boundary/pieApi.test.ts tests/boundary/mcp/pieMcp.test.ts
         env:
           PIE_TEST_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test

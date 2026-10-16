@@ -25,6 +25,7 @@ export async function runPie(args: string[]): Promise<void> {
       depth: { type: "string" },
       "max-nodes": { type: "string" },
       "max-edges": { type: "string" },
+      "api-only": { type: "boolean" },
     },
   });
   const [command, target] = parsed.positionals;
@@ -112,6 +113,7 @@ export async function runPie(args: string[]): Promise<void> {
         target!,
         dbPath,
         parsed.values.port,
+        parsed.values["api-only"] ?? false,
       );
     } catch (cause) {
       await store.close();

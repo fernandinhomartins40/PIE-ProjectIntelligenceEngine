@@ -1,5 +1,13 @@
 # PIE — Continuidade
 
+## Estado prioritário — painel local em validação
+
+CI da quinta entrega passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38965547500 (8b5870a64882531ae377919f5f21b944fcf87112). Inclui PostgreSQL real com declarações e trace.
+
+Painel em apps/web (React 18.3.1), build rolldown em scripts/build-pie-web.mjs, assets gerados em dist/pie-web e servidos por whitelist no loopback. Sessões em browserSessions.ts: cookies opacos HttpOnly/SameSite Strict, CSRF para operações, limite de sessões/expiração/tentativas, origem/Host exatos. API Bearer continua disponível; --api-only desabilita assets/sessões. Sem hospedagem externa, mocks, token no HTML/localStorage/sessionStorage ou execução de código auditado.
+
+Teste Chrome real já passou individualmente com descoberta, evidência, declarações, trace, comparação, reload, logout e larguras 360/768/1024/1440. Capturas locais ignoradas em .cache/pie-web. Revalidação ampliada em andamento após ajustes de remount por snapshot e teclado; conferir resultado antes do commit. UI limita projetos a 200 e histórico aos últimos 50 com aviso; paginação integral, fluxo resolver/retestar e acessibilidade completa ainda pendentes. Plano integral permanece ativo; não declarar produto completo.
+
 ## Estado prioritário — quinta entrega
 
 CI da quarta entrega passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38964648240 (0a7e01d0dd9eb3990c7cbabb4436f00cb8399d18). Banco real e adaptadores naquele commit validados no Linux. Não confundir com CI do próximo commit.

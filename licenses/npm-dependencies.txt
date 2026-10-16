@@ -2,7 +2,7 @@ REA npm dependency inventory
 Prepared from the root package-lock.json; refresh this inventory when locked dependencies change.
 License identifiers are upstream lockfile declarations, not a legal assessment.
 Runtime includes transitive and optional platform packages; development includes build, test and website tooling.
-Locked package entries: 891; runtime: 325.
+Locked package entries: 892; runtime: 325.
 Full runtime copyright/license/NOTICE texts: npm-runtime-notices.txt.
 
 @algolia/abtesting@1.25.0 | development | MIT
@@ -1715,6 +1715,11 @@ std-env@3.10.0 | runtime | MIT
   Package: https://www.npmjs.com/package/@types/react/v/18.3.31
   Archive: https://registry.npmjs.org/@types/react/-/react-18.3.31.tgz
   Integrity: sha512-vfEqpXTvwT91yhmwdfouStN2hSKwTvyRs8qpLfADyrq/kxDw0hZM7Wk9Ug1FELj8hIby+S/+kQCSRFF32nv2Qw==
+@types/react-dom@18.3.7 | development | MIT
+  Lockfile path: node_modules/@types/react-dom
+  Package: https://www.npmjs.com/package/@types/react-dom/v/18.3.7
+  Archive: https://registry.npmjs.org/@types/react-dom/-/react-dom-18.3.7.tgz
+  Integrity: sha512-MEe3UeoENYVFXzoXEWsvcpg6ZvlrFNlOQ7EOsvhI3CfAXwzPfO8Qwuxd40nepsYKqyyVQnTdEfv68q91yLcKrQ==
 @types/semver@7.7.1 | development | MIT
   Lockfile path: node_modules/@types/semver
   Package: https://www.npmjs.com/package/@types/semver/v/7.7.1

@@ -10,6 +10,8 @@ import { PieError } from "./contracts.js";
 import { PieService } from "./service.js";
 import { pageSchema } from "./graph.js";
 import type { JobQueue } from "./jobs/contracts.js";
+import { BrowserSessions } from "./browserSessions.js";
+import { loadWebAssets, WEB_CSP } from "./webAssets.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -51,27 +53,101 @@ async function body(request: IncomingMessage): Promise<unknown> {
 /** Local-only API. No remote bind, ambient credentials, arbitrary target root or CORS. */
 export async function startPieApi(
   service: PieService,
-  options: { root: string; token: string; port?: number; queue?: JobQueue },
+  options: {
+    root: string;
+    token: string;
+    port?: number;
+    queue?: JobQueue;
+    webDirectory?: string;
+  },
 ) {
-  z.string().min(32).parse(options.token);
+  z.string().min(32).max(512).parse(options.token);
   await service.store.assertOutside(options.root);
   const authorizedRoot = await realpath(options.root);
+  const assets = options.webDirectory
+    ? await loadWebAssets(options.webDirectory)
+    : null;
+  const sessions = assets ? new BrowserSessions(options.token) : null;
   const server = createServer((request, response) => {
     const run = async () => {
-      if (request.headers.origin) {
-        respond(response, 403, { error: { code: "ORIGIN_DENIED" } });
-        return;
-      }
-      if (!authenticate(request, options.token)) {
-        respond(response, 401, { error: { code: "UNAUTHORIZED" } });
-        return;
-      }
-      const host = request.headers.host ?? "";
-      if (!/^127\.0\.0\.1:\d+$/.test(host)) {
+      const expectedHost = `127.0.0.1:${request.socket.localPort}`;
+      const origin = `http://${expectedHost}`;
+      if (request.headers.host !== expectedHost) {
         respond(response, 403, { error: { code: "HOST_DENIED" } });
         return;
       }
+      if (
+        request.headers.origin &&
+        (!sessions || request.headers.origin !== origin)
+      ) {
+        respond(response, 403, { error: { code: "ORIGIN_DENIED" } });
+        return;
+      }
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
+      const asset = assets?.get(url.pathname);
+      if (asset && request.method === "GET") {
+        response.writeHead(200, {
+          "Content-Type": asset.type,
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": WEB_CSP,
+          "Referrer-Policy": "no-referrer",
+        });
+        response.end(asset.bytes);
+        return;
+      }
+      if (sessions && url.pathname === "/v1/session") {
+        if (request.method === "GET") {
+          respond(response, 200, sessions.info(request));
+          return;
+        }
+        if (request.method === "POST") {
+          if (request.headers.origin !== origin) {
+            respond(response, 403, { error: { code: "ORIGIN_REQUIRED" } });
+            return;
+          }
+          const input = z
+            .strictObject({ token: z.string().min(1).max(512) })
+            .parse(await body(request));
+          const login = sessions.login(request, input.token);
+          if (login.cookie) response.setHeader("Set-Cookie", login.cookie);
+          respond(
+            response,
+            login.status,
+            login.info ?? {
+              error: {
+                code:
+                  login.status === 429 ? "LOGIN_RATE_LIMIT" : "UNAUTHORIZED",
+              },
+            },
+          );
+          return;
+        }
+        if (request.method === "DELETE") {
+          if (!sessions.authorized(request, origin)) {
+            respond(response, 403, {
+              error: { code: "CSRF_OR_SESSION_INVALID" },
+            });
+            return;
+          }
+          response.setHeader("Set-Cookie", sessions.logout(request));
+          respond(response, 200, { authenticated: false });
+          return;
+        }
+      }
+      if (
+        !authenticate(request, options.token) &&
+        !sessions?.authorized(request, origin)
+      ) {
+        respond(response, sessions?.info(request).authenticated ? 403 : 401, {
+          error: {
+            code: sessions?.info(request).authenticated
+              ? "CSRF_INVALID"
+              : "UNAUTHORIZED",
+          },
+        });
+        return;
+      }
       const paging = () =>
         pageSchema.parse({
           offset: Number(url.searchParams.get("offset") ?? 0),
@@ -140,6 +216,10 @@ export async function startPieApi(
           status: "ready",
           profile: "OBSERVE",
         });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/context") {
+        respond(response, 200, { root: authorizedRoot, profile: "OBSERVE" });
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/projects") {
@@ -254,6 +334,7 @@ export async function startPieApi(
           server.close((error) => (error ? reject(error) : accept())),
         );
         await service.close();
+        sessions?.clear();
         server.closeIdleConnections();
         await closed;
       })();

@@ -2,12 +2,14 @@ import { z } from "zod";
 import { startPieApi } from "./api.js";
 import { openQueue } from "./jobs/openQueue.js";
 import type { PieService } from "./service.js";
+import { resolve } from "node:path";
 
 export async function serveApiCommand(
   service: PieService,
   root: string,
   dbPath: string,
   rawPort?: string,
+  apiOnly = false,
 ): Promise<void> {
   const port = z.coerce
     .number()
@@ -22,6 +24,9 @@ export async function serveApiCommand(
       queue,
       port,
       token: process.env.PIE_API_TOKEN ?? "",
+      ...(!apiOnly
+        ? { webDirectory: resolve(import.meta.dirname, "../pie-web") }
+        : {}),
     });
     console.log(
       JSON.stringify({
