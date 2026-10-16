@@ -4,15 +4,16 @@ import { resolve } from "node:path";
 import { PieError, policySchema } from "./contracts.js";
 import { discoverProject, projectName } from "./discovery.js";
 import { page } from "./graph.js";
-import type { PieStore } from "./store.js";
+import type { PiePersistence } from "./persistence.js";
 import { compareSnapshots, comparisonInput } from "./compare.js";
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
   readonly #active = new Map<AbortController, Promise<unknown>>();
+  readonly #reads = new Set<Promise<unknown>>();
   #closing = false;
   #closePromise: Promise<void> | undefined;
-  constructor(readonly store: PieStore) {}
+  constructor(readonly store: PiePersistence) {}
 
   discover(input: unknown, signal?: AbortSignal) {
     if (this.#closing)
@@ -43,8 +44,8 @@ export class PieService {
     this.#closing = true;
     this.#closePromise ??= (async () => {
       for (const controller of this.#active.keys()) controller.abort();
-      await Promise.allSettled(this.#active.values());
-      this.store.close();
+      await Promise.allSettled([...this.#active.values(), ...this.#reads]);
+      await this.store.close();
     })().catch((cause) => {
       this.#closePromise = undefined;
       throw cause;
@@ -57,7 +58,7 @@ export class PieService {
     const policy = policySchema.parse(input);
     const root = await realpath(resolve(policy.repositoryRoot));
     await this.store.assertOutside(root);
-    const project = this.store.addProject(
+    const project = await this.store.addProject(
       randomUUID(),
       root,
       projectName(root),
@@ -69,7 +70,7 @@ export class PieService {
     );
     // Cancellation cutoff: synchronous transaction commits a complete publication.
     signal.throwIfAborted();
-    this.store.saveSnapshot(snapshot);
+    await this.store.saveSnapshot(snapshot);
     return {
       project,
       snapshot: {
@@ -85,22 +86,50 @@ export class PieService {
     };
   }
 
+  #read<T>(action: () => Promise<T>): Promise<T> {
+    if (this.#closing)
+      return Promise.reject(
+        new PieError("POLICY_DENIED", "Serviço em encerramento."),
+      );
+    const operation = action();
+    this.#reads.add(operation);
+    void operation.then(
+      () => this.#reads.delete(operation),
+      () => this.#reads.delete(operation),
+    );
+    return operation;
+  }
+
+  projects(input: unknown = {}) {
+    return this.#read(async () => this.store.projects(input));
+  }
+  history(projectId: string, input: unknown = {}) {
+    return this.#read(async () => this.store.history(projectId, input));
+  }
+  evidence(id: string) {
+    return this.#read(async () => this.store.evidence(id));
+  }
+
   graph(snapshotId: string, input: unknown = {}) {
-    const snapshot = this.store.snapshot(snapshotId);
-    return {
-      snapshotId,
-      nodes: page(snapshot.nodes, input),
-      edges: page(snapshot.edges, input),
-      coverage: snapshot.coverage,
-    };
+    return this.#read(async () => {
+      const snapshot = await this.store.snapshot(snapshotId);
+      return {
+        snapshotId,
+        nodes: page(snapshot.nodes, input),
+        edges: page(snapshot.edges, input),
+        coverage: snapshot.coverage,
+      };
+    });
   }
 
   compare(input: unknown) {
-    const { beforeId, afterId, ...paging } = comparisonInput.parse(input);
-    return compareSnapshots(
-      this.store.snapshot(beforeId),
-      this.store.snapshot(afterId),
-      paging,
-    );
+    return this.#read(async () => {
+      const { beforeId, afterId, ...paging } = comparisonInput.parse(input);
+      const [before, after] = await Promise.all([
+        this.store.snapshot(beforeId),
+        this.store.snapshot(afterId),
+      ]);
+      return compareSnapshots(before, after, paging);
+    });
   }
 }

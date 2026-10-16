@@ -58,3 +58,33 @@ O comando serve imprime somente URL e perfil, sem token. Escuta exclusivamente e
 Rotas v1: GET health/projects/graph/:snapshot/evidence/:id/history/:project; POST discover (maxFiles opcional) e compare (beforeId, afterId, offset, limit). Raiz e banco são definidos ao iniciar, não pelo corpo HTTP. Corpo limitado a 16 KiB, até 16 conexões e duas descobertas ativas por serviço. Isso não constitui fila persistente nem sandbox de execução.
 
 Ferramenta MCP adicional: pie_change_impact, com schema explícito e paginação. Todos os outputs MCP agora têm contratos de sucesso e erro explícitos. Comparação usa hashes e ambos os grafos: leitura parcial não confirma adição/exclusão por ausência; igualdade de conteúdo não aprova runtime. Exports HTML escapam conteúdo e usam CSP sem scripts; Markdown escapa links e delimitadores. Exports representam inventário, não relatório de auditoria dos seis motores.
+
+## PostgreSQL e fila persistente
+
+O modo PostgreSQL usa Prisma 7.10.1 e adapter-pg, com contrato de persistência compartilhado com SQLite. Referência: [documentação oficial Prisma PostgreSQL](https://www.prisma.io/docs/orm/v7/core-concepts/supported-databases/postgresql). Geração do cliente e validação do schema foram executadas; banco PostgreSQL real ainda depende da execução do teste dedicado/CI.
+
+```powershell
+# Defina PIE_POSTGRES_PASSWORD com senha própria no ambiente antes do Compose.
+docker compose -f compose.pie.yml up -d postgres
+# Defina PIE_DATABASE_URL com a conexão do banco PIE, nunca do projeto auditado.
+npm run pie:db:migrate
+npm run pie:build
+node scripts/pie.mjs discover C:/projetos/aplicacao
+```
+
+Sem PIE_DATABASE_URL, continua disponível o modo SQLite por --db. Com essa variável configurada, todos os comandos usam PostgreSQL e falhas de conexão não causam fallback silencioso. Migrações são comando explícito; geração do cliente e schema não aplicam alterações a um banco. Não há URL/senha de conexão padrão. O Compose só provisiona o banco PIE, sem montar socket Docker nem arquivos de aplicações. Preserve o volume nomeado; não execute down -v como limpeza rotineira.
+
+```powershell
+node scripts/pie.mjs enqueue C:/projetos/aplicacao --key investigacao-001 --db C:/dados-pie/pie.sqlite
+node scripts/pie.mjs work C:/projetos/aplicacao --db C:/dados-pie/pie.sqlite
+node scripts/pie.mjs job UUID_DO_JOB --db C:/dados-pie/pie.sqlite
+node scripts/pie.mjs cancel-job UUID_DO_JOB --db C:/dados-pie/pie.sqlite
+```
+
+`work` processa no máximo um job por invocação e somente da raiz autorizada. Enfileiramento fixa OBSERVE; não executa scripts, testes ou código do alvo. A fila suporta chave idempotente, fencing por token de lease, cancelamento, recuperação de worker perdido e limite de tentativas. Não promete execução exatamente uma vez: uma queda entre publicação do snapshot e recibo do job pode produzir novo snapshot na recuperação. Retenção de evidências preserva os snapshots publicados. Isolamento OS de runners e daemon contínuo ainda são pendentes.
+
+API com `serve`: POST /v1/jobs recebe idempotencyKey e maxFiles, GET /v1/jobs/:id consulta e POST /v1/jobs/:id/cancel solicita cancelamento. O corpo nunca escolhe raiz ou perfil. Consultar/cancelar exige o mesmo Bearer da API local. O processamento ocorre pelo comando work, não pelo servidor HTTP.
+
+Teste PostgreSQL: configure PIE_TEST_DATABASE_URL para um banco dedicado com nome terminado em _test, aplique migrações usando PIE_DATABASE_URL e execute tests/boundary/piePostgres.test.ts. Sem URL, esse teste fica skipped; não conta como aprovação. O workflow .github/workflows/pie.yml provisiona PostgreSQL real no runner e não depende do Docker local. Seu resultado só deve ser marcado verificado após inspeção da execução.
+
+As novas dependências têm arquivos originais de licença coletados de tarballs conferidos pelo hash do lockfile. Sete identidades contêm lacunas explícitas de notice no arquivo de atribuições; revisão antes de distribuição permanece pendente, e o pacote continua privado.

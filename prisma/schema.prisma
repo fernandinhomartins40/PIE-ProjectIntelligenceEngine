@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Project {
+  id        String   @id @db.Uuid
+  root      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  snapshots Snapshot[]
+
+  @@map("pie_projects")
+}
+
+model Snapshot {
+  id        String   @id @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  createdAt DateTime @map("created_at")
+  payload   Json
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  evidence  Evidence[]
+  nodes     GraphNode[]
+  edges     GraphEdge[]
+
+  @@index([projectId, createdAt, id])
+  @@map("pie_snapshots")
+}
+
+model Evidence {
+  id         String   @id @db.Uuid
+  snapshotId String   @map("snapshot_id") @db.Uuid
+  payload    Json
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+
+  @@index([snapshotId])
+  @@map("pie_evidence")
+}
+
+model GraphNode {
+  snapshotId String @map("snapshot_id") @db.Uuid
+  id         String
+  kind       String
+  path       String
+  payload    Json
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+
+  @@id([snapshotId, id])
+  @@index([snapshotId, path])
+  @@map("pie_graph_nodes")
+}
+
+model GraphEdge {
+  snapshotId String @map("snapshot_id") @db.Uuid
+  id         String
+  sourceId   String @map("source_id")
+  targetId   String @map("target_id")
+  kind       String
+  payload    Json
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+
+  @@id([snapshotId, id])
+  @@index([snapshotId, sourceId])
+  @@index([snapshotId, targetId])
+  @@map("pie_graph_edges")
+}
+
+model Job {
+  id             String   @id @db.Uuid
+  idempotencyKey String   @unique @map("idempotency_key")
+  kind           String
+  state          String
+  payload        Json
+  result         Json?
+  errorCode      String?  @map("error_code")
+  attempts       Int      @default(0)
+  maxAttempts    Int      @default(3) @map("max_attempts")
+  timeoutMs      Int      @map("timeout_ms")
+  owner          String?
+  leaseToken     String?  @map("lease_token") @db.Uuid
+  leaseUntil     BigInt?  @map("lease_until")
+  createdAt      BigInt   @map("created_at")
+  updatedAt      BigInt   @map("updated_at")
+
+  @@index([state, createdAt, id])
+  @@map("pie_jobs")
+}

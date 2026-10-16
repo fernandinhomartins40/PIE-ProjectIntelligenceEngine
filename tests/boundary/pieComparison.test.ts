@@ -35,7 +35,7 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
     await writeFile(join(repo, "page.ts"), "export const page = true;");
     await writeFile(join(repo, "service.ts"), "export const value = 2;");
     const second = await service.discover(policy);
-    const comparison = service.compare({
+    const comparison = await service.compare({
       beforeId: first.snapshot.id,
       afterId: second.snapshot.id,
       limit: 1,
@@ -44,7 +44,7 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
     expect(comparison.counts.modified).toBe(2);
     expect(comparison.changes.nextOffset).toBe(1);
     expect(comparison.runtimeVerified).toBe(false);
-    const all = service.compare({
+    const all = await service.compare({
       beforeId: first.snapshot.id,
       afterId: second.snapshot.id,
     });
@@ -53,7 +53,7 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
       all.impact.items.find((item) => item.path === "page.ts")?.versions,
     ).toContain("before");
     const partial = await service.discover({ ...policy, maxFiles: 1 });
-    const incomplete = service.compare({
+    const incomplete = await service.compare({
       beforeId: second.snapshot.id,
       afterId: partial.snapshot.id,
     });
@@ -65,17 +65,19 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
       compareSnapshots(snapshot, { ...snapshot, projectId: randomUUID() }),
     ).toThrow("mesmo projeto");
     expect(
-      service.compare({
-        beforeId: second.snapshot.id,
-        afterId: second.snapshot.id,
-      }).status,
+      (
+        await service.compare({
+          beforeId: second.snapshot.id,
+          afterId: second.snapshot.id,
+        })
+      ).status,
     ).toBe("unchanged");
     await exec("git", ["-C", repo, "add", "service.ts"]);
     await exec("git", ["-C", repo, "rm", "--cached", "service.ts"]);
     await writeFile(join(repo, "new.ts"), "export const added = true;");
     await exec("git", ["-C", repo, "add", "new.ts"]);
     const third = await service.discover(policy);
-    const addedRemoved = service.compare({
+    const addedRemoved = await service.compare({
       beforeId: second.snapshot.id,
       afterId: third.snapshot.id,
     });

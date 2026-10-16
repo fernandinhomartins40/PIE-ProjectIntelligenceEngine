@@ -1,0 +1,22 @@
+name: pie
+services:
+  postgres:
+    image: postgres:17.6
+    environment:
+      POSTGRES_USER: pie
+      POSTGRES_DB: pie
+      POSTGRES_PASSWORD: ${PIE_POSTGRES_PASSWORD:?Defina PIE_POSTGRES_PASSWORD no ambiente}
+    ports:
+      - "127.0.0.1:${PIE_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pie_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pie -d pie"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1
+volumes:
+  pie_postgres:

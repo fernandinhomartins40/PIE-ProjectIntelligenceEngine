@@ -100,7 +100,7 @@ export function createPieMcp(
       outputSchema: withError(projectsOutput),
       annotations: read,
     },
-    (input) => guarded(() => service.store.projects(input)),
+    (input) => guarded(() => service.projects(input)),
   );
   server.registerTool(
     "pie_graph_query",
@@ -123,7 +123,7 @@ export function createPieMcp(
       outputSchema: withError(evidenceOutput),
       annotations: read,
     },
-    ({ id }) => guarded(() => service.store.evidence(id)),
+    ({ id }) => guarded(() => service.evidence(id)),
   );
   server.registerTool(
     "pie_history_list",
@@ -135,7 +135,7 @@ export function createPieMcp(
       annotations: read,
     },
     ({ projectId, ...paging }) =>
-      guarded(() => service.store.history(projectId, paging)),
+      guarded(() => service.history(projectId, paging)),
   );
   return server;
 }

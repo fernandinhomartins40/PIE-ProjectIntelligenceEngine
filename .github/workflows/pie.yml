@@ -1,0 +1,42 @@
+name: PIE integration
+on:
+  push:
+    branches: [main]
+    paths: ["src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pieMcp.test.ts", "package*.json", ".github/workflows/pie.yml"]
+  pull_request:
+    paths: ["src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pieMcp.test.ts", "package*.json", ".github/workflows/pie.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_USER: pie
+          POSTGRES_PASSWORD: pie_ci_fixture
+          POSTGRES_DB: pie_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pie -d pie_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@11.16.0
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run pie:build
+      - run: npm run pie:db:migrate
+        env:
+          PIE_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
+      - run: npm run typecheck
+      - run: node scripts/generate-third-party-inventory.mjs --check
+      - run: node node_modules/vitest/vitest.mjs run tests/boundary/piePostgres.test.ts tests/boundary/pieJobs.test.ts tests/boundary/pieFoundation.test.ts tests/boundary/pieComparison.test.ts tests/boundary/pieApi.test.ts tests/boundary/mcp/pieMcp.test.ts
+        env:
+          PIE_TEST_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test

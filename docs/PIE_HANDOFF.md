@@ -1,5 +1,17 @@
 # PIE — Continuidade
 
+## Estado atual prioritário — terceira entrega
+
+Continuar na main, sem novas branches. PostgreSQL/Prisma e duas migrações implementados em prisma/, postgresStore.ts e jobs/postgresQueue.ts; modo SQLite preservado por PiePersistence. Geração Prisma obrigatória antes de typecheck/build, já integrada nos scripts. Não há conexão padrão: PIE_DATABASE_URL habilita PostgreSQL explicitamente. Banco local real não validado: Docker Desktop iniciado, daemon retorna HTTP 500. Workflow .github/workflows/pie.yml preparado para banco real; conferir resultado depois do push.
+
+Fila persistente integrada por CLI e API: enqueue/job/cancel-job/work e /v1/jobs. Worker processa um job OBSERVE por invocação, com escopo de raiz canônica, sem execução do alvo. Testes cobrem leases, idempotência, recuperação, cancelamento, worker antigo, raiz diferente, recibo e reabertura. Validação de integridade de snapshots centralizada e digest conferido na gravação/leitura. Leitura de serviços agora participa do encerramento assíncrono.
+
+Última suíte ampliada: 47 passaram + 1 skipped (PostgreSQL real). Corrigida depois diferença Windows DOS8.3 no produtor (realpathSync.native); revalidar suíte final e typecheck antes do commit. Licenças/inventário atualizados de tarballs verificados; sete gaps de notices explícitos em THIRD_PARTY_NOTICES.md e relatório. Não declarar redistribuição legal completa. Goal permanece ativo. Próximo eixo após validação de storage/jobs: acesso paginado ao grafo no backend PostgreSQL, contratos Result/erro, adaptação multi-stack e painel com dados reais. Runners e seis motores seguem pendentes.
+
+Fechamento: suíte final depois da correção DOS8.3 passou (47 + 1 skipped); typecheck integral passou. Lint sem erros, 14 warnings ainda abertos. Inventário consistente. Código pronto para commit/push na main; depois inspecionar workflow PIE integration para PostgreSQL real. A fila local foi exercitada por CLI e API; worker é de um job por invocação. Para os próximos módulos, não confundir isso com daemon persistente nem execução sandbox de testes.
+
+## Histórico das entregas anteriores
+
 Leia PIE_MASTER_PLAN.md, UPSTREAM_REA_AUDIT.md e PIE_VALIDATION_REPORT.md antes de continuar.
 
 Base upstream: 4838f444939677107902549c59b73439e14d3ae9. Branch atual: main (a branch inicial foi renomeada, sem criação de outra). Usuário autorizou commit e push direto na main e pediu que não se criem novas branches. Pasta real: C:/Users/Usuário/Desktop/PIE-ProjectIntelligenceEngine; "workspace" era somente terminologia da sessão, não outro diretório. Blueprint integral em docs/blueprint. Origin não pertence à rede GitHub de forks (fork=false); preservar a distinção entre derivação com histórico e fork registrado no GitHub.

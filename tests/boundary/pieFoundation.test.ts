@@ -77,6 +77,9 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
       );
       evidenceId = snapshot.evidence[0]!.id;
       expect(store.saveSnapshot(snapshot).id).toBe(snapshotId);
+      expect(() =>
+        store.saveSnapshot({ ...snapshot, treeDigest: "0".repeat(64) }),
+      ).toThrow("Digest");
       expect(() => store.saveSnapshot({ ...snapshot, dirty: false })).toThrow();
       const evidence = snapshot.evidence[0]!;
       expect(() =>

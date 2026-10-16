@@ -11,6 +11,36 @@ import { expect, it } from "vitest";
 
 const exec = promisify(execFile);
 
+async function verifyQueueCli(script: string, repo: string, db: string) {
+  const enqueued = await exec(process.execPath, [
+    script,
+    "enqueue",
+    repo,
+    "--key",
+    "cli-fixture-job",
+    "--db",
+    db,
+  ]);
+  const queued = JSON.parse(enqueued.stdout) as { id: string; state: string };
+  expect(queued.state).toBe("queued");
+  const worked = await exec(process.execPath, [
+    script,
+    "work",
+    repo,
+    "--db",
+    db,
+  ]);
+  expect(JSON.parse(worked.stdout)).toMatchObject({ processed: true });
+  const job = await exec(process.execPath, [
+    script,
+    "job",
+    queued.id,
+    "--db",
+    db,
+  ]);
+  expect(JSON.parse(job.stdout)).toMatchObject({ state: "succeeded" });
+}
+
 it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-mcp-"));
   const repo = join(root, "target");
@@ -133,6 +163,7 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
       db,
     ]);
     expect(exported.stdout).toContain('<html lang="pt-BR">');
+    await verifyQueueCli(script, repo, db);
   } finally {
     await client.close();
     await transport.close();

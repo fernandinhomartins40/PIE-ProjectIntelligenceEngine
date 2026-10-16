@@ -1,12 +1,15 @@
 import { mkdir, realpath } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
-import { PieError, snapshotSchema, type Snapshot } from "./contracts.js";
+import { PieError, type Snapshot } from "./contracts.js";
 import { verifyEvidence } from "./evidence.js";
 import { pageSchema } from "./graph.js";
+import { projectsOutput, historyOutput } from "./outputContracts.js";
+import type { PiePersistence } from "./persistence.js";
+import { validateSnapshot } from "./snapshotIntegrity.js";
 
 /** SQLite is the optional local mode; PostgreSQL remains a separate planned backend. */
-export class PieStore {
+export class PieStore implements PiePersistence {
   readonly #db: DatabaseSync;
   readonly path: string;
   constructor(path: string) {
@@ -68,7 +71,7 @@ export class PieStore {
       this.#db.prepare("SELECT count(*) AS total FROM pie_projects").get()!
         .total,
     );
-    return {
+    return projectsOutput.parse({
       items: this.#db
         .prepare(
           "SELECT id,root,name,created_at FROM pie_projects ORDER BY created_at,id LIMIT ? OFFSET ?",
@@ -77,41 +80,11 @@ export class PieStore {
       total,
       offset,
       nextOffset: offset + limit < total ? offset + limit : null,
-    };
+    });
   }
 
   saveSnapshot(input: unknown): Snapshot {
-    const snapshot = snapshotSchema.parse(input);
-    const evidenceIds = new Set<string>();
-    for (const evidence of snapshot.evidence) {
-      verifyEvidence(evidence);
-      if (
-        evidence.projectId !== snapshot.projectId ||
-        evidence.snapshotId !== snapshot.id ||
-        evidence.revision !== snapshot.revision ||
-        evidenceIds.has(evidence.id)
-      )
-        throw new PieError("INTEGRITY_ERROR", "Vínculo de evidência inválido.");
-      evidenceIds.add(evidence.id);
-    }
-    const nodeIds = new Set(snapshot.nodes.map((node) => node.id));
-    if (nodeIds.size !== snapshot.nodes.length)
-      throw new PieError("INTEGRITY_ERROR", "Nós duplicados.");
-    for (const item of [...snapshot.nodes, ...snapshot.edges])
-      if (
-        item.evidenceIds.length === 0 ||
-        item.evidenceIds.some((id) => !evidenceIds.has(id))
-      )
-        throw new PieError(
-          "INTEGRITY_ERROR",
-          "Referência de evidência ausente.",
-        );
-    for (const edge of snapshot.edges)
-      if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to))
-        throw new PieError(
-          "INTEGRITY_ERROR",
-          "Aresta sem nó de origem ou destino.",
-        );
+    const snapshot = validateSnapshot(input);
     const payload = JSON.stringify(snapshot);
     const existing = this.#db
       .prepare("SELECT payload FROM pie_snapshots WHERE id=?")
@@ -149,9 +122,7 @@ export class PieStore {
       .prepare("SELECT payload FROM pie_snapshots WHERE id=?")
       .get(id);
     if (!row) throw new PieError("NOT_FOUND", "Snapshot não encontrado.");
-    const snapshot = snapshotSchema.parse(JSON.parse(String(row.payload)));
-    for (const evidence of snapshot.evidence) verifyEvidence(evidence);
-    return snapshot;
+    return validateSnapshot(JSON.parse(String(row.payload)));
   }
 
   evidence(id: string) {
@@ -171,7 +142,7 @@ export class PieStore {
         )
         .get(projectId)!.total,
     );
-    return {
+    return historyOutput.parse({
       items: this.#db
         .prepare(
           "SELECT id,created_at FROM pie_snapshots WHERE project_id=? ORDER BY created_at,id LIMIT ? OFFSET ?",
@@ -180,7 +151,7 @@ export class PieStore {
       total,
       offset,
       nextOffset: offset + limit < total ? offset + limit : null,
-    };
+    });
   }
 }
 

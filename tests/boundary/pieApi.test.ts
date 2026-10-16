@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -7,6 +7,7 @@ import { expect, it } from "vitest";
 import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
 
 it("API local exige token, nega origem de navegador e compartilha descoberta persistente", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-api-"));
@@ -17,7 +18,12 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
   await promisify(execFile)("git", ["-C", repo, "add", "."]);
   const store = await openStore(join(root, "api.sqlite"), repo);
   const token = "fixture-api-token-only-32-characters-minimum";
-  const api = await startPieApi(new PieService(store), { root: repo, token });
+  const queue = new SqliteJobQueue(join(root, "jobs.sqlite"));
+  const api = await startPieApi(new PieService(store), {
+    root: repo,
+    token,
+    queue,
+  });
   const headers = {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
@@ -70,8 +76,29 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
     expect((await fetch(`${api.url}/v1/unknown`, { headers })).status).toBe(
       404,
     );
+    const queuedResponse = await fetch(`${api.url}/v1/jobs`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ idempotencyKey: "api-job" }),
+    });
+    expect(queuedResponse.status).toBe(202);
+    const queued = (await queuedResponse.json()) as { id: string };
+    expect(
+      await (
+        await fetch(`${api.url}/v1/jobs/${queued.id}`, { headers })
+      ).json(),
+    ).toMatchObject({ state: "queued", payload: { repositoryRoot: await realpath(repo) } });
+    expect(
+      await (
+        await fetch(`${api.url}/v1/jobs/${queued.id}/cancel`, {
+          method: "POST",
+          headers,
+        })
+      ).json(),
+    ).toMatchObject({ state: "cancelled" });
   } finally {
     await api.close();
+    queue.close();
     await rm(root, { recursive: true, force: true });
   }
 }, 20_000);

@@ -1,5 +1,16 @@
 # Third-party notices
 
+PIE adds pinned Prisma/PostgreSQL dependencies to this fork. Their published
+archive identities, integrity hashes and original notice documents are retained
+in `licenses/npm-dependencies.txt` and `licenses/npm-runtime-notices.txt`.
+Seven added archive identities lack recognized standalone notice documents;
+their entries explicitly record `UPSTREAM_NOTICE_GAP`. These gaps require
+source-level review before redistribution. The package remains private; a
+passing inventory consistency check does not establish legal completeness.
+The Prisma CLI's dependency closure is retained in the inventory even where
+peer-dependency resolution marks packages as runtime. PostgreSQL itself is
+separately obtained; its distribution notices remain applicable.
+
 REA-authored code is licensed under [MIT](LICENSE). Third-party material retains
 its own copyright, license, attribution, and NOTICE requirements. REA's MIT
 license grants no rights to proprietary analysis tools. Project and product

@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { realpath } from "node:fs/promises";
 import {
   createServer,
   type IncomingMessage,
@@ -8,6 +9,7 @@ import { z } from "zod";
 import { PieError } from "./contracts.js";
 import { PieService } from "./service.js";
 import { pageSchema } from "./graph.js";
+import type { JobQueue } from "./jobs/contracts.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -49,10 +51,11 @@ async function body(request: IncomingMessage): Promise<unknown> {
 /** Local-only API. No remote bind, ambient credentials, arbitrary target root or CORS. */
 export async function startPieApi(
   service: PieService,
-  options: { root: string; token: string; port?: number },
+  options: { root: string; token: string; port?: number; queue?: JobQueue },
 ) {
   z.string().min(32).parse(options.token);
   await service.store.assertOutside(options.root);
+  const authorizedRoot = await realpath(options.root);
   const server = createServer((request, response) => {
     const run = async () => {
       if (request.headers.origin) {
@@ -75,6 +78,62 @@ export async function startPieApi(
           limit: Number(url.searchParams.get("limit") ?? 50),
         });
       const segments = url.pathname.split("/").filter(Boolean);
+      if (
+        options.queue &&
+        request.method === "POST" &&
+        url.pathname === "/v1/jobs"
+      ) {
+        const input = z
+          .strictObject({
+            idempotencyKey: z.string().min(1).max(200),
+            maxFiles: z.number().int().positive().max(100_000).default(10_000),
+          })
+          .parse(await body(request));
+        respond(
+          response,
+          202,
+          await options.queue.enqueue({
+            idempotencyKey: input.idempotencyKey,
+            kind: "discovery",
+            payload: {
+              repositoryRoot: authorizedRoot,
+              profile: "OBSERVE",
+              environment: "local",
+              maxFiles: input.maxFiles,
+            },
+          }),
+        );
+        return;
+      }
+      if (
+        options.queue &&
+        request.method === "GET" &&
+        segments.length === 3 &&
+        segments[1] === "jobs" &&
+        segments[0] === "v1"
+      ) {
+        respond(
+          response,
+          200,
+          await options.queue.get(z.string().uuid().parse(segments[2])),
+        );
+        return;
+      }
+      if (
+        options.queue &&
+        request.method === "POST" &&
+        segments.length === 4 &&
+        segments[0] === "v1" &&
+        segments[1] === "jobs" &&
+        segments[3] === "cancel"
+      ) {
+        respond(
+          response,
+          200,
+          await options.queue.cancel(z.string().uuid().parse(segments[2])),
+        );
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/v1/health") {
         respond(response, 200, {
           schemaVersion: 1,
@@ -84,7 +143,7 @@ export async function startPieApi(
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/projects") {
-        respond(response, 200, service.store.projects(paging()));
+        respond(response, 200, await service.projects(paging()));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/discover") {
@@ -118,7 +177,7 @@ export async function startPieApi(
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/compare") {
-        respond(response, 200, service.compare(await body(request)));
+        respond(response, 200, await service.compare(await body(request)));
         return;
       }
       if (
@@ -129,13 +188,13 @@ export async function startPieApi(
         const id = z.string().uuid().parse(segments[2]);
         switch (segments[1]) {
           case "graph":
-            respond(response, 200, service.graph(id, paging()));
+            respond(response, 200, await service.graph(id, paging()));
             return;
           case "evidence":
-            respond(response, 200, service.store.evidence(id));
+            respond(response, 200, await service.evidence(id));
             return;
           case "history":
-            respond(response, 200, service.store.history(id, paging()));
+            respond(response, 200, await service.history(id, paging()));
             return;
         }
       }

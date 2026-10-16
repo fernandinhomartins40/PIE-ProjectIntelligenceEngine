@@ -14,8 +14,8 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 | T0.2 | P0 | Auditar arquitetura, licenças, CLI/MCP, testes e extensões | em andamento | Inspeção local; baseline de runtime pendente |
 | T0.3 | P0 | Baseline upstream e caracterização de CLI/MCP/evidências | parcial | Build empacotado, CLI help e catálogo MCP com 207 ferramentas verificados; 36 testes evidence/ledger passaram; provedores reais pendentes |
 | T1.1 | P0 | Contratos versionados, estados, identidade, escopo e políticas OBSERVE/VERIFY/CHANGE | parcial | Schemas explícitos CLI/MCP, validação Ajv e controles OBSERVE testados; Result e runner pendentes |
-| T1.2 | P0 | PostgreSQL, migrations, evidência imutável, redação e histórico | pendente | T1.1; integração com DB real |
-| T1.3 | P0 | Fila persistente, workers, cancelamento, recuperação e limites | pendente | T1.2; timeout, concorrência e falhas |
+| T1.2 | P0 | PostgreSQL, migrations, evidência imutável, redação e histórico | parcial | Adaptador Prisma 7.10.1, schemas/migrações e integridade compartilhada implementados; DB real ainda não validado |
+| T1.3 | P0 | Fila persistente, workers, cancelamento, recuperação e limites | parcial | Fila SQLite real com leases, idempotência, recuperação e worker OBSERVE testados; implementação PostgreSQL e CI preparados; runners isolados pendentes |
 | T1.4 | P1 | API local autenticada; CLI e MCP sobre os mesmos serviços | parcial | API loopback com Bearer, raiz fixa, limites e teste integrado; jobs/API completa pendentes |
 | T1.5 | P1 | Painel pt-BR conectar → investigar → resolver/validar | pendente | T1.4; E2E, teclado, telas 360–1440px |
 | T2.1 | P1 | Inventário Git limitado, snapshots e proveniência por hash | parcial | Implementado e testado em Windows; snapshot atômico hostil não garantido |
