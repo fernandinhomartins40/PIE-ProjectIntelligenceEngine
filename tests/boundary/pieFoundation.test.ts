@@ -129,11 +129,17 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
       () => "completed",
       () => "cancelled",
     );
+    const second = service.discover(policy).then(
+      () => "completed",
+      () => "cancelled",
+    );
+    await expect(service.discover(policy)).rejects.toThrow("duas descobertas");
     const closing = service.close();
     expect(service.close()).toBe(closing);
     await expect(service.discover(policy)).rejects.toThrow("encerramento");
     await closing;
     expect(await outcome).toBe("cancelled");
+    expect(await second).toBe("cancelled");
     const reopened = await openStore(join(root, "lifecycle.sqlite"));
     try {
       const projects = reopened.projects();
@@ -195,7 +201,6 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
       admitOperation({ ...verify, environment: "production" }, "execute"),
     ).toThrow();
   });
-
 });
 
 describe("PIE: consultas de grafo", () => {

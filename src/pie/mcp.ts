@@ -4,6 +4,15 @@ import { z } from "zod";
 import { PieError } from "./contracts.js";
 import { pageSchema } from "./graph.js";
 import type { PieService } from "./service.js";
+import { comparisonInput, comparisonOutput } from "./compare.js";
+import {
+  discoveryOutput,
+  graphOutput,
+  projectsOutput,
+  historyOutput,
+  evidenceOutput,
+  withError,
+} from "./outputContracts.js";
 
 const idInput = z.strictObject({ id: z.string().uuid() });
 const graphInput = pageSchema.extend({ snapshotId: z.string().uuid() });
@@ -11,7 +20,6 @@ const historyInput = pageSchema.extend({ projectId: z.string().uuid() });
 const discoverInput = z.strictObject({
   maxFiles: z.number().int().positive().max(100_000).default(10_000),
 });
-const outputSchema = z.record(z.string(), z.unknown());
 
 function result(value: object) {
   return {
@@ -51,12 +59,23 @@ export function createPieMcp(
     }
   };
   server.registerTool(
+    "pie_change_impact",
+    {
+      description:
+        "Compara dois snapshots do mesmo projeto por hashes observados e calcula impacto pelos grafos anterior e posterior. Não executa testes. Cobertura parcial mantém ausências desconhecidas; paginação até 200.",
+      inputSchema: comparisonInput,
+      outputSchema: withError(comparisonOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.compare(input)),
+  );
+  server.registerTool(
     "pie_project_discover",
     {
       description:
         "Inventaria arquivos Git da raiz autorizada no início do servidor. Não executa o projeto. Grava evidências no banco PIE externo. Schema v1; timeout 30s; somente OBSERVE.",
       inputSchema: discoverInput,
-      outputSchema,
+      outputSchema: withError(discoveryOutput),
       annotations: write,
     },
     (input, extra) =>
@@ -78,7 +97,7 @@ export function createPieMcp(
       description:
         "Lista paginada de projetos reais no banco local; contrato v1, limite 200.",
       inputSchema: pageSchema,
-      outputSchema,
+      outputSchema: withError(projectsOutput),
       annotations: read,
     },
     (input) => guarded(() => service.store.projects(input)),
@@ -89,7 +108,7 @@ export function createPieMcp(
       description:
         "Consulta inventário e arestas registradas, com cobertura e limitações; contrato v1, limite 200.",
       inputSchema: graphInput,
-      outputSchema,
+      outputSchema: withError(graphOutput),
       annotations: read,
     },
     ({ snapshotId, ...paging }) =>
@@ -101,7 +120,7 @@ export function createPieMcp(
       description:
         "Lê evidência por UUID e verifica integridade SHA-256; contrato v1.",
       inputSchema: idInput,
-      outputSchema,
+      outputSchema: withError(evidenceOutput),
       annotations: read,
     },
     ({ id }) => guarded(() => service.store.evidence(id)),
@@ -112,7 +131,7 @@ export function createPieMcp(
       description:
         "Histórico persistente por projeto, paginado; contrato v1, limite 200.",
       inputSchema: historyInput,
-      outputSchema,
+      outputSchema: withError(historyOutput),
       annotations: read,
     },
     ({ projectId, ...paging }) =>

@@ -5,6 +5,7 @@ import { PieError, policySchema } from "./contracts.js";
 import { discoverProject, projectName } from "./discovery.js";
 import { page } from "./graph.js";
 import type { PieStore } from "./store.js";
+import { compareSnapshots, comparisonInput } from "./compare.js";
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
@@ -17,6 +18,13 @@ export class PieService {
     if (this.#closing)
       return Promise.reject(
         new PieError("POLICY_DENIED", "Serviço em encerramento."),
+      );
+    if (this.#active.size >= 2)
+      return Promise.reject(
+        new PieError(
+          "LIMIT_EXCEEDED",
+          "Limite de duas descobertas simultâneas; aguarde a conclusão.",
+        ),
       );
     const controller = new AbortController();
     const effective = signal
@@ -85,5 +93,14 @@ export class PieService {
       edges: page(snapshot.edges, input),
       coverage: snapshot.coverage,
     };
+  }
+
+  compare(input: unknown) {
+    const { beforeId, afterId, ...paging } = comparisonInput.parse(input);
+    return compareSnapshots(
+      this.store.snapshot(beforeId),
+      this.store.snapshot(afterId),
+      paging,
+    );
   }
 }

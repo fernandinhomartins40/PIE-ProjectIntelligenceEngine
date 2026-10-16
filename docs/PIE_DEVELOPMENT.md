@@ -42,3 +42,19 @@ node node_modules/typescript/bin/tsc --noEmit
 Fixtures sintéticas são criadas somente em diretórios temporários de teste. Provedores REA não foram iniciados por estes testes. Consulte PIE_VALIDATION_REPORT.md para resultados executados.
 
 Licença e atribuições: `LICENSE`, `THIRD_PARTY_NOTICES.md` e `licenses/` preservados do REA. PIE é derivação independente e não sugere afiliação oficial. Não publicar o pacote com a identidade npm/MCP oficial REA; separação de distribuição e atualização dos metadados ainda pendentes.
+
+## Comparação, relatórios e API local
+
+```powershell
+node scripts/pie.mjs compare UUID_ANTES UUID_DEPOIS --db C:/dados-pie/pie.sqlite
+node scripts/pie.mjs export UUID_DO_SNAPSHOT --format md --db C:/dados-pie/pie.sqlite
+node scripts/pie.mjs export UUID_DO_SNAPSHOT --format html --db C:/dados-pie/pie.sqlite
+# Defina PIE_API_TOKEN no ambiente com um segredo de no mínimo 32 caracteres.
+node scripts/pie.mjs serve C:/projetos/aplicacao --db C:/dados-pie/pie.sqlite --port 0
+```
+
+O comando serve imprime somente URL e perfil, sem token. Escuta exclusivamente em 127.0.0.1; toda requisição requer Authorization: Bearer com o token informado. Não aceita Origin de navegador nem CORS. Esta API é para clientes locais; o futuro painel precisará de autenticação de navegador própria, sem afrouxar esse bloqueio indiscriminadamente.
+
+Rotas v1: GET health/projects/graph/:snapshot/evidence/:id/history/:project; POST discover (maxFiles opcional) e compare (beforeId, afterId, offset, limit). Raiz e banco são definidos ao iniciar, não pelo corpo HTTP. Corpo limitado a 16 KiB, até 16 conexões e duas descobertas ativas por serviço. Isso não constitui fila persistente nem sandbox de execução.
+
+Ferramenta MCP adicional: pie_change_impact, com schema explícito e paginação. Todos os outputs MCP agora têm contratos de sucesso e erro explícitos. Comparação usa hashes e ambos os grafos: leitura parcial não confirma adição/exclusão por ausência; igualdade de conteúdo não aprova runtime. Exports HTML escapam conteúdo e usam CSP sem scripts; Markdown escapa links e delimitadores. Exports representam inventário, não relatório de auditoria dos seis motores.

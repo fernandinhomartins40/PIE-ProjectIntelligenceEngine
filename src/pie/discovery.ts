@@ -25,6 +25,7 @@ async function git(
   root: string,
   args: string[],
   timeout: number,
+  signal?: AbortSignal,
 ): Promise<Buffer> {
   try {
     const environment = Object.fromEntries(
@@ -47,6 +48,7 @@ async function git(
       {
         encoding: "buffer",
         timeout,
+        ...(signal ? { signal } : {}),
         maxBuffer: 16_000_000,
         windowsHide: true,
         env: {
@@ -126,7 +128,9 @@ export async function discoverProject(
       );
     return value;
   };
-  const top = (await git(root, ["rev-parse", "--show-toplevel"], remaining()))
+  const top = (
+    await git(root, ["rev-parse", "--show-toplevel"], remaining(), signal)
+  )
     .toString("utf8")
     .trim();
   if ((await realpath(top)) !== root)
@@ -139,11 +143,14 @@ export async function discoverProject(
       root,
       ["status", "--porcelain=v1", "-z", "--untracked-files=no"],
       remaining(),
+      signal,
     )
   ).toString("utf8");
   let revision: string | null = null;
   try {
-    revision = (await git(root, ["rev-parse", "--verify", "HEAD"], remaining()))
+    revision = (
+      await git(root, ["rev-parse", "--verify", "HEAD"], remaining(), signal)
+    )
       .toString("utf8")
       .trim();
   } catch {
@@ -151,7 +158,7 @@ export async function discoverProject(
   }
   const paths = [
     ...new Set(
-      (await git(root, ["ls-files", "-z", "--cached"], remaining()))
+      (await git(root, ["ls-files", "-z", "--cached"], remaining(), signal))
         .toString("utf8")
         .split("\0")
         .filter(Boolean),
@@ -259,6 +266,7 @@ export async function discoverProject(
       root,
       ["status", "--porcelain=v1", "-z", "--untracked-files=no"],
       remaining(),
+      signal,
     )
   ).toString("utf8");
   const changed = before !== after;

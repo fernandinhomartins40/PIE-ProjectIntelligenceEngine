@@ -4,6 +4,8 @@ import { parseArgs } from "node:util";
 import { PieError } from "./contracts.js";
 import { openStore } from "./store.js";
 import { PieService } from "./service.js";
+import { renderSnapshot } from "./reports.js";
+import { z } from "zod";
 
 export async function runPie(args: string[]): Promise<void> {
   const parsed = parseArgs({
@@ -16,12 +18,14 @@ export async function runPie(args: string[]): Promise<void> {
       "max-files": { type: "string" },
       "max-bytes": { type: "string" },
       help: { type: "boolean" },
+      format: { type: "string" },
+      port: { type: "string" },
     },
   });
   const [command, target] = parsed.positionals;
   if (!command || parsed.values.help || command === "help") {
     console.log(
-      "PIE — Project Intelligence Engine\nComandos: doctor | discover <raiz-git> | projects | history <projeto-id> | graph <snapshot-id> | evidence <evidência-id> | export <snapshot-id> | mcp\nOpções: --db <arquivo> --limit <1–200> --offset <n> --max-files <n> --max-bytes <n>\nModo atual: OBSERVE. Inventário estático não verifica funcionamento. Documentação: docs/PIE_DEVELOPMENT.md",
+      "PIE — Project Intelligence Engine\nComandos: doctor | discover <raiz-git> | projects | history <projeto-id> | graph <snapshot-id> | compare <antes-id> <depois-id> | evidence <evidência-id> | export <snapshot-id> | mcp <raiz-git>\nOpções: --db <arquivo> --format <json|md|html> --limit <1–200> --offset <n> --max-files <n> --max-bytes <n>\nModo atual: OBSERVE. Inventário estático não verifica funcionamento. Documentação: docs/PIE_DEVELOPMENT.md",
     );
     return;
   }
@@ -38,6 +42,10 @@ export async function runPie(args: string[]): Promise<void> {
             "hashed-evidence",
             "sqlite-local-history",
             "pagination",
+            "relative-import-ast",
+            "snapshot-comparison",
+            "graph-impact",
+            "json-md-html-export",
           ],
           unavailable: [
             "audit-engines",
@@ -62,6 +70,8 @@ export async function runPie(args: string[]): Promise<void> {
       "evidence",
       "export",
       "mcp",
+      "compare",
+      "serve",
     ].includes(command)
   )
     throw new PieError("INVALID_INPUT", "Comando desconhecido; use help.");
@@ -70,11 +80,44 @@ export async function runPie(args: string[]): Promise<void> {
   const dbPath = parsed.values.db ?? join(homedir(), ".pie", "pie.sqlite");
   const store = await openStore(
     dbPath,
-    command === "discover" || command === "mcp" ? target : undefined,
+    ["discover", "mcp", "serve"].includes(command) ? target : undefined,
   );
   if (command === "mcp") {
     const { servePie } = await import("./mcp.js");
     await servePie(new PieService(store), target!);
+    return;
+  }
+  if (command === "serve") {
+    try {
+      const { startPieApi } = await import("./api.js");
+      const api = await startPieApi(new PieService(store), {
+        root: target!,
+        token: process.env.PIE_API_TOKEN ?? "",
+        port: z.coerce
+          .number()
+          .int()
+          .min(0)
+          .max(65535)
+          .parse(parsed.values.port ?? 0),
+      });
+      console.log(
+        JSON.stringify({
+          url: api.url,
+          profile: "OBSERVE",
+          authentication: "Bearer PIE_API_TOKEN",
+        }),
+      );
+      const shutdown = () => {
+        void api.close().catch(() => {
+          process.exitCode = 1;
+        });
+      };
+      process.once("SIGINT", shutdown);
+      process.once("SIGTERM", shutdown);
+    } catch (cause) {
+      store.close();
+      throw cause;
+    }
     return;
   }
   try {
@@ -107,12 +150,26 @@ export async function runPie(args: string[]): Promise<void> {
       case "graph":
         result = service.graph(target!, paging);
         break;
+      case "compare":
+        result = service.compare({
+          beforeId: target,
+          afterId: parsed.positionals[2],
+          ...paging,
+        });
+        break;
       case "evidence":
         result = store.evidence(target!);
         break;
       case "export":
-        result = store.snapshot(target!);
-        break;
+        console.log(
+          renderSnapshot(
+            store.snapshot(target!),
+            z
+              .enum(["json", "md", "html"])
+              .parse(parsed.values.format ?? "json"),
+          ),
+        );
+        return;
     }
     console.log(JSON.stringify(result, null, 2));
   } finally {

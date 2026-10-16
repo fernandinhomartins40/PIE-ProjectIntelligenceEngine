@@ -88,6 +88,51 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
       arguments: {},
     });
     expect(projects.structuredContent).toMatchObject({ total: 1 });
+    const compared = await client.callTool({
+      name: "pie_change_impact",
+      arguments: {
+        beforeId: discovered.snapshot.id,
+        afterId: discovered.snapshot.id,
+      },
+    });
+    expect(compared.isError).not.toBe(true);
+    expect(compared.structuredContent).toMatchObject({
+      status: "unchanged",
+      runtimeVerified: false,
+    });
+    for (const [name, response] of [
+      ["pie_graph_query", graph],
+      ["pie_evidence_get", evidence],
+      ["pie_projects_list", projects],
+      ["pie_change_impact", compared],
+      ["pie_evidence_get", missing],
+    ] as const) {
+      const tool = tools.tools.find((item) => item.name === name)!;
+      const validate = ajv.compile(tool.outputSchema as AnySchema);
+      expect(
+        validate(response.structuredContent),
+        JSON.stringify(validate.errors),
+      ).toBe(true);
+    }
+    const cliCompared = await exec(process.execPath, [
+      script,
+      "compare",
+      discovered.snapshot.id,
+      discovered.snapshot.id,
+      "--db",
+      db,
+    ]);
+    expect(JSON.parse(cliCompared.stdout)).toEqual(compared.structuredContent);
+    const exported = await exec(process.execPath, [
+      script,
+      "export",
+      discovered.snapshot.id,
+      "--format",
+      "html",
+      "--db",
+      db,
+    ]);
+    expect(exported.stdout).toContain('<html lang="pt-BR">');
   } finally {
     await client.close();
     await transport.close();

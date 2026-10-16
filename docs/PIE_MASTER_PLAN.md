@@ -12,16 +12,16 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 |---|---|---|---|---|
 | T0.1 | P0 | Preservar blueprint e histórico upstream | parcial | Branch main; SHA em UPSTREAM_REA_AUDIT.md; publicação autorizada, vínculo de rede de fork pendente |
 | T0.2 | P0 | Auditar arquitetura, licenças, CLI/MCP, testes e extensões | em andamento | Inspeção local; baseline de runtime pendente |
-| T0.3 | P0 | Baseline upstream e caracterização de CLI/MCP/evidências | pendente | Node compatível e dependências |
-| T1.1 | P0 | Contratos versionados, estados, identidade, escopo e políticas OBSERVE/VERIFY/CHANGE | pendente | T0.2; testes negativos de fronteira |
+| T0.3 | P0 | Baseline upstream e caracterização de CLI/MCP/evidências | parcial | Build empacotado, CLI help e catálogo MCP com 207 ferramentas verificados; 36 testes evidence/ledger passaram; provedores reais pendentes |
+| T1.1 | P0 | Contratos versionados, estados, identidade, escopo e políticas OBSERVE/VERIFY/CHANGE | parcial | Schemas explícitos CLI/MCP, validação Ajv e controles OBSERVE testados; Result e runner pendentes |
 | T1.2 | P0 | PostgreSQL, migrations, evidência imutável, redação e histórico | pendente | T1.1; integração com DB real |
 | T1.3 | P0 | Fila persistente, workers, cancelamento, recuperação e limites | pendente | T1.2; timeout, concorrência e falhas |
-| T1.4 | P1 | API local autenticada; CLI e MCP sobre os mesmos serviços | pendente | T1.1–3; contratos e integração real |
+| T1.4 | P1 | API local autenticada; CLI e MCP sobre os mesmos serviços | parcial | API loopback com Bearer, raiz fixa, limites e teste integrado; jobs/API completa pendentes |
 | T1.5 | P1 | Painel pt-BR conectar → investigar → resolver/validar | pendente | T1.4; E2E, teclado, telas 360–1440px |
-| T2.1 | P1 | Inventário Git limitado, snapshots e proveniência por hash | pendente | T1.1; leitura sem executar conteúdo auditado |
-| T2.2 | P1 | AST TS/JS/Node/React/Next e imports/rotas/serviços/testes | pendente | T2.1; fixture com relações conhecidas |
+| T2.1 | P1 | Inventário Git limitado, snapshots e proveniência por hash | parcial | Implementado e testado em Windows; snapshot atômico hostil não garantido |
+| T2.2 | P1 | AST TS/JS/Node/React/Next e imports/rotas/serviços/testes | parcial | Imports/reexports relativos AST; rotas/frameworks e aliases pendentes |
 | T2.3 | P1 | Laravel/PHP, Prisma/Postgres, Docker/Compose, Nginx e OpenAPI | pendente | T2.1; cobertura e versões explícitas |
-| T2.4 | P1 | Grafo tipado, trace, impacto e descoberta incremental | pendente | T2.2–3; proveniência por aresta |
+| T2.4 | P1 | Grafo tipado, trace, impacto e descoberta incremental | parcial | Comparação de snapshots e impacto pelos dois grafos em CLI/MCP/API; cache/incremental pendentes |
 | T3.1 | P0 | Runners de testes com autorização, isolamento e resultado não ambíguo | pendente | T1.3; skipped/blocked não passam |
 | T3.2 | P1 | Playwright, HTTP, DB de teste, logs e traces redigidos | pendente | T3.1; persistência após reload |
 | T4.1 | P1 | Motor funcional e matriz de capacidades | pendente | T2/T3; falhas semeadas |
@@ -32,7 +32,7 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 | T4.6 | P1 | Motor regressão | pendente | T2.4/T3; impacto Git, reteste e comparação de métricas |
 | T5.1 | P1 | Plano unificado e contestação com trilha histórica | pendente | T4; responsável/evidência/aceite |
 | T5.2 | P1 | Handoff Codex/Claude, branch/patch, aprovação sensível e reteste | pendente | T5.1; demonstração ponta a ponta |
-| T6.1 | P1 | Exports JSON/MD/HTML, histórico e CI incremental | pendente | T4/T5; dados reais paginados |
+| T6.1 | P1 | Exports JSON/MD/HTML, histórico e CI incremental | parcial | Exports reais com escape, CSP e referência de evidências; CI incremental pendente |
 | T6.2 | P1 | doctor, setup reversível, distribuição e Compose | pendente | T1–5; instalação limpa |
 | T6.3 | P1 | CI e matriz Windows/Linux/macOS, limites e recursos PIE | pendente | T6.2; somente plataformas executadas são verificadas |
 | T6.4 | P0 | Demonstração completa e checklist final com evidências | pendente | Todas; defeitos do checklist, correção e reteste |
