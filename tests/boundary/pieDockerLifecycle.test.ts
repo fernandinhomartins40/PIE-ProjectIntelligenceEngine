@@ -48,6 +48,33 @@ const report =
     .map((value) => JSON.stringify(value))
     .join("\n") + "\n";
 
+it("falha de registro durável impede criação antes de qualquer execução do alvo", async () => {
+  const { plan, imageId } = dockerFixture();
+  const client = new DockerCommand(
+    resolve("docker"),
+    "unix:///var/run/docker.sock",
+    resolve("config"),
+  );
+  const calls = vi
+    .spyOn(client, "run")
+    .mockResolvedValueOnce(
+      response([{ Id: imageId, Os: "linux", Config: { Volumes: null } }]),
+    );
+  const events: string[] = [];
+  const owner = new DockerExecution(plan, client, (event) => {
+    events.push(event.phase);
+    if (event.phase === "creating")
+      throw new Error("fixture: journal unavailable");
+  });
+  const result = await owner.execute();
+  expect(result).toMatchObject({
+    cleanup: "complete",
+    result: { state: "blocked" },
+  });
+  expect(calls.mock.calls).toHaveLength(1);
+  expect(events).toEqual(["creating", "removed"]);
+});
+
 it("retém criação incerta ausente e recupera handshake tardio antes de remover", async () => {
   const { plan, imageId, container } = dockerFixture();
   const client = new DockerCommand(

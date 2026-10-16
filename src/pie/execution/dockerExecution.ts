@@ -63,6 +63,10 @@ export interface DockerExecutionResult {
   /** Caller must retain this owner AND its workspace until close succeeds. */
   readonly cleanupOwner: DockerExecution | null;
 }
+export type DockerResourceEvent = {
+  phase: "creating" | "created" | "removed";
+  containerId: string | null;
+};
 
 /** One owner per grant; uncertain creation is never interpreted as absence. */
 export class DockerExecution {
@@ -75,6 +79,9 @@ export class DockerExecution {
   constructor(
     readonly plan: DockerPlan,
     private readonly client: DockerCommand,
+    private readonly record?: (
+      event: DockerResourceEvent,
+    ) => void | Promise<void>,
   ) {}
 
   async #create(
@@ -91,6 +98,7 @@ export class DockerExecution {
         "pie.docker",
         "Imagem declara volumes não autorizados.",
       );
+    await this.record?.({ phase: "creating", containerId: null });
     this.#attempted = true;
     const created = await command(this.plan.arguments);
     if (
@@ -110,6 +118,7 @@ export class DockerExecution {
         "pie.docker",
         "ID criado diverge da inspeção.",
       );
+    await this.record?.({ phase: "created", containerId: this.#id });
     const admission = validateDockerSandbox(inspected, this.plan, image.Id);
     if (!admission.ok) throw admission.error;
   }
@@ -272,6 +281,7 @@ export class DockerExecution {
       }
     }
     await this.client.close();
+    await this.record?.({ phase: "removed", containerId: this.#id });
     this.#closed = true;
   }
 }

@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — journal local de recursos
+
+CI a90af71c5 passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38981437126, com resultado Docker real persisted SQLite/Postgres e testes de imutabilidade. Novo VerificationJournal em execution/resourceJournal.ts, Linux-only, SQLite privado síncrono FULL, identidade de raiz dev/inode e processo start identity upstream, machine hash/boot. Registra prepared/creating/created/removed; eventos aguardados por DockerExecution antes do create e após identidade/cleanup. NodeVerification aceita options.journal, sem habilitar execução pública. Falha creating impede side effect do create; journal é dono da interpretação do registro.
+
+Local Windows: seis aprovados+três skipped; typecheck/build/lint passaram. Novos testes de reabertura/processo real encerrado dependem da próxima CI Linux; Docker integrado passa a usar journal e conferir removed. Próximo: acompanhar CI e implementar recuperação com claim concorrente/fencing, revalidação de identidade do filesystem e do contêiner antes de remover; creating ausente continua unknown por handshake tardio. Não apagar raiz enquanto contêiner não tiver cleanup confirmado; não recuperar dono vivo ou unverified; não tratar estado skipped como passed. Registro de recursos é opcional e interno até integrar serviço obrigatório/journal seguro. Falta fechar journal com remoção da raiz e persistência de tentativa de recovery; não anunciar crash recovery completa. Goal integral/main permanecem ativos.
+
 ## Estado prioritário — persistência de runs e leitores
 
 CI e8b041065 passou: run 38980754712, fluxo Git/cópia/Docker/evidência real. Nova migração 202610160003_verification_runs e model Prisma VerificationRun; gerar client antes de build/check. runContracts/runIntegrity são donos dos contratos/validação; adaptadores não importam NodeVerification. SQLite/Postgres gravam run+evidência em transação; validação de integridade e contexto compartilhada, triggers imutáveis, histórico paginado. CLI verification/verifications, MCP pie_verification_get/list e API GET /v1/verification/:id e /v1/verifications/:snapshotId disponíveis apenas para leitura. Nome MCP correto da lista: pie_verifications_list.

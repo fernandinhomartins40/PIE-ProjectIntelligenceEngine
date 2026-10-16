@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Journal de recursos VERIFY — 16/10/2026
+
+CI 38981437126 do commit a90af71c5c17279b6c5cf464c07913c79e3dd3e2 terminou com sucesso: migrations, PostgreSQL real, replay/imutabilidade e execução Docker aprovada persistida nos dois adaptadores. Não confundir essa aprovação com o novo journal.
+
+VerificationJournal usa SQLite local síncrono FULL e diretório/arquivo privados (Linux, UID proprietário, permissões, arquivo regular sem symlink). Registro conserva run/nome, raiz e identidade dev/inode, cliente/endpoint, PID e identidade de início do processo via primitivas upstream; inclui identidade de máquina por hash e boot para evitar interpretar PID/tempo de início de outro boot como dono atual. Prepared/creating/created/removed são transições verificadas e duráveis. DockerExecution aguarda callback creating antes de chamar create e registra ID comprovado/remoção; falha de gravação impede criação. NodeVerification aceita journal explicitamente configurado e o integra ao fluxo. Não recebe ambiente nem credenciais para persistir.
+
+Seis testes locais aprovados + três skipped em três arquivos (2,02s); typecheck integral, build PIE e lint focado sem avisos/erros. Testes Linux de reabertura e saída abrupta de processo real incluídos na CI; não executados neste Windows. Falha de journal testada com fixture exclusivamente no teste de lifecycle, comprovando que create/start não foram chamados. Fluxo Docker da CI passa a conferir registro removed. Journal ainda opcional no workflow interno, sem comando público, tomada de posse concorrente, remoção recuperada de diretórios/contêineres ou retomada de auditoria. A saída do dono não prova ausência de criação tardia; registro creating permanece pendente. Detecção de órfãos não constitui recuperação completa; Windows/macOS sem implementação são recusados.
+
 ## Persistência e consultas de resultados VERIFY — 16/10/2026
 
 CI 38980754712 de e8b0410654a462d660ceb4d1e3ed3c39818dd76e passou: descoberta Git → cópia privada → Docker real → evidência selada. A persistência desta entrega ainda não estava naquele commit.

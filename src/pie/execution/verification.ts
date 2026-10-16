@@ -15,11 +15,13 @@ import { DockerExecution } from "./dockerExecution.js";
 import { buildDockerPlan } from "./dockerPlan.js";
 import { NODE_REPORTER_SOURCE } from "./nodeReporter.js";
 import { normalizeNodeResult } from "./nodeResults.js";
+import type { VerificationJournal } from "./resourceJournal.js";
 
 export interface VerificationOptions {
   executable: string;
   endpoint: string;
   temporaryParent: string;
+  journal?: VerificationJournal;
 }
 
 /** Composes admission, acquisition and execution; owns every resource until cleanup is proven. */
@@ -81,9 +83,23 @@ export class NodeVerification {
       id,
     );
     if (!plan.ok) throw plan.error;
+    const client = new DockerCommand(
+      this.options.executable,
+      this.options.endpoint,
+      config,
+    );
+    await this.options.journal?.register({
+      runId: id,
+      root: prepared.value.controlDirectory,
+      endpoint: this.options.endpoint,
+      executable: this.options.executable,
+    });
     this.#execution = new DockerExecution(
       plan.value,
-      new DockerCommand(this.options.executable, this.options.endpoint, config),
+      client,
+      this.options.journal
+        ? (event) => this.options.journal!.event(id, event)
+        : undefined,
     );
     return this.#execution;
   }

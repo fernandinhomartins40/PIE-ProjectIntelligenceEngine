@@ -10,6 +10,24 @@ import {
   AnalysisOutputError,
 } from "../../domain/analysisErrorCore.js";
 
+export function validateDockerClientSelection(
+  executable: string,
+  endpoint: string,
+  configDirectory: string,
+): void {
+  if (
+    !isAbsolute(executable) ||
+    !isAbsolute(configDirectory) ||
+    !/^(unix:\/\/\/[^\r\n\0]+|npipe:\/\/\/\/\.\/pipe\/docker(?:DesktopLinuxEngine|_engine))$/.test(
+      endpoint,
+    )
+  )
+    throw new AnalysisInputError("pie.docker", {
+      userMessage:
+        "Selecione executável, configuração privada e daemon Docker local explícitos.",
+    });
+}
+
 /** Docker client process ownership is separate from daemon-side container ownership. */
 export class DockerCommand {
   readonly #clients = new Set<ProviderProcessSupervisor>();
@@ -18,17 +36,7 @@ export class DockerCommand {
     readonly endpoint: string,
     readonly configDirectory: string,
   ) {
-    if (
-      !isAbsolute(executable) ||
-      !isAbsolute(configDirectory) ||
-      !/^(unix:\/\/\/[^\r\n\0]+|npipe:\/\/\/\/\.\/pipe\/docker(?:DesktopLinuxEngine|_engine))$/.test(
-        endpoint,
-      )
-    )
-      throw new AnalysisInputError("pie.docker", {
-        userMessage:
-          "Selecione executável, configuração privada e daemon Docker local explícitos.",
-      });
+    validateDockerClientSelection(executable, endpoint, configDirectory);
   }
   async run(
     args: readonly string[],

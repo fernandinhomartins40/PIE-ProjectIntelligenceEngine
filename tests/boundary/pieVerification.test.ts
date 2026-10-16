@@ -18,6 +18,7 @@ import { verifyRunEvidence } from "../../src/pie/execution/runEvidence.js";
 import { openStore } from "../../src/pie/store.js";
 import { PostgresPieStore } from "../../src/pie/postgresStore.js";
 import type { PiePersistence } from "../../src/pie/persistence.js";
+import { VerificationJournal } from "../../src/pie/execution/resourceJournal.js";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "pie-verification-"));
@@ -101,10 +102,14 @@ it.skipIf(!process.env.PIE_TEST_DOCKER_IMAGE || process.platform !== "linux")(
     const executable = (
       await promisify(execFile)("which", ["docker"])
     ).stdout.trim();
+    const journal = await VerificationJournal.open(
+      join(root, "journal.sqlite"),
+    );
     const owner = new NodeVerification({
       executable,
       endpoint: "unix:///var/run/docker.sock",
       temporaryParent: root,
+      journal,
     });
     try {
       const run = await owner.execute(grant, snapshot);
@@ -120,6 +125,10 @@ it.skipIf(!process.env.PIE_TEST_DOCKER_IMAGE || process.platform !== "linux")(
         },
       });
       verifyRunEvidence(run);
+      expect(journal.get(run.id)).toMatchObject({
+        phase: "removed",
+        runId: run.id,
+      });
       const stores: PiePersistence[] = [
         await openStore(join(root, "runs.sqlite"), repo),
       ];
@@ -143,9 +152,14 @@ it.skipIf(!process.env.PIE_TEST_DOCKER_IMAGE || process.platform !== "linux")(
         await Promise.all(stores.map((store) => store.close()));
       }
       expect(await readFile(join(repo, "fixture.test.mjs"), "utf8")).toBe(code);
-      expect((await readdir(root)).sort()).toEqual(["repo", "runs.sqlite"]);
+      expect((await readdir(root)).sort()).toEqual([
+        "journal.sqlite",
+        "repo",
+        "runs.sqlite",
+      ]);
     } finally {
       await owner.close();
+      journal.close();
       await rm(root, { recursive: true, force: true });
     }
   },
