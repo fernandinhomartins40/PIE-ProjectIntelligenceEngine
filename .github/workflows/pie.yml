@@ -38,7 +38,7 @@ jobs:
       - run: npm run typecheck
       - run: node scripts/generate-third-party-inventory.mjs --check
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieNodeResults.test.ts
-      - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieDockerPlan.test.ts
+      - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieDockerPlan.test.ts tests/boundary/pieDockerLifecycle.test.ts tests/boundary/pieDockerCommand.test.ts
       - name: Verify Docker sandbox with real Node fixture
         shell: bash
         run: |

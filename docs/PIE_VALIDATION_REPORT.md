@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Supervisão Docker — 16/10/2026
+
+CI 38980024074 do commit 7ee7e1c7542db0c294770c0ce8d835433009bc4f terminou com sucesso. Teste real Docker criou/inspecionou/iniciou fixture Node, comprovando restrições observadas (UID, mount/source readonly, rootfs, rede e ausência de socket) e resultado Node. Isso valida o plano anterior; não prova o novo supervisor ainda não publicado.
+
+DockerCommand reutiliza runOwnedCommand/ProviderProcess para ownership do cliente, com executável absoluto, daemon local explícito, config privada e sem herdar credenciais/ambiente do processo pai. DockerExecution assume separadamente contêiner: preflight de imagem local Linux sem volumes, create sem pull, inspeção de identidade/configuração antes de start, captura limitada, estado final/exit e cleanup por ID comprovado. Resposta incerta de create retém ownership mesmo quando list vazio; retry pode receber o handshake tardio. Contêiner inválido não começa; identidade estrangeira não é removida. Cancelamento durante cleanup invalida aprovação e preserva fatos parciais. Dono e cópia devem ser retidos pelo futuro serviço se close falhar.
+
+Seis testes locais aprovados em três arquivos (1,51s total), cobrindo contrato, recusa de daemon remoto, handshake tardio, cleanup retry, cancelamento final e identidade estrangeira. Cenários de falha usam spies Vitest somente nos testes; não comprovam transporte Docker real. CI ampliada inclui supervisor com sucesso/falha/cancelamento reais, ainda a executar. Sem journal persistente, recuperação após crash, evidências de runs persistidas ou integração pública; nenhuma capacidade completa de runner anunciada. Retenção em memória não protege contra encerramento abrupto do processo PIE.
+
 ## Configuração verificável do sandbox Docker — 16/10/2026
 
 CI 38979741234 de 935514f26218e257eac86afc62b5cc82ac8cf04d passou, incluindo normalização Node real. dockerPlan.ts agora produz criação sem pull automático, Node sem shell, imagem digest, UID/GID 65534, rede none, rootfs e cópia somente leitura, mounts sem submounts recursivos, capabilities removidas, no-new-privileges, memória/swap/CPU/PIDs e tmpfs limitado. Não monta projeto original nem socket. Parser de inspect separa identidade (nome/token/ID) de validade, recusa configuração divergente e ambiente inesperado antes do start. Mesmo um contêiner owned pode ser inválido e ainda removível pelo dono.

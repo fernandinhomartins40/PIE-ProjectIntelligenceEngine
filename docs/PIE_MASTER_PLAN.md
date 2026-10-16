@@ -22,7 +22,7 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 | T2.2 | P1 | AST TS/JS/Node/React/Next e imports/rotas/serviços/testes | parcial | Imports/reexports relativos AST; rotas/frameworks e aliases pendentes |
 | T2.3 | P1 | Laravel/PHP, Prisma/Postgres, Docker/Compose, Nginx e OpenAPI | parcial | Manifests Node/Composer, serviços/dependências Compose, operações OpenAPI 3.0/3.1 e model/campos Prisma integrados; PHP/Nginx e cobertura completa pendentes |
 | T2.4 | P1 | Grafo tipado, trace, impacto e descoberta incremental | parcial | Comparação/impacto e trace limitado de imports, origem de declarações, serviços Compose e campos Prisma pela CLI/MCP/API; grafo completo UI/API/DB e incremental pendentes |
-| T3.1 | P0 | Runners de testes com autorização, isolamento e resultado não ambíguo | parcial | Admissão VERIFY vinculada a snapshot/hash/raiz/imagem e cópia privada verificável implementadas; executor de contêiner, normalização/persistência de resultados e integração ainda pendentes; skipped/blocked não passam |
+| T3.1 | P0 | Runners de testes com autorização, isolamento e resultado não ambíguo | parcial | Admissão VERIFY, cópia privada, reporter Node e configuração Docker comprovados na CI; supervisor com ownership/cleanup implementado aguardando CI real; persistência, recuperação após crash, integração e demais runners pendentes; skipped/blocked não passam |
 | T3.2 | P1 | Playwright, HTTP, DB de teste, logs e traces redigidos | pendente | T3.1; persistência após reload |
 | T4.1 | P1 | Motor funcional e matriz de capacidades | pendente | T2/T3; falhas semeadas |
 | T4.2 | P1 | Motor produto/UX: cinco movimentos com jornada observada | pendente | T2/T3; protocolo produto integral |

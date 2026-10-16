@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Estado prioritário — supervisor de contêiner
+
+CI 7ee7e1c75 passou: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/38980024074, incluindo Docker real (plano/configuração e execução fixture). Novos dockerCommand.ts/dockerExecution.ts usam runOwnedCommand e supervisão de processos upstream para clientes, separados do recurso daemon-side. Endpoint local/executável/config explícitos, ambiente mínimo sem credenciais herdadas. Supervisor cria/inspeciona/valida antes de iniciar, normaliza saída real e retém owner se limpeza incerta. Close retry trata handshake tardio sem confundir list vazio com ausência enquanto create não confirmado.
+
+Testes locais de lifecycle com spies passaram: incerteza e recuperação, cancelamento em finalização com remoção falhando e retry, config inválida e identidade estrangeira. Seis aprovados em três arquivos. CI real adiciona supervisor com pass/fail/cancel, aguardando novo push. Próximo: observar CI e corrigir divergências; integrar preparação+reporter privado+DockerExecution e journal/retomada de ownership, persistência de runs/evidências em SQLite/Postgres, comandos e contratos CLI/MCP/API antes do painel VERIFY. Caller tem obrigação de reter PreparedWorkspace enquanto cleanupOwner existir; isso ainda precisa ser imposto pelo serviço integrado. Não anunciar runner completo nem motores. Goal integral permanece ativo na main.
+
 ## Estado prioritário — plano e validação Docker
 
 CI 935514f26 passou: run 38979741234. dockerPlan.ts gera comando fixo create e valida inspect antes de iniciar. Ownership por nome/token/ID é separado da validade. Limites, rede none, mounts readonly/nonrecursive, rootfs, UID, caps, env, comando, imagem e estado created conferidos. Testes de fixtures: pieDockerPlan, cinco aprovados somando NodeResults; DockerReal skipped localmente sem imagem explícita. CI passa a fazer pull somente para fixture Node 24.18.0-bookworm-slim, resolve digest, cria/inspeciona e executa teste real, cleanup por ID comprovado. Aguardar nova CI para corrigir eventual deriva do contrato real Docker; não tratar schema fixture como validação de provider.
