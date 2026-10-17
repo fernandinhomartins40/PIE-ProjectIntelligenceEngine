@@ -313,8 +313,8 @@ export async function discoverProject(
   }> = [];
   const limitations = [
     "Somente arquivos rastreados pelo Git; arquivos novos não rastreados não foram examinados.",
-    "Inventário Git e imports estáticos TS/JS; relação de pacote significa somente declaração no manifest observado, sem comprovar instalação, subpath resolvido ou carregamento.",
-    "Imports dinâmicos, require, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
+    "Inventário Git e imports ESM estáticos/dinâmicos literais TS/JS; relação de pacote significa somente declaração no manifest observado, sem comprovar instalação, subpath resolvido ou carregamento.",
+    "Imports dinâmicos calculados, require, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
     "Conteúdo de arquivos não é retido. Não há execução do projeto auditado.",
     "A leitura não é atômica em relação a alterações concorrentes do sistema de arquivos.",
   ];
@@ -503,7 +503,7 @@ export async function discoverProject(
           resolution.kind === "relative-file"
             ? resolution.targetPath
             : resolution.manifestPath,
-        ])}; não comprova carregamento em runtime.`,
+        ])}; syntax=${reference.syntax}; não comprova carregamento em runtime.`,
       });
       evidence.push(item);
       if (resolution.kind === "relative-file")
@@ -512,6 +512,7 @@ export async function discoverProject(
             reference.sourcePath,
             reference.line,
             reference.specifier,
+            reference.syntax,
             resolution.kind,
             resolution.targetPath,
           ]),
@@ -647,6 +648,7 @@ export async function discoverProject(
           module.path,
           mount.line,
           mount.specifier,
+          "static",
           "relative-file",
           targetPath.path,
         ]),

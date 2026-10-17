@@ -325,6 +325,36 @@ describe("PIE: validação de raiz no serviço", () => {
   });
 });
 
+describe("PIE: imports dinâmicos", () => {
+  it("resolve somente specifier literal e preserva Evidence de origem", async () => {
+    const { repo, policy } = await fixture();
+    await writeFile(
+      join(repo, "page.ts"),
+      'void import("./lazy.js");\nvoid import("./" + "computed.js");\n',
+    );
+    await writeFile(join(repo, "lazy.ts"), "export const loaded = true;\n");
+    await exec("git", ["-C", repo, "add", "page.ts", "lazy.ts"]);
+    const snapshot = await discoverProject(policy, randomUUID());
+    const source = snapshot.nodes.find((node) => node.path === "page.ts");
+    const target = snapshot.nodes.find((node) => node.path === "lazy.ts");
+    const edge = snapshot.edges.find(
+      (item) => item.from === source?.id && item.to === target?.id,
+    );
+    expect(edge).toBeDefined();
+    const proof = snapshot.evidence.find((item) =>
+      edge?.evidenceIds.includes(item.id),
+    );
+    expect(proof).toMatchObject({
+      source: { path: "page.ts", line: 1 },
+      observation: expect.stringContaining("syntax=dynamic"),
+    });
+    expect(snapshot.edges).toHaveLength(1);
+    expect(snapshot.coverage.limitations).toContain(
+      "Imports dinâmicos calculados, require, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
+    );
+  });
+});
+
 describe("PIE: consultas de grafo", () => {
   it("pagina sem promover ausência de relação para ausência de impacto", () => {
     expect(page([1, 2, 3], { limit: 2 }).nextOffset).toBe(2);

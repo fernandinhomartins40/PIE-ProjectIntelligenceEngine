@@ -40,7 +40,7 @@ export function readCodeFacts(
   };
 } {
   return cachedAnalysis(
-    ["pie-code-facts-v6", path, sha256(source), maxReferences, maxDeclarations],
+    ["pie-code-facts-v7", path, sha256(source), maxReferences, maxDeclarations],
     () => {
       const tree = parse(source, {
         sourceType: "unambiguous",
@@ -63,9 +63,26 @@ export function readCodeFacts(
               sourcePath: path,
               specifier: node.source.value,
               line: node.loc?.start.line ?? 1,
+              syntax: "static",
             });
           else omitted++;
+          return;
         }
+        const dynamicSource =
+          node.type === "ImportExpression"
+            ? node.source
+            : node.type === "CallExpression" && node.callee.type === "Import"
+              ? node.arguments[0]
+              : undefined;
+        if (dynamicSource?.type !== "StringLiteral") return;
+        if (references.length < maxReferences)
+          references.push({
+            sourcePath: path,
+            specifier: dynamicSource.value,
+            line: node.loc?.start.line ?? 1,
+            syntax: "dynamic",
+          });
+        else omitted++;
       });
       const next = readNextDeclarations(path, tree, maxDeclarations);
       const nextPages = readNextPagesDeclarations(

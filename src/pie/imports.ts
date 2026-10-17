@@ -6,6 +6,7 @@ export interface ImportReference {
   sourcePath: string;
   specifier: string;
   line: number;
+  syntax: "static" | "dynamic";
 }
 
 export interface DeclaredPackage {

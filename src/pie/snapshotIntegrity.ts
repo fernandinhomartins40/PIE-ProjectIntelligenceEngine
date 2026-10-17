@@ -113,7 +113,7 @@ function validateImportEdges(snapshot: Snapshot) {
       continue;
     }
     const match =
-      /^Import AST (.+); não comprova carregamento em runtime\.$/.exec(
+      /^Import AST (.+?)(?:; syntax=(?:static|dynamic))?; não comprova carregamento em runtime\.$/.exec(
         importProof.observation,
       );
     let tuple: unknown;
@@ -198,7 +198,7 @@ function validateExpressMountEdges(snapshot: Snapshot) {
         )
       : null;
     const importMatch = importProof
-      ? /^Import AST (.+); não comprova carregamento em runtime\.$/.exec(
+      ? /^Import AST (.+?)(?:; syntax=(?:static|dynamic))?; não comprova carregamento em runtime\.$/.exec(
           importProof.observation,
         )
       : null;
@@ -327,7 +327,7 @@ function validateExpressMountEdges(snapshot: Snapshot) {
                   return false;
                 try {
                   const match =
-                    /^Import AST (.+); não comprova carregamento em runtime\.$/.exec(
+                    /^Import AST (.+?)(?:; syntax=(?:static|dynamic))?; não comprova carregamento em runtime\.$/.exec(
                       proof.observation,
                     );
                   const tuple: unknown = JSON.parse(match?.[1] ?? "null");

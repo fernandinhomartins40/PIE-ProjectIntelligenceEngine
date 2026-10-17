@@ -524,3 +524,10 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - `node scripts/run-exact-tests.mjs tests/boundary/pieJobs.test.ts`: passou, 4 testes; 1 skip condicional Linux-only no Windows local.
 - Cobertura observada: daemon consome jobs enfileirados após ficar ocioso e encerra espera longa; workflows OBSERVE/VERIFY; leases, recuperação de worker perdido e rejeição de publicação por lease obsoleta.
 - CLI daemon Linux e PostgreSQL não foram reexecutados nesta rodada; esses resultados não são inferidos do teste Windows.
+
+# Validação incremental — imports dinâmicos com specifier literal — 17/10/2026
+
+- `npm run pie:build`: passou.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts tests/boundary/pieExpressCrossFile.test.ts tests/boundary/pieFoundation.test.ts`: passou, 31/31 testes.
+- Fixture com Git real comprova `import("./lazy.js")` → `lazy.ts`, aresta `depends`, Evidence na linha de origem marcada `syntax=dynamic`; specifier calculado não é resolvido. Provas de import estáticas e integridade/cross-file permanecem válidas.
+- Não houve execução de aplicação alvo nem medição de performance nesta rodada.
