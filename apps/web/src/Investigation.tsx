@@ -1,6 +1,7 @@
 import { TraceResult } from "./TraceResult.js";
 import { Verifications } from "./Verifications.js";
 import { VerificationQueue } from "./VerificationQueue.js";
+import { FunctionalReview } from "./FunctionalReview.js";
 import { useEffect, useRef, useState } from "react";
 import {
   api,
@@ -509,6 +510,10 @@ export function Investigation({
         </aside>
       )}
       <Verifications key={snapshotId} snapshotId={snapshotId} />
+      <FunctionalReview
+        key={`functional-${snapshotId}`}
+        snapshotId={snapshotId}
+      />
       <VerificationQueue key={`queue-${snapshotId}`} snapshotId={snapshotId} />
     </>
   );

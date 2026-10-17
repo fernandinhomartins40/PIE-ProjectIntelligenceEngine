@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Análise funcional no painel — 16/10/2026
+
+CI 38991625430 (dfaa30743) passou. Painel passa a consultar a análise funcional OBSERVE real: filtro por módulo relativo, páginas de dez achados, incerteza, reprodução/proposta/aceite e prova da declaração com SHA-256. Estado é Não verificado/informativo; responsável permanece explicitamente não definido. Escopo vazio informa que ausência de declaração não prova ausência de funcionalidade. Nenhuma execução/autoridade é inferida do formulário. Consulta usa API autenticada/CSRF, cancela requisição anterior e limpa prova ao trocar escopo; componente remonta ao mudar snapshot.
+
+Hook useFunctionalReview é dono das consultas/estado; apresentação usa os fatos retornados sem reanalisar fontes. Chrome Windows com Git/SQLite reais validou 13 declarações, segunda página, filtro app/api, prova correspondente e remoção da prova ao filtrar módulo vazio, com larguras 360/1440. Teste focado inicial passou (8,10s). Após refatoração, build, typecheck web e typecheck completo passaram; regressão ampla sobre build atualizado passou: seis testes e um skipped em três arquivos (32,62s), incluindo Chrome real, trace, sessão/CSRF e histórico. Limites de módulos: 2054 fontes; descoberta: 1463 testes. Custos CPU/memória e tokens não medidos. Não usar rodada que tenha build falhado como prova do código atualizado. Lint sem erros, aviso de tamanho em FunctionalReview (104 linhas). Motor funcional completo, achados persistidos, demais runners/motores e aceite integral seguem pendentes; goal ativo.
+
 ## Análise funcional de lacunas OBSERVE — 16/10/2026
 
 CI 38991366300 (a872b359e) passou. Nova assessFunctional lê snapshot validado, política OBSERVE e módulo relativo canônico, produz achados tipados para páginas/endpoints declarados com prova, informação de severidade, incerteza, passos de reprodução propostos, proposta e critérios de validação. Estado sempre unverified, responsável desconhecido null. Lacuna de verificação não é defeito nem ausência de implementação. Não associa teste aprovado à rota sem vínculo próprio, não executa cenários e não altera alvo. Sem declarações, não fabrica aprovação nem not_found.

@@ -20,6 +20,111 @@ const executablePath =
     ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
     : "/usr/bin/google-chrome");
 
+it.skipIf(!existsSync(executablePath))(
+  "painel funcional usa fatos reais, pagina módulo e abre evidência sem aprovação",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "pie-web-functional-"));
+    const repo = join(root, "repo");
+    await mkdir(join(repo, "app", "api"), { recursive: true });
+    await promisify(execFile)("git", ["init", repo]);
+    await writeFile(
+      join(repo, "app", "api", "route.ts"),
+      "export function GET(){throw new Error('não executar')}\nexport const POST=()=>null;",
+    );
+    for (let index = 0; index < 11; index++) {
+      await mkdir(join(repo, "app", `page${index}`));
+      await writeFile(
+        join(repo, "app", `page${index}`, "page.tsx"),
+        "export default function Page(){return <div/>}",
+      );
+    }
+    await promisify(execFile)("git", ["-C", repo, "add", "."]);
+    const store = await openStore(join(root, "history.sqlite"), repo);
+    const service = new PieService(store);
+    const observed = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = store.snapshot(observed.snapshot.id);
+    const endpoint = snapshot.declarations.find(
+      (fact) => fact.name === "GET /api",
+    )!;
+    const proof = store.evidence(endpoint.evidenceId);
+    const token = "fixture-functional-web-token-32-characters-minimum";
+    const server = await startPieApi(service, {
+      root: repo,
+      token,
+      webDirectory: resolve("dist/pie-web"),
+    });
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    try {
+      browser = await chromium.launch({ executablePath, headless: true });
+      const page = await browser.newPage();
+      await page.goto(server.url);
+      await page.getByLabel("Credencial do serviço local").fill(token);
+      await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      const section = page.getByRole("region", {
+        name: "Análise funcional estática",
+      });
+      await section
+        .getByRole("button", { name: "Analisar lacunas funcionais" })
+        .click();
+      await section.getByText("1–10 de 13", { exact: true }).waitFor();
+      await section
+        .getByRole("button", { name: "Próxima", exact: true })
+        .click();
+      await section.getByText("11–13 de 13", { exact: true }).waitFor();
+      await section.getByLabel("Módulo relativo (opcional)").fill("app/api");
+      await section
+        .getByRole("button", { name: "Analisar lacunas funcionais" })
+        .click();
+      await section.getByText("1–2 de 2", { exact: true }).waitFor();
+      const finding = section.getByRole("article", {
+        name: "Lacuna GET /api",
+        exact: true,
+      });
+      await finding
+        .getByRole("button", { name: "Abrir prova da declaração" })
+        .click();
+      await section
+        .getByLabel("Prova da análise funcional")
+        .getByText(proof.sha256, { exact: true })
+        .waitFor();
+      await finding.getByText("Incertezas e validação proposta").click();
+      await finding
+        .getByRole("heading", { name: "Critérios de validação" })
+        .waitFor();
+      await section.getByLabel("Módulo relativo (opcional)").fill("missing");
+      await section
+        .getByRole("button", { name: "Analisar lacunas funcionais" })
+        .click();
+      await section
+        .getByText(
+          "Nenhuma página ou endpoint declarado neste escopo. Isso não prova ausência de funcionalidade.",
+          { exact: true },
+        )
+        .waitFor();
+      expect(
+        await section.getByLabel("Prova da análise funcional").count(),
+      ).toBe(0);
+      for (const width of [360, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(
+          await page.evaluate(
+            "document.documentElement.scrollWidth <= innerWidth",
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      await browser?.close();
+      await server.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);
+
 it.skipIf(process.platform !== "linux" || !existsSync(executablePath))(
   "painel enfileira autorização real com sessão/CSRF, consulta e cancela sem executar",
   async () => {
