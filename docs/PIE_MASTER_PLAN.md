@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Status global com descobertas parciais — 17/10/2026
+
+O comparador agora calcula a interpretação sobre todas as declarações antes de paginar a resposta. `status` só usa declarações observadas para `changed`; diferenças ausentes em snapshot parcial ou duplicidades ambíguas permanecem `inconclusive`, salvo se houver mudança de bytes efetivamente observada. Isso impede tanto falsa conclusão pela página retornada quanto ocultação de uma alteração confirmada. Boundary `pieComparison` passou 3/3; `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` e `git diff --check` passaram em Windows. T4.1/T4.6 seguem parciais.
+
 ## Interpretação de mudanças de declarações — 17/10/2026
 
 O diff de declarações agora registra `interpretation` por item. Declarações observadas somente de um lado em snapshots completos são `observed_change`; quando o outro snapshot tem cobertura parcial, são `unknown_before`/`unknown_after`; duplicidades com mudança são `ambiguous`. O campo `state` preserva a observação bruta (`observed_only_*`) para compatibilidade semântica, e nenhuma classe prova remoção de comportamento, defeito ou funcionamento. `pieComparison` passou 3/3; `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` e `git diff --check` passaram em Windows. T4.1 continua parcial: falta relacionar testes a capacidades por arestas de cobertura comprovadas e executar jornadas autorizadas com persistência/permissões/reload.

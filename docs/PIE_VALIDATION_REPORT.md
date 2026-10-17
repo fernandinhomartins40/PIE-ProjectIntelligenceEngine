@@ -1,5 +1,10 @@
 # PIE — Registro de validação contínua
 
+## Status de comparação sem viés de paginação — 17/10/2026
+
+- Mudanças de declarações são avaliadas no conjunto inteiro antes da página; status `changed` decorre de mudança de bytes ou declaração observada, enquanto snapshot parcial/ambiguidade isolados não são promovidos a alteração comprovada.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieComparison.test.ts`: 3/3 passou; `npm run pie:build`, `npm run check:fast` (2/2), `npm run docs:check:built`, `npm run format:check` e `git diff --check` passaram. Inclui asserção de status com `limit: 1` e comparação de inventário parcial. Windows, Node 24.18.0/npm 11.16.0; plataformas Linux/macOS não executadas nesta validação.
+
 ## Interpretação de mudanças de declarações por cobertura — 17/10/2026
 
 - `compareDeclarations` retorna interpretação explícita: mudança observada quando a declaração aparece só de um lado e o snapshot oposto tem enumeração completa; desconhecido quando esse snapshot é parcial; ambíguo para identidades duplicadas alteradas. O estado observacional original permanece e nada disso comprova runtime.

@@ -48,6 +48,12 @@ export function compareDeclarations(
   after: Snapshot,
   paging: unknown,
 ) {
+  return declarationChangesSchema.parse(
+    page(compareDeclarationFacts(before, after), paging),
+  );
+}
+
+export function compareDeclarationFacts(before: Snapshot, after: Snapshot) {
   const left = index(before);
   const right = index(after);
   const changes: z.infer<typeof declarationChangeSchema>[] = [];
@@ -106,5 +112,5 @@ export function compareDeclarations(
         interpretation: "observed_change",
       });
   }
-  return declarationChangesSchema.parse(page(changes, paging));
+  return changes;
 }

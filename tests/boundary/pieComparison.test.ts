@@ -137,6 +137,7 @@ it("regressão compara declarações com provas dos dois snapshots sem afirmar e
       nextOffset: 1,
       items: [expect.any(Object)],
     });
+    expect(result.status).toBe("changed");
     const all = await service.compare({
       beforeId: first.snapshot.id,
       afterId: second.snapshot.id,
@@ -193,6 +194,7 @@ it("regressão compara declarações com provas dos dois snapshots sem afirmar e
           item.interpretation === "unknown_after",
       ),
     ).toBe(true);
+    expect(incomplete.status).toBe("inconclusive");
     expect(incomplete.runtimeVerified).toBe(false);
   } finally {
     await service.close();

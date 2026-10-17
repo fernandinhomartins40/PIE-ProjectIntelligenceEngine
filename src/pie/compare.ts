@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PieError, type Snapshot } from "./contracts.js";
 import { impactedNodes, page, pageSchema } from "./graph.js";
 import {
+  compareDeclarationFacts,
   compareDeclarations,
   declarationChangesSchema,
 } from "./declarationChanges.js";
@@ -148,18 +149,30 @@ export function compareSnapshots(
     before.coverage.status !== "complete" ||
     after.coverage.status !== "complete";
   const declarationChanges = compareDeclarations(before, after, paging);
+  const declarationFacts = compareDeclarationFacts(before, after);
+  const observedDeclarationChanges = declarationFacts.some(
+    (change) => change.interpretation === "observed_change",
+  );
+  const unresolvedDeclarationChanges = declarationFacts.some(
+    (change) =>
+      change.interpretation === "unknown_before" ||
+      change.interpretation === "unknown_after" ||
+      change.interpretation === "ambiguous",
+  );
+  const observedFileChanges =
+    counts.added + counts.removed + counts.modified > 0;
+  const status =
+    observedFileChanges || observedDeclarationChanges
+      ? "changed"
+      : partial || counts.unknown > 0 || unresolvedDeclarationChanges
+        ? "inconclusive"
+        : "unchanged";
   return comparisonOutput.parse({
     schemaVersion: 1,
     projectId: before.projectId,
     beforeId: before.id,
     afterId: after.id,
-    status:
-      counts.added + counts.removed + counts.modified > 0 ||
-      declarationChanges.total > 0
-        ? "changed"
-        : partial || counts.unknown > 0
-          ? "inconclusive"
-          : "unchanged",
+    status,
     changes: page(changes, paging),
     impact: page(
       [...impact.values()].sort((a, b) => a.path.localeCompare(b.path)),

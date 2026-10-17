@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Estado agregado de comparação e paginação — 17/10/2026
+
+O status global compara todas as mudanças declarativas antes de paginar; alterações confirmadas continuam visíveis como `changed`, e apenas lacunas/ambiguidades sem mudança de bytes mantêm `inconclusive`. Boundary `pieComparison` (3/3), `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` e `git diff --check` passaram. Próximo: seguir com cobertura entre casos e capacidades quando houver relação de origem verificável; T4.1 não está concluído.
+
 ## Interpretação conservadora de mudanças funcionais — 17/10/2026
 
 O diff por snapshot agora expõe `interpretation` para separar mudança observada de lacuna de cobertura: inventário completo permite `observed_change`; snapshot parcial produz `unknown_before`/`unknown_after`; alinhamento duplicado fica `ambiguous`. Isso não declara remoção de funcionalidade nem regressão runtime. `pieComparison` passou 3/3, além de `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check`. Próximo passo: produzir relações de cobertura entre testes executados e capacidades apenas quando houver origem verificável; T4.1 e o goal integral seguem abertos.
