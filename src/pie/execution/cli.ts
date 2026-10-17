@@ -3,8 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { PieError } from "../contracts.js";
-import { nodeTestGrantSchema } from "./contracts.js";
-import { readInventoryFile } from "../readFile.js";
+import { readNodeTestGrant } from "./grantFile.js";
 import { openVerificationPersistence } from "../openPersistence.js";
 import { VerificationCoordinator } from "./coordinator.js";
 import { VerificationJournal } from "./resourceJournal.js";
@@ -41,17 +40,7 @@ export async function verifyCli(
   dbPath: string,
   options: ExecutionCliOptions,
 ) {
-  const bytes = await readInventoryFile(grantFile, 1_000_000, () => 1);
-  if (!bytes)
-    throw new PieError(
-      "INVALID_INPUT",
-      "Arquivo de autorização excede limite de 1 MB ou não é regular.",
-    );
-  const grant = nodeTestGrantSchema.parse(
-    JSON.parse(
-      new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-    ) as unknown,
-  );
+  const grant = await readNodeTestGrant(grantFile);
   const state = await privateState(
     options.stateDirectory,
     grant.repositoryRoot,

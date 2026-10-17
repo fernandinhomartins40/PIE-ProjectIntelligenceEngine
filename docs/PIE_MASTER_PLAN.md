@@ -1,8 +1,16 @@
 # PIE — Plano mestre de implementação integral
 
+## Fila VERIFY — implementação em validação, 16/10/2026
+
+CI 38984171283 (4bc84e2fc) e 38984646478 (8bb9308e6) passaram, incluindo API/MCP com Docker real. A fila agora discrimina discovery/verification, mantém grant completo e exige maxAttempts=1 em VERIFY. Workers selecionam o tipo; descoberta não consome execução. Lease vencida encerra VERIFY como failed/EXECUTION_INTERRUPTED e nunca reencaminha testes. Heartbeat mantém ownership durante cancelling, devolvendo false para cancelar o trabalho enquanto a finalização continua protegida. ID do job é o ID da execução/journal, permitindo localizar prova persistida mesmo se o recibo do job se perder.
+
+CLI: enqueue-verify <grant.json> --key <chave> com as três opções Docker/estado; work-verify <raiz> processa um job. Pré-admissão valida snapshot/raiz/política; worker revalida antes de adquirir recursos. Migração PostgreSQL 202610160004 acrescenta tipo e limite de tentativas; SQLite preserva tabela existente. API/MCP/UI de enfileiramento VERIFY ainda pendentes. Não há daemon nem retomada automática de auditoria.
+
+Validação local: cinco testes passaram e três skipped em quatro arquivos (17,92s), cobrindo SQLite real, fencing, idempotência, cancelamento/finalização e compatibilidade MCP padrão. Compilação PIE, typecheck completo e CLI help passaram. Limites de módulos validados em 2045 fontes; 1463 arquivos de teste descobertos exatamente uma vez. Testes novos de worker VERIFY com Docker e PostgreSQL foram adicionados às trilhas existentes da CI; ignorados neste Windows e ainda sem resultado remoto desta entrega. Lint dos módulos sem erros, com avisos de tamanho/quantidade de parâmetros no worker e contratos da fila. Produto integral permanece incompleto; goal ativo.
+
 Atualizado em 16/10/2026. Produto em desenvolvimento; nenhuma entrega equivale ao aceite integral.
 
-Entrega atual: MCP VERIFY opt-in integrado ao coordenador CLI/API, ferramenta ausente no catálogo padrão. API e MCP padrão testados localmente; teste positivo MCP Linux/Docker adicionado à CI e ainda sem resultado comprovado. CI anterior 4bc84e2fc sem confirmação por limite GitHub. T1.4 permanece parcial: fila VERIFY, UI de execução e motores pendentes.
+MCP VERIFY opt-in comprovado na CI 38984646478. T1.4 permanece parcial: API/MCP da fila, UI de execução e motores pendentes.
 
 ## Autoridade e referência
 

@@ -3,17 +3,22 @@ import { realpath } from "node:fs/promises";
 import { PieError } from "../contracts.js";
 import type { PieService } from "../service.js";
 import type { JobQueue } from "./contracts.js";
+import type { VerificationCoordinator } from "../execution/coordinator.js";
 
-/** Executes only the discovery workflow. It cannot run project scripts or mutate a target. */
-export class DiscoveryWorker {
+type Workflow =
+  | { kind: "discovery"; service: PieService }
+  | { kind: "verification"; verifier: VerificationCoordinator };
+
+/** Owns the lease through execution, persistence and final cleanup for one selected workflow. */
+export class JobWorker {
   readonly owner = randomUUID();
   #active: Promise<boolean> | undefined;
   #controller: AbortController | undefined;
   #closing = false;
   constructor(
     private readonly queue: JobQueue,
-    private readonly service: PieService,
     private readonly authorizedRoot: string,
+    private readonly workflow: Workflow,
     private readonly leaseMs = 10_000,
   ) {}
 
@@ -41,7 +46,12 @@ export class DiscoveryWorker {
 
   async #run(): Promise<boolean> {
     const root = await realpath(this.authorizedRoot);
-    const job = await this.queue.claim(this.owner, this.leaseMs, root);
+    const job = await this.queue.claim(
+      this.owner,
+      this.leaseMs,
+      root,
+      this.workflow.kind,
+    );
     if (!job) return false;
     const controller = new AbortController();
     this.#controller = controller;
@@ -78,10 +88,31 @@ export class DiscoveryWorker {
           "POLICY_DENIED",
           "Job fora da raiz autorizada para este worker.",
         );
-      const result = await this.service.discover(
-        job.payload,
-        controller.signal,
-      );
+      let result: object;
+      if (job.kind === "discovery" && this.workflow.kind === "discovery") {
+        result = await this.workflow.service.discover(
+          job.payload,
+          controller.signal,
+        );
+      } else if (
+        job.kind === "verification" &&
+        this.workflow.kind === "verification"
+      ) {
+        const run = await this.workflow.verifier.run(
+          job.payload,
+          controller.signal,
+          job.id,
+        );
+        result = {
+          runId: run.id,
+          state: run.result.state,
+          evidenceId: run.evidence.id,
+        };
+      } else
+        throw new PieError(
+          "POLICY_DENIED",
+          "Job incompatível com o worker selecionado.",
+        );
       const accepted = await this.queue.finish(
         job.id,
         job.leaseToken!,
@@ -102,7 +133,7 @@ export class DiscoveryWorker {
           ? "ABORTED_OR_TIMEOUT"
           : cause instanceof PieError
             ? cause.code
-            : "DISCOVERY_FAILED";
+            : "WORKFLOW_FAILED";
       await this.queue.finish(
         job.id,
         job.leaseToken!,

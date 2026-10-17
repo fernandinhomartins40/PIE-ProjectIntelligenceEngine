@@ -7,6 +7,7 @@ import { NodeVerification } from "./verification.js";
 import { privateState } from "./stateDirectory.js";
 import { validateDockerClientSelection } from "./dockerCommand.js";
 import { VerificationJournal } from "./resourceJournal.js";
+import { admitNodeTests } from "./admission.js";
 
 export interface CoordinatorOptions {
   root: string;
@@ -73,7 +74,7 @@ export class VerificationCoordinator {
       journal,
     );
   }
-  run(input: unknown, signal?: AbortSignal) {
+  run(input: unknown, signal?: AbortSignal, runId?: string) {
     if (this.#closed)
       return Promise.reject(
         new PieError("POLICY_DENIED", "Verificador em encerramento."),
@@ -90,6 +91,7 @@ export class VerificationCoordinator {
     const operation = this.#run(
       input,
       signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
+      runId,
     );
     this.#operation = operation;
     void operation.then(
@@ -104,8 +106,9 @@ export class VerificationCoordinator {
       this.#controller = undefined;
     }
   }
-  async #run(input: unknown, signal: AbortSignal) {
-    signal.throwIfAborted();
+  async admit(input: unknown) {
+    if (this.#closed)
+      throw new PieError("POLICY_DENIED", "Verificador em encerramento.");
     const grant = nodeTestGrantSchema.parse(input);
     const snapshot = await this.store.snapshot(grant.snapshotId);
     if (
@@ -116,6 +119,13 @@ export class VerificationCoordinator {
         "POLICY_DENIED",
         "Grant e snapshot devem pertencer à raiz autorizada na inicialização.",
       );
+    const admitted = await admitNodeTests(grant, snapshot);
+    if (!admitted.ok) throw admitted.error;
+    return { grant, snapshot };
+  }
+  async #run(input: unknown, signal: AbortSignal, runId?: string) {
+    signal.throwIfAborted();
+    const { grant, snapshot } = await this.admit(input);
     signal.throwIfAborted();
     const owner = new NodeVerification({
       executable: this.options.executable,
@@ -125,7 +135,7 @@ export class VerificationCoordinator {
     });
     this.#owners.add(owner);
     try {
-      const run = await owner.execute(grant, snapshot, signal);
+      const run = await owner.execute(grant, snapshot, signal, runId);
       await this.store.saveVerification(run);
       return run;
     } finally {

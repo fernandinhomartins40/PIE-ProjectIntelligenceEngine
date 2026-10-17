@@ -10,6 +10,57 @@ import { PieService } from "../../src/pie/service.js";
 import { Pool } from "pg";
 import { PostgresJobQueue } from "../../src/pie/jobs/postgresQueue.js";
 
+async function verifyInterruptedJob(
+  queue: PostgresJobQueue,
+  peerQueue: PostgresJobQueue,
+  pool: Pool,
+  snapshot: { id: string; treeDigest: string; root: string },
+) {
+  const repo = snapshot.root;
+  const verification = await queue.enqueue({
+    kind: "verification",
+    idempotencyKey: randomUUID(),
+    payload: {
+      schemaVersion: 1,
+      profile: "VERIFY",
+      allowTargetExecution: true,
+      environment: "local",
+      repositoryRoot: repo,
+      snapshotId: snapshot.id,
+      treeDigest: snapshot.treeDigest,
+      image: `node@sha256:${"1".repeat(64)}`,
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
+      testFiles: ["index.ts"],
+      limits: {
+        timeoutMs: 1000,
+        memoryMiB: 256,
+        cpus: 1,
+        pids: 32,
+        workspaceMiB: 64,
+        outputBytes: 65536,
+        sourceBytes: 100000,
+      },
+    },
+  });
+  expect(await queue.claim("discovery", 5000, repo)).toBeNull();
+  const verifying = await peerQueue.claim("verify", 5000, repo, "verification");
+  expect(verifying?.id).toBe(verification.id);
+  await pool.query("UPDATE pie_jobs SET lease_until=0 WHERE id=$1", [
+    verification.id,
+  ]);
+  expect(
+    await queue.claim("replacement", 5000, repo, "verification"),
+  ).toBeNull();
+  expect(await peerQueue.get(verification.id)).toMatchObject({
+    state: "failed",
+    attempts: 1,
+    errorCode: "EXECUTION_INTERRUPTED",
+  });
+  expect(
+    await queue.finish(verification.id, verifying!.leaseToken!, "succeeded"),
+  ).toBe(false);
+}
+
 const url = process.env.PIE_TEST_DATABASE_URL;
 
 // No fake database: explicitly skipped when a dedicated real server is absent.
@@ -108,6 +159,7 @@ it.skipIf(!url)(
         state: "cancelled",
         result: null,
       });
+      await verifyInterruptedJob(queue, peerQueue, pool, snapshot);
     } finally {
       await Promise.all([
         store.close(),

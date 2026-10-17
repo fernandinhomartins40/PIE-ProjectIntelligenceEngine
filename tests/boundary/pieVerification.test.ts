@@ -19,6 +19,80 @@ import { openStore } from "../../src/pie/store.js";
 import { PostgresPieStore } from "../../src/pie/postgresStore.js";
 import type { PiePersistence } from "../../src/pie/persistence.js";
 import { VerificationJournal } from "../../src/pie/execution/resourceJournal.js";
+import { VerificationCoordinator } from "../../src/pie/execution/coordinator.js";
+import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
+import { JobWorker } from "../../src/pie/jobs/worker.js";
+import { enqueueVerification } from "../../src/pie/jobs/verification.js";
+import { PieService } from "../../src/pie/service.js";
+
+it.skipIf(process.platform !== "linux")(
+  "worker VERIFY liga job, execução persistida e journal sem repetir testes",
+  async () => {
+    const { root, repo, grant: initial } = await fixture();
+    const state = join(root, "private");
+    await mkdir(state, { mode: 0o700 });
+    const store = await openStore(join(root, "history.sqlite"), repo);
+    const service = new PieService(store);
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = store.snapshot(discovered.snapshot.id);
+    const grant = {
+      ...initial,
+      repositoryRoot: repo,
+      snapshotId: snapshot.id,
+      treeDigest: snapshot.treeDigest,
+    };
+    const executable = process.env.PIE_TEST_DOCKER_IMAGE
+      ? (await promisify(execFile)("which", ["docker"])).stdout.trim()
+      : join(root, "missing-docker");
+    const verifier = await VerificationCoordinator.open(store, {
+      root: repo,
+      stateDirectory: state,
+      executable,
+      endpoint: "unix:///var/run/docker.sock",
+    });
+    const queue = new SqliteJobQueue(join(root, "queue.sqlite"));
+    const worker = new JobWorker(queue, repo, {
+      kind: "verification",
+      verifier,
+    });
+    try {
+      const input = {
+        idempotencyKey: "real-verification",
+        authorization: grant,
+      };
+      const job = await enqueueVerification(queue, verifier, input);
+      expect((await enqueueVerification(queue, verifier, input)).id).toBe(
+        job.id,
+      );
+      expect(await worker.runOnce()).toBe(true);
+      const stored = queue.get(job.id);
+      const run = store.verification(job.id);
+      expect(stored).toMatchObject({
+        state: "succeeded",
+        attempts: 1,
+        result: {
+          runId: job.id,
+          state: process.env.PIE_TEST_DOCKER_IMAGE ? "passed" : "blocked",
+          evidenceId: run.evidence.id,
+        },
+      });
+      expect(verifyRunEvidence(run)).toEqual(run);
+      expect(await worker.runOnce()).toBe(false);
+      expect(store.verifications(snapshot.id).total).toBe(1);
+    } finally {
+      await worker.close();
+      await verifier.close();
+      queue.close();
+      await service.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "pie-verification-"));

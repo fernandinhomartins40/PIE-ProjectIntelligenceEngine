@@ -33,6 +33,28 @@ export async function runPie(args: string[]): Promise<void> {
     },
   });
   const [command, target] = parsed.positionals;
+  if (command === "enqueue-verify") {
+    if (!target)
+      throw new PieError("INVALID_INPUT", "Informe o arquivo de autorização.");
+    const { enqueueVerificationCli } = await import("./jobs/cli.js");
+    console.log(
+      JSON.stringify(
+        await enqueueVerificationCli(
+          target,
+          parsed.values.db ?? join(homedir(), ".pie", "pie.sqlite"),
+          parsed.values.key,
+          {
+            stateDirectory: parsed.values["state-dir"],
+            executable: parsed.values["docker-bin"],
+            endpoint: parsed.values["docker-host"],
+          },
+        ),
+        null,
+        2,
+      ),
+    );
+    return;
+  }
   if (!command || parsed.values.help || command === "help") {
     console.log(
       "PIE — Project Intelligence Engine\nComandos: doctor | discover <raiz-git> | projects | history <projeto-id> | graph <snapshot-id> | compare <antes-id> <depois-id> | evidence <evidência-id> | export <snapshot-id> | mcp <raiz-git>\nOpções: --db <arquivo> --format <json|md|html> --limit <1–200> --offset <n> --max-files <n> --max-bytes <n>\nModo atual: OBSERVE. Inventário estático não verifica funcionamento. Documentação: docs/PIE_DEVELOPMENT.md",
@@ -45,6 +67,9 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "VERIFY Linux: verify <autorização.json> --state-dir <diretório-0700> --docker-bin <executável-absoluto> --docker-host <daemon-local>. Recursos: resources --state-dir <diretório> | recover <run-id> com as mesmas opções Docker. Sem pull automático.",
+    );
+    console.log(
+      "Fila VERIFY Linux: enqueue-verify <autorização.json> --key <chave> | work-verify <raiz-git>, com as mesmas opções Docker/estado e --db. Sem repetição automática após interrupção; job-id também identifica execução/journal.",
     );
     return;
   }
@@ -139,6 +164,7 @@ export async function runPie(args: string[]): Promise<void> {
       "job",
       "cancel-job",
       "work",
+      "work-verify",
     ].includes(command)
   )
     throw new PieError("INVALID_INPUT", "Comando desconhecido; use help.");
@@ -147,7 +173,9 @@ export async function runPie(args: string[]): Promise<void> {
   const dbPath = parsed.values.db ?? join(homedir(), ".pie", "pie.sqlite");
   const store = await openPersistence(
     dbPath,
-    ["discover", "mcp", "serve", "enqueue", "work"].includes(command)
+    ["discover", "mcp", "serve", "enqueue", "work", "work-verify"].includes(
+      command,
+    )
       ? target
       : undefined,
   );
@@ -196,7 +224,9 @@ export async function runPie(args: string[]): Promise<void> {
   }
   try {
     const service = new PieService(store);
-    if (["enqueue", "job", "cancel-job", "work"].includes(command)) {
+    if (
+      ["enqueue", "job", "cancel-job", "work", "work-verify"].includes(command)
+    ) {
       const { runJobCommand } = await import("./jobs/cli.js");
       console.log(
         JSON.stringify(
@@ -206,6 +236,7 @@ export async function runPie(args: string[]): Promise<void> {
             dbPath,
             service,
             parsed.values.key,
+            verification,
           ),
           null,
           2,

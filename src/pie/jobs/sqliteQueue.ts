@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import canonicalize from "canonicalize";
 import { PieError } from "../contracts.js";
-import { jobSchema, type Job, type JobQueue } from "./contracts.js";
+import {
+  jobSchema,
+  type Job,
+  type JobKind,
+  type JobQueue,
+} from "./contracts.js";
 import { admitJob } from "./admission.js";
 
 export class SqliteJobQueue implements JobQueue {
@@ -103,7 +108,12 @@ export class SqliteJobQueue implements JobQueue {
     if (!row) throw new PieError("NOT_FOUND", "Job não encontrado.");
     return jobSchema.parse(JSON.parse(String(row.payload)));
   }
-  claim(owner: string, leaseMs: number, root?: string): Job | null {
+  claim(
+    owner: string,
+    leaseMs: number,
+    root?: string,
+    kind: JobKind = "discovery",
+  ): Job | null {
     if (!owner || leaseMs < 100)
       throw new PieError(
         "INVALID_INPUT",
@@ -123,21 +133,24 @@ export class SqliteJobQueue implements JobQueue {
           state:
             job.state === "cancelling"
               ? "cancelled"
-              : job.attempts >= job.maxAttempts
+              : job.kind === "verification" || job.attempts >= job.maxAttempts
                 ? "failed"
                 : "queued",
           owner: null,
           leaseToken: null,
           leaseUntil: null,
           updatedAt: now,
-          errorCode: "LEASE_EXPIRED",
+          errorCode:
+            job.kind === "verification"
+              ? "EXECUTION_INTERRUPTED"
+              : "LEASE_EXPIRED",
         });
       }
       const row = this.#db
         .prepare(
-          "SELECT id FROM pie_jobs WHERE state='queued' AND (? IS NULL OR json_extract(payload,'$.payload.repositoryRoot')=?) ORDER BY created_at,id LIMIT 1",
+          "SELECT id FROM pie_jobs WHERE state='queued' AND json_extract(payload,'$.kind')=? AND (? IS NULL OR json_extract(payload,'$.payload.repositoryRoot')=?) ORDER BY created_at,id LIMIT 1",
         )
-        .get(root ?? null, root ?? null);
+        .get(kind, root ?? null, root ?? null);
       if (!row) return null;
       const job = this.get(String(row.id));
       const claimed: Job = {
@@ -159,7 +172,7 @@ export class SqliteJobQueue implements JobQueue {
       const job = this.get(id);
       if (
         job.leaseToken !== token ||
-        job.state !== "running" ||
+        !["running", "cancelling"].includes(job.state) ||
         (job.leaseUntil ?? 0) <= this.now()
       )
         return false;
@@ -168,7 +181,7 @@ export class SqliteJobQueue implements JobQueue {
         leaseUntil: this.now() + leaseMs,
         updatedAt: this.now(),
       });
-      return true;
+      return job.state === "running";
     });
   }
   finish(

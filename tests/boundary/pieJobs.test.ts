@@ -1,13 +1,90 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { expect, it } from "vitest";
 import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
-import { DiscoveryWorker } from "../../src/pie/jobs/worker.js";
+import { JobWorker } from "../../src/pie/jobs/worker.js";
 import { openStore } from "../../src/pie/store.js";
 import { PieService } from "../../src/pie/service.js";
+import { randomUUID } from "node:crypto";
+
+it("VERIFY preserva grant, separa workers e nunca repete execução interrompida", async () => {
+  const root = await realpath(
+    await mkdtemp(join(tmpdir(), "pie-verify-queue-")),
+  );
+  let now = 1000;
+  const queue = new SqliteJobQueue(join(root, "queue.sqlite"), () => now);
+  const grant = {
+    schemaVersion: 1,
+    profile: "VERIFY",
+    allowTargetExecution: true,
+    environment: "local",
+    repositoryRoot: root,
+    snapshotId: randomUUID(),
+    treeDigest: "a".repeat(64),
+    image: `node@sha256:${"1".repeat(64)}`,
+    expiresAt: new Date(Date.now() + 60000).toISOString(),
+    testFiles: ["test.mjs"],
+    limits: {
+      timeoutMs: 1000,
+      memoryMiB: 256,
+      cpus: 1,
+      pids: 32,
+      workspaceMiB: 64,
+      outputBytes: 65536,
+      sourceBytes: 100000,
+    },
+  };
+  try {
+    const input = {
+      kind: "verification",
+      idempotencyKey: "verify",
+      payload: grant,
+    };
+    const queued = queue.enqueue(input);
+    expect(queued.payload).toEqual(grant);
+    expect(queue.enqueue(input).id).toBe(queued.id);
+    expect(() => queue.enqueue({ ...input, maxAttempts: 2 })).toThrow();
+    expect(() =>
+      queue.enqueue({
+        ...input,
+        payload: { ...grant, testFiles: ["other.mjs"] },
+      }),
+    ).toThrow("idempotente");
+    expect(queue.claim("discovery", 500, root)).toBeNull();
+    const running = queue.claim("verification", 500, root, "verification")!;
+    expect(running.id).toBe(queued.id);
+    now = 1501;
+    expect(queue.claim("replacement", 500, root, "verification")).toBeNull();
+    expect(queue.get(queued.id)).toMatchObject({
+      state: "failed",
+      attempts: 1,
+      errorCode: "EXECUTION_INTERRUPTED",
+    });
+    expect(
+      queue.finish(queued.id, running.leaseToken!, "succeeded", {
+        runId: queued.id,
+      }),
+    ).toBe(false);
+    const cancellation = queue.enqueue({
+      ...input,
+      idempotencyKey: "cancel-verify",
+    });
+    const owned = queue.claim("verification", 500, root, "verification")!;
+    queue.cancel(cancellation.id);
+    now = 1800;
+    expect(queue.heartbeat(owned.id, owned.leaseToken!, 500)).toBe(false);
+    now = 2100;
+    expect(queue.claim("peer", 500, root, "verification")).toBeNull();
+    expect(queue.get(owned.id).state).toBe("cancelling");
+    expect(queue.finish(owned.id, owned.leaseToken!, "cancelled")).toBe(true);
+  } finally {
+    queue.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 it("fila real persiste, usa leases, recupera após perda de worker e impede resultado antigo", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-jobs-"));
@@ -81,7 +158,7 @@ it("worker executa descoberta real e publica recibo do snapshot sem executar có
   const store = await openStore(join(root, "state.sqlite"), repo);
   const queue = new SqliteJobQueue(join(root, "queue.sqlite"));
   const service = new PieService(store);
-  const worker = new DiscoveryWorker(queue, service, repo);
+  const worker = new JobWorker(queue, repo, { kind: "discovery", service });
   try {
     const job = queue.enqueue({
       idempotencyKey: "real",

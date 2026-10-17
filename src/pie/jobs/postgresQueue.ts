@@ -3,7 +3,12 @@ import { PrismaClient, Prisma, type Job as StoredJob } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import canonicalize from "canonicalize";
 import { PieError } from "../contracts.js";
-import { jobSchema, type Job, type JobQueue } from "./contracts.js";
+import {
+  jobSchema,
+  type Job,
+  type JobKind,
+  type JobQueue,
+} from "./contracts.js";
 import { admitJob } from "./admission.js";
 
 const decode = (row: StoredJob): Job =>
@@ -91,6 +96,7 @@ export class PostgresJobQueue implements JobQueue {
     owner: string,
     leaseMs: number,
     root?: string,
+    kind: JobKind = "discovery",
   ): Promise<Job | null> {
     if (!owner || leaseMs < 100)
       throw new PieError(
@@ -99,10 +105,10 @@ export class PostgresJobQueue implements JobQueue {
       );
     return this.#client.$transaction(async (tx) => {
       const now = await this.#now(tx);
-      await tx.$executeRaw`UPDATE pie_jobs SET state=CASE WHEN state='cancelling' THEN 'cancelled' WHEN attempts>=max_attempts THEN 'failed' ELSE 'queued' END, owner=NULL, lease_token=NULL, lease_until=NULL, error_code='LEASE_EXPIRED', updated_at=${now} WHERE state IN ('running','cancelling') AND lease_until<=${now}`;
+      await tx.$executeRaw`UPDATE pie_jobs SET state=CASE WHEN state='cancelling' THEN 'cancelled' WHEN kind='verification' OR attempts>=max_attempts THEN 'failed' ELSE 'queued' END, owner=NULL, lease_token=NULL, lease_until=NULL, error_code=CASE WHEN kind='verification' THEN 'EXECUTION_INTERRUPTED' ELSE 'LEASE_EXPIRED' END, updated_at=${now} WHERE state IN ('running','cancelling') AND lease_until<=${now}`;
       const rows = await tx.$queryRaw<
         Array<{ id: string }>
-      >`SELECT id::text FROM pie_jobs WHERE state='queued' AND (${root ?? null}::text IS NULL OR payload->>'repositoryRoot'=${root ?? null}) ORDER BY created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED`;
+      >`SELECT id::text FROM pie_jobs WHERE state='queued' AND kind=${kind} AND (${root ?? null}::text IS NULL OR payload->>'repositoryRoot'=${root ?? null}) ORDER BY created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED`;
       if (!rows[0]) return null;
       return decode(
         await tx.job.update({
@@ -125,17 +131,23 @@ export class PostgresJobQueue implements JobQueue {
     token: string,
     leaseMs: number,
   ): Promise<boolean> {
-    const now = await this.#now(this.#client);
-    const result = await this.#client.job.updateMany({
-      where: {
-        id,
-        leaseToken: token,
-        state: "running",
-        leaseUntil: { gt: now },
-      },
-      data: { leaseUntil: now + BigInt(leaseMs), updatedAt: now },
+    return this.#client.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id::text FROM pie_jobs WHERE id=${id}::uuid FOR UPDATE`;
+      const row = await tx.job.findUnique({ where: { id } });
+      const now = await this.#now(tx);
+      if (
+        !row ||
+        row.leaseToken !== token ||
+        !["running", "cancelling"].includes(row.state) ||
+        (row.leaseUntil ?? 0n) <= now
+      )
+        return false;
+      await tx.job.update({
+        where: { id },
+        data: { leaseUntil: now + BigInt(leaseMs), updatedAt: now },
+      });
+      return row.state === "running";
     });
-    return result.count === 1;
   }
   async finish(
     id: string,

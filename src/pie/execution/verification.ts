@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import canonicalize from "canonicalize";
+import { z } from "zod";
 import type { PrivateRuntimeRoot } from "../../process/PrivateRuntimeRoot.js";
 import { AnalysisError } from "../../domain/analysisErrorBase.js";
 import { AnalysisOutputError } from "../../domain/analysisErrorCore.js";
@@ -44,6 +45,7 @@ export class NodeVerification {
     input: unknown,
     snapshot: unknown,
     signal?: AbortSignal,
+    runId?: string,
   ): Promise<VerificationRun> {
     if (this.#operation || this.#closed)
       return Promise.reject(
@@ -55,7 +57,12 @@ export class NodeVerification {
     const effective = signal
       ? AbortSignal.any([signal, this.#stopping.signal])
       : this.#stopping.signal;
-    this.#operation = this.#execute(input, snapshot, effective);
+    this.#operation = this.#execute(
+      input,
+      snapshot,
+      effective,
+      runId === undefined ? randomUUID() : z.string().uuid().parse(runId),
+    );
     return this.#operation;
   }
 
@@ -114,11 +121,11 @@ export class NodeVerification {
     input: unknown,
     snapshot: unknown,
     signal: AbortSignal,
+    id: string,
   ): Promise<VerificationRun> {
     const admission = await admitNodeTests(input, snapshot);
     if (!admission.ok) throw admission.error;
     const { grant, snapshot: observed } = admission.value;
-    const id = randomUUID();
     const createdAt = new Date().toISOString();
     const deadline = AbortSignal.timeout(grant.limits.timeoutMs);
     const effective = AbortSignal.any([signal, deadline]);

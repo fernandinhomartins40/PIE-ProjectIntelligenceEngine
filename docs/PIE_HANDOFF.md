@@ -1,5 +1,13 @@
 # PIE — Continuidade
 
+## Fila VERIFY — implementação em validação, 16/10/2026
+
+CI 38984171283 (4bc84e2fc) e 38984646478 (8bb9308e6) passaram, incluindo API/MCP com Docker real. A fila agora discrimina discovery/verification, mantém grant completo e exige maxAttempts=1 em VERIFY. Workers selecionam o tipo; descoberta não consome execução. Lease vencida encerra VERIFY como failed/EXECUTION_INTERRUPTED e nunca reencaminha testes. Heartbeat mantém ownership durante cancelling, devolvendo false para cancelar o trabalho enquanto a finalização continua protegida. ID do job é o ID da execução/journal, permitindo localizar prova persistida mesmo se o recibo do job se perder.
+
+CLI: enqueue-verify <grant.json> --key <chave> com as três opções Docker/estado; work-verify <raiz> processa um job. Pré-admissão valida snapshot/raiz/política; worker revalida antes de adquirir recursos. Migração PostgreSQL 202610160004 acrescenta tipo e limite de tentativas; SQLite preserva tabela existente. API/MCP/UI de enfileiramento VERIFY ainda pendentes. Não há daemon nem retomada automática de auditoria.
+
+Validação local: cinco testes passaram e três skipped em quatro arquivos (17,92s), cobrindo SQLite real, fencing, idempotência, cancelamento/finalização e compatibilidade MCP padrão. Compilação PIE, typecheck completo e CLI help passaram. Limites de módulos validados em 2045 fontes; 1463 arquivos de teste descobertos exatamente uma vez. Testes novos de worker VERIFY com Docker e PostgreSQL foram adicionados às trilhas existentes da CI; ignorados neste Windows e ainda sem resultado remoto desta entrega. Lint dos módulos sem erros, com avisos de tamanho/quantidade de parâmetros no worker e contratos da fila. Produto integral permanece incompleto; goal ativo.
+
 ## Estado prioritário — MCP VERIFY opt-in
 
 pie_test_run só é registrado com state-dir/docker-bin/docker-host explícitos no comando mcp. CLI/API/MCP reutilizam VerificationCoordinator; openConfiguredVerifier rejeita seleção parcial. servePie canonicaliza raiz e encerra verificador antes do armazenamento. Novo teste tests/boundary/mcp/pieVerifyMcp.test.ts usa stdio real, Ajv e Docker na CI Linux; ignorado no Windows. Rodada local MCP/API: três passaram, três skipped. CI anterior 4bc84e2fc ainda sem confirmação por limite GitHub. Próximo: confirmar CI/corrigir, integrar fila VERIFY sem retry cego após crash, acompanhamento UI, runners HTTP/Playwright e motores. Goal integral ativo na main; produto continua incompleto.

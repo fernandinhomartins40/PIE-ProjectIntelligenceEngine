@@ -181,3 +181,8 @@ node scripts/pie.mjs mcp /projeto --db /dados-pie/pie.sqlite --state-dir /dados-
 ```
 
 O catálogo passa a anunciar pie_test_run. A entrada é o grant completo descrito acima, preso à raiz do servidor. Sem as opções a ferramenta não existe; seleção parcial é recusada. A chamada persiste o registro v2 antes da resposta; examine result.state e evidence. BUSY indica operação ativa ou limpeza pendente. Cancelamento da requisição é encaminhado ao coordenador. Encerramento aguarda execução, persistência e limpeza antes de fechar o banco. Não há fila VERIFY ou retry automático.
+## Fila de verificação
+
+Em Linux, enfileire com `enqueue-verify /dados-pie/grant.json --key CHAVE` e as opções `--db`, `--state-dir`, `--docker-bin` e `--docker-host` já descritas. Execute `work-verify /projeto` com as mesmas opções para consumir um job. Os comandos `job UUID` e `cancel-job UUID` consultam/cancelam. O worker comum `work` continua exclusivo de descoberta.
+
+VERIFY não admite retry automático: perda de lease resulta em `EXECUTION_INTERRUPTED`, exigindo inspeção do resultado e recuperação de recursos antes de uma nova autorização deliberada. O ID do job identifica também a execução e o journal. Estado succeeded do job significa workflow concluído e prova persistida; examine result.state para saber se testes passaram. PostgreSQL exige aplicar a migração 202610160004 antes de usar essa fila.

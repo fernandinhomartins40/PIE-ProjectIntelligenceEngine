@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { policySchema } from "../contracts.js";
+import { nodeTestGrantSchema } from "../execution/contracts.js";
 
 export const jobPayload = policySchema.superRefine((policy, ctx) => {
   if (
@@ -13,17 +14,27 @@ export const jobPayload = policySchema.superRefine((policy, ctx) => {
         "A fila de descoberta aceita somente OBSERVE sem execução ou mutação.",
     });
 });
-export const jobInput = z.strictObject({
+const discoveryInput = z.strictObject({
   idempotencyKey: z.string().min(1).max(200),
   kind: z.literal("discovery"),
   payload: jobPayload,
   maxAttempts: z.number().int().min(1).max(5).default(3),
   timeoutMs: z.number().int().min(10).max(300_000).default(30_000),
 });
-export const jobSchema = z.strictObject({
+const verificationInput = z.strictObject({
+  idempotencyKey: z.string().min(1).max(200),
+  kind: z.literal("verification"),
+  payload: nodeTestGrantSchema,
+  maxAttempts: z.literal(1).default(1),
+  timeoutMs: z.number().int().min(100).max(300_000).default(300_000),
+});
+export const jobInput = z.discriminatedUnion("kind", [
+  discoveryInput,
+  verificationInput,
+]);
+const jobFields = z.strictObject({
   id: z.string().uuid(),
   idempotencyKey: z.string(),
-  kind: z.literal("discovery"),
   state: z.enum([
     "queued",
     "running",
@@ -32,7 +43,6 @@ export const jobSchema = z.strictObject({
     "failed",
     "cancelled",
   ]),
-  payload: jobPayload,
   result: z.record(z.string(), z.unknown()).nullable(),
   errorCode: z.string().nullable(),
   attempts: z.number().int(),
@@ -44,12 +54,27 @@ export const jobSchema = z.strictObject({
   createdAt: z.number(),
   updatedAt: z.number(),
 });
+export const jobSchema = z.discriminatedUnion("kind", [
+  jobFields.extend({ kind: z.literal("discovery"), payload: jobPayload }),
+  jobFields.extend({
+    kind: z.literal("verification"),
+    payload: nodeTestGrantSchema,
+    maxAttempts: z.literal(1),
+  }),
+]);
 export type Job = z.infer<typeof jobSchema>;
+export type JobKind = Job["kind"];
 type Awaitable<T> = T | Promise<T>;
 export interface JobQueue {
   enqueue(input: unknown): Awaitable<Job>;
   get(id: string): Awaitable<Job>;
-  claim(owner: string, leaseMs: number, root?: string): Awaitable<Job | null>;
+  claim(
+    owner: string,
+    leaseMs: number,
+    root?: string,
+    kind?: JobKind,
+  ): Awaitable<Job | null>;
+  /** Renews owned finalization even while cancelling; false requests execution abort. */
   heartbeat(id: string, token: string, leaseMs: number): Awaitable<boolean>;
   finish(
     id: string,
