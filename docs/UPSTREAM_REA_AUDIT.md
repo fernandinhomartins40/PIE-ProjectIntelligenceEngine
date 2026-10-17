@@ -1,14 +1,18 @@
 # Auditoria upstream REA e decisão de derivação PIE
 
+## Estado publicado — 17/10/2026
+
+O fork e o projeto PIE foram sincronizados no SHA `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `origin/main` e `rea-fork/main` conferem e `upstream/main` (`926e18b3f`) é ancestral. API confirma `fernandinhomartins40/rea` com `fork=true`, parent `morluto/rea`; `PIE-ProjectIntelligenceEngine` permanece independente (`fork=false`). Apenas `main` local existe. CI do SHA sincronizado está pendente nos dois repositórios; evidências em `PIE_VALIDATION_REPORT.md`.
+
 ## Seguimento do upstream corrente — 17/10/2026
 
-O fork e `origin/main` foram sincronizados em `744c44c1d`, que preservava o upstream recebido ao criar o fork. Na consulta seguinte, o upstream oficial estava em `926e18b3f` (54 commits exclusivos sobre `rea-fork/main`); merge-tree não reportou conflitos. Merge `734f5d20c` integrou esse HEAD em `main` local; `git merge-base --is-ancestor upstream/main HEAD` passou. O conjunto alterou 268 arquivos (16.796 inserções, 3.083 remoções), sem mudanças em `src/pie`, painel, testes SQLite, manifest/lockfile ou Prisma. `pie:build` e os testes `ciPortableBuildCache`/`windowsTargetSeparators` passaram (5 pass, 1 skip). Publicação do merge atual aguarda check:fast/docs/format. O upstream pode avançar enquanto validamos; registrar SHA observado e não alegar sincronização permanente além dele.
+O fork e `origin/main` foram primeiro sincronizados em `744c44c1d`, que preservava o upstream no momento da criação. O upstream avançou para `926e18b3f` (54 commits exclusivos sobre o fork); merge-tree não reportou conflitos. Merge `734f5d20c` integrou esse HEAD em `main`; `git merge-base --is-ancestor upstream/main HEAD` passou. O conjunto alterou 268 arquivos (16.796 inserções, 3.083 remoções), sem mudanças em `src/pie`, painel, testes SQLite, manifest/lockfile ou Prisma. `pie:build`, `check:fast`, `docs:check:built`, `format:check` e os testes `ciPortableBuildCache`/`windowsTargetSeparators` passaram (5 pass, 1 skip). O SHA resultante `9732f293585b4d1ebaed5d3f642e12199331dfe3` foi publicado em ambas as mains e confirmado via `git fetch`/`rev-parse`. CI do SHA está pendente nos dois repositórios. O upstream pode avançar novamente; registrar sempre o SHA observado.
 
 ## Estado atualizado — fork e sincronização histórica — 17/10/2026
 
 O repositório `fernandinhomartins40/PIE-ProjectIntelligenceEngine` continua independente no GitHub (`fork=false`). Com autorização do usuário, foi criado `fernandinhomartins40/rea` pela API oficial de fork; resposta confirmou `fork=true`, parent `morluto/rea`, default branch `main`. Remotos locais: `origin` para o projeto PIE, `upstream` para `morluto/rea` e `rea-fork` para o fork da conta. Push foi desabilitado localmente em `upstream` e `rea-fork` até completar a integração, evitando escrita acidental.
 
-O HEAD mais recente de `rea-fork/main` estava 93 commits à frente e 67 atrás do PIE antes da sincronização. `main` integrou essa história por merge sem conflitos (`f9da18125`), preservando a ancestralidade e sem criar branch. O merge alterou 391 arquivos upstream, mas não alterou `src/pie`, `apps/web`, manifests ou Prisma. A publicação fast-forward da main PIE e da main do fork aguarda o boundary completo SQLite e checks locais registrados em `PIE_VALIDATION_REPORT.md`; não usar force-push.
+Na criação do fork, seu HEAD estava 93 commits à frente e 67 atrás do PIE. `main` integrou essa história por merge sem conflitos (`f9da18125`), preservando a ancestralidade e sem criar branch. Esse primeiro merge alterou 391 arquivos upstream, mas não alterou `src/pie`, `apps/web`, manifests ou Prisma; as duas mains foram atualizadas depois dos checks e do boundary SQLite registrados em `PIE_VALIDATION_REPORT.md`.
 
 Data: 16/10/2026. Método: leitura de código local, metadados Git e GitHub; execução somente onde registrada no relatório de validação.
 

@@ -1,12 +1,19 @@
 # PIE — Registro de validação contínua
 
+## Publicação e CI do upstream sincronizado — 17/10/2026
+
+- `git push origin main` e `git push https://github.com/fernandinhomartins40/rea.git main`: fast-forward de `744c44c1d` para `9732f293585b4d1ebaed5d3f642e12199331dfe3`; hooks `check:fast` passaram (cache hit, 2/2).
+- `git fetch origin main` e `git fetch rea-fork main`; `HEAD`, `origin/main` e `rea-fork/main` retornaram o mesmo SHA. `git merge-base --is-ancestor upstream/main HEAD` passou; branch local única: `main`.
+- API GitHub confirmou `fernandinhomartins40/rea` com `fork=true`, parent `morluto/rea`; o repo PIE continua `fork=false` e separado.
+- Actions para o SHA completo: PIE CI `39038524038` pending, PIE Release `39038524037` `in_progress`; fork CI `39038534862` pending, fork Release `39038534901` queued. Nenhum workflow desse SHA terminou na consulta.
+
 ## Merge do upstream corrente — 17/10/2026
 
 - `git fetch upstream main`: atualizou `upstream/main` de `4838f4449` para `926e18b3f`. A diferença para `rea-fork/main` era 54 commits upstream-only e 70 PIE/fork-only.
 - `git merge-tree --write-tree --name-only HEAD upstream/main` retornou árvore candidata sem conflito. `git merge --no-ff --no-edit upstream/main` criou merge local `734f5d20c`; a árvore do merge toca 268 arquivos (16.796 inserções, 3.083 remoções), sem tocar PIE, SQLite, manifests ou Prisma. `upstream/main` é ancestral de `HEAD`.
 - `npm run pie:build`: passou depois desse segundo merge.
 - `node scripts/run-exact-tests.mjs tests/boundary/filesystem/ciPortableBuildCache.test.ts tests/boundary/filesystem/windowsTargetSeparators.test.ts`: 5 passaram, 1 skipped; dois arquivos boundary passaram.
-- Esse merge ainda não foi publicado no momento deste registro; validação/push pendentes.
+- O merge foi publicado com os registros e testes em `9732f293585b4d1ebaed5d3f642e12199331dfe3`; ver “Publicação e CI do upstream sincronizado” para confirmação dos dois remotos e workflows pendentes.
 
 ## Falha sintática como Result — 17/10/2026
 
