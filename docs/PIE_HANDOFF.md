@@ -1,6 +1,10 @@
 # PIE — Continuidade
 
-## Continuidade atual — imports de pacotes no grafo — 17/10/2026
+## Continuidade atual — caracterização do runtime upstream — 17/10/2026
+
+Node 24.18.0/npm 11.16.0; artefato Windows x64 exato de `rea-agents@6.5.0` restaurado/validado; `build:cached` passou. REA CLI help e MCP stdio real listaram 207 ferramentas; PIE MCP stdio/Ajv passou em teste real, assim como 36 testes Evidence/Ledger upstream. `verify:package` gerou tarball mas bloqueou em EPERM criando symlink de fixture no Windows antes de install/update; não comprova pacote instalado. Próxima frente segura: continuar T2.2/grafo e acompanhar lanes CI para package verification Linux; fork de rede e provedores externos continuam não confirmados.
+
+## Histórico da continuidade — imports de pacotes no grafo — 17/10/2026
 
 Implementação local relaciona imports estáticos a dependências declaradas de nome único, com Evidence do import vinculada a specifier/destino e do manifest; snapshotIntegrity rejeita divergência; pacotes ausentes ou ambiguamente declarados permanecem sem destino. Após o endurecimento para nomes duplicados, quatro arquivos boundary passaram novamente (17 testes) e `check:fast` passou. `format:check`, build PIE e `docs:check:built` passaram; próximo passo: commit/push direto em `main`. A aresta chega ao manifest e não comprova instalação, subpath runtime ou carregamento. Goal integral ativo.
 

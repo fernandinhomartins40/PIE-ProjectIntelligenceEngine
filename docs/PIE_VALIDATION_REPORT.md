@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Baseline upstream CLI/MCP/pacote — 17/10/2026
+
+Validados no checkout real com Node 24.18.0 e npm 11.16.0 (`npx`). `node scripts/verify-windows-native-artifact.mjs` aprovou o addon `rea-agents@6.5.0` restaurado do tarball da versão exata: Windows x64, ABI 1, Node-API 8, SHA-256 `665c57ab90aef0712a6aafc423c7992a88bf608bea63b370cb30c695900f9aed`. `npx.cmd --yes npm@11.16.0 run build:cached` passou. `node scripts/pie.mjs --help` e `node scripts/rea.mjs --help` responderam; processo REA MCP stdio real completou initialize/tools/list, anunciando `rea@6.5.0`, protocolo 2025-03-26 e 207 tools. `tests/boundary/mcp/pieMcp.test.ts` passou (1 teste com CLI/MCP e Ajv); Evidence/Ledger upstream passou 36 testes (27+9).
+
+`npx.cmd --yes npm@11.16.0 run verify:package` passou repository-skill e package-archive, mas falhou com `EPERM` criando symlink em fixture temporária (`scripts/verify-package-environment.mjs:73`), antes da instalação do pacote. Não alegar verificação de pacote instalado/update/setup ou startup MCP instalado. Provedores REA não foram iniciados. Tarball reportado por npm: SRI `sha512-C6BG7LyrAdR74mSjertM6PrxJkcNZ2bfQNOJornPo9erDEp2tyPRVYPnV5Yodr+1RqewCQla68WulXlVnveD+A==`.
+
 ## Imports de pacotes — 17/10/2026
 
 `resolveImports` passou a relacionar imports estáticos de pacote com dependências de nome único em manifests inventariados. A Evidence importadora sela specifier, tipo e destino; a aresta de pacote também carrega a prova do campo declarado. `validateSnapshot` rejeita destino adulterado ou Evidence do manifest removida. Pacotes sem declaração ou com declaração ambígua não recebem destino. `piePackageImports.test.ts` usa Git e descoberta reais com fixture sintética somente no teste; cobre pacote scoped/subpath, pacote ausente, proveniência de ambas as pontas e limitação. Após endurecimento para nomes duplicados, quatro arquivos boundary passaram novamente (17 testes) e `check:fast` passou. `format:check`, build PIE e `docs:check:built` passaram após a formatação final. Não há resolução de pacote instalado, subpath export/runtime, dependência transitiva ou prova de carregamento. CPU/memória/tokens não medidos.
