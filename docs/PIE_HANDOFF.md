@@ -333,3 +333,11 @@ CI pública observada do commit anterior `4b69794de`: PIE integration passou (39
 Commit-base `4e6d06d5a34f422ce200176912eceb63ca151d92`; implementação publicada em `b3e03b83c8c59374a59c0ce89bb9a2369a232c46`. `readDeclarationsResult` retorna `invalid_syntax`, `invalid_structure` ou `unsupported_format` para rejeições esperadas de JSON/YAML/Prisma/Nginx/OpenAPI. O conversor de Evidence já não mascara falhas internas; a descoberta só omite erros conhecidos de I/O/política e relança os inesperados. Fixture Git real cobre arquivo removido após stage.
 
 Validação: `pie:build`, `check:fast`, `docs:check:built`, `format:check`, `git diff --check` e 16 testes nas boundaries `pieAdapters`/`pieExpressCrossFile` passaram. Goal integral segue ativo; T1.1 permanece parcial. CI no novo SHA ainda não apareceu na API pública durante esta consulta.
+
+## Continuação — adapter Laravel/PHP por AST — 17/10/2026
+
+`php-parser@3.7.0` adicionado como dependência runtime; parser BSD-3-Clause, sem dependências runtime declaradas. `readDeclarations` chama `readLaravelDeclarations` somente em `routes/**/*.php`; contratos incluem o adapter `laravel-php`. Rotas diretas, `any`, `match` literal e grupos/prefixos literais fluentes ou em array geram Evidence estática. Imports/aliases são delimitados por namespace; funções/classes não são contadas. Sintaxe rejeitada vira `invalid_syntax`; não há execução PHP.
+
+Limites explícitos: resource/apiResource, aliases não observados/ambíguos, rotas dinâmicas, chamadas fluentes fora de groups, efeitos condicionais, middleware/autorização, providers/includes, handler/registro/runtime. Teste exato `node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts`: 10/10. `pie:build`, `check:fast`, `docs:check:built`, `format:check`, `git diff --check` passaram. Refresh legal validou os tarballs de dependências e completou notices sem gaps; app real e custos de desempenho PHP não medidos. T2.3 segue parcial.
+
+Precisão de versão: php-parser foi configurado com gramática PHP 8.4; invalid_syntax significa rejeitado por esse parser/versão, não uma afirmação sobre qualquer outra versão PHP.

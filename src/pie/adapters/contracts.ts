@@ -14,6 +14,7 @@ export const adapterFactSchema = z.strictObject({
     "prisma-schema",
     "next-app-convention",
     "express-ast",
+    "laravel-php",
     "nginx-config",
   ]),
   kind: z.enum([

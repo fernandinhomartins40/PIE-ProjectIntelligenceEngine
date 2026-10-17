@@ -235,6 +235,12 @@ Declarações express-ast reconhecem chamadas diretas no escopo superior a recep
 
 Somente caminhos literais começando com / ou * são examinados. Escopos aninhados, aliases mutáveis, cadeias route(), templates dinâmicos, arrays/regex, resolução de handlers e efeitos de código chamado permanecem desconhecidos. Binding require sombreado não é tratado como carregador CommonJS. Imports sem export único comprovado e prefixos não literais não são compostos. Essa observação estática não confirma framework instalado, servidor ouvindo, autenticação nem funcionamento HTTP.
 
+## Rotas Laravel/PHP por AST
+
+Arquivos rastreados `routes/**/*.php` sÃ£o analisados por AST usando [php-parser 3.7.0](https://github.com/glayzzle/php-parser) (BSD-3-Clause), sem executar PHP ou iniciar Laravel. O adapter reconhece a facade `Illuminate\Support\Facades\Route` importada, inclusive alias Ãºnico por namespace, ou explicitamente qualificada. Detecta chamadas diretas `get/head/post/put/patch/delete/options/any`, `match` com mÃ©todos literais e grupos de closure com prefixos literais, inclusive aninhados e opÃ§Ã£o `['prefix' => ...]`. Rotas recebem Evidence estÃ¡tica com arquivo/linha e estado `unverified`.
+
+O parser estÃ¡ configurado para gramÃ¡tica PHP 8.4: rejeiÃ§Ã£o sintÃ¡tica nÃ£o prova invalidade em outras versÃµes e nÃ£o gera declaraÃ§Ãµes. MÃ©todos/caminhos dinÃ¢micos, `resource`/`apiResource`, prefixo dinÃ¢mico, imports ambÃ­guos, chamadas fluentes fora de groups, funÃ§Ãµes/classes, branches/loops, includes/providers e efeitos de middleware nÃ£o sÃ£o resolvidos. Nada disso prova framework instalado, registro real, autorizaÃ§Ã£o, handler ou resposta HTTP.
+
 ## Configuração Nginx estática
 
 A descoberta reconhece nginx.conf, nginx.*.conf e arquivos .conf sob diretório nginx. location e diretivas selecionadas listen, server_name, proxy_pass, fastcgi_pass, grpc_pass e include geram fatos nginx-config com linha e evidência. O nome é um array JSON [diretiva, ...argumentos], preservando limites entre argumentos; parent descreve blocos ancestrais por nome de diretiva e linha.

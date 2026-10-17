@@ -413,3 +413,11 @@ Após refatorar o teste para separar fixture e assertions (exigência do limite 
 Implementação `b3e03b83c8c59374a59c0ce89bb9a2369a232c46` altera falhas esperadas de adapters declarativos para `Result` tagged: sintaxe inválida, estrutura inválida e formato OpenAPI não suportado. O lexer Nginx preserva mensagens detalhadas enquanto fornece tipo estável. A descoberta mantém o nó do arquivo e explica a omissão sem criar fatos. `collectDeclarations` não captura erros internos; discovery só absorve falhas reconhecidas de inventário (I/O/política).
 
 Validação executada: `pie:build`, `check:fast`, `docs:check:built`, `format:check`, `git diff --check`, `pieAdapters` e `pieExpressCrossFile` (16 testes) passaram. A fixture usa Git real e remove um arquivo depois do stage. Nenhum código do projeto alvo é executado. CI do novo SHA ainda não foi listada pela API pública nesta consulta.
+
+## Adapter Laravel/PHP — 17/10/2026
+
+`node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts` passou: 10 testes, incluindo descoberta via Git real, Evidence/snapshot íntegros, aliases de namespace, grupos com prefixo fluent e array, `match`, omissão dinâmica, comentários/strings, função não invocada e sintaxe inválida. `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram. `test:local` recusou boundary conforme harness; runner exato foi usado. Nenhum código Laravel/PHP foi executado.
+
+Dependência runtime `php-parser@3.7.0`, BSD-3-Clause, entrou no lockfile. `npm run licenses:refresh-notices` verificou integridade dos tarballs fixados e adicionou 28 notices runtime, sem gaps; `npm run licenses:check` passou (893 lockados, 353 runtime). Runtime Laravel/PHP, matrix de versões e custo desempenho continuam não medidos/verificados.
+
+Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por essa gramática não prova invalidade de sintaxe em outras versões; nenhuma rota é inferida da AST rejeitada.

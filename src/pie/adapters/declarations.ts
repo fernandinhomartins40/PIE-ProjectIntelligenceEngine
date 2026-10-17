@@ -3,6 +3,7 @@ import { posix } from "node:path";
 import { parseTree, findNodeAtLocation } from "jsonc-parser";
 import type { AdapterRead, Declaration } from "./contracts.js";
 import { readNginx } from "./nginx.js";
+import { readLaravelDeclarations } from "./laravel.js";
 import { cachedAnalysis } from "../analysisCache.js";
 import { sha256 } from "../evidence.js";
 import { err, ok, type Result } from "../../domain/result.js";
@@ -243,7 +244,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v1", path, sha256(source), limit],
+    ["pie-declarations-v2", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }
@@ -271,7 +272,9 @@ function readDeclarationsUncached(
   let parsed: AdapterRead;
   if (/(?:^|\/)nginx(?:\.[^/]*)?\.conf$|(?:^|\/)nginx\/.*\.conf$/.test(path))
     return readNginx(source, limit);
-  if (/(?:^|\/)(package|composer)\.json$/.test(path))
+  if (/(?:^|\/)routes\/.+\.php$/i.test(path))
+    parsed = readLaravelDeclarations(path, source, limit);
+  else if (/(?:^|\/)(package|composer)\.json$/.test(path))
     parsed = manifest(path, source);
   else if (
     /(?:^|\/)(?:(?:docker-)?compose[^/]*\.ya?ml|(?:openapi|swagger)[^/]*\.(?:json|ya?ml))$/i.test(

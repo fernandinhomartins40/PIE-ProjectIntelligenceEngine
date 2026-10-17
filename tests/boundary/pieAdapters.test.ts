@@ -361,6 +361,79 @@ it("Nginx integra inventário Git, evidência e trace sem ler include externo", 
   }
 });
 
+it("Laravel deriva rotas PHP literais e prefixos de grupos por AST sem executar alvo", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-laravel-routes-"));
+  try {
+    await exec("git", ["init", root]);
+    await mkdir(join(root, "routes"), { recursive: true });
+    await writeFile(
+      join(root, "routes", "web.php"),
+      `<?php
+use Illuminate\\Support\\Facades\\Route as LaravelRoute;
+// LaravelRoute::get('/commented-out', handler);
+$example = "LaravelRoute::get('/inside-string', handler)";
+LaravelRoute::get('/users', [UserController::class, 'index']);
+LaravelRoute::prefix('api')->middleware('auth')->group(function () {
+    LaravelRoute::get('/users/{id}', fn ($id) => $id);
+    LaravelRoute::prefix('v2')->group(function () {
+        LaravelRoute::post('/users', [UserController::class, 'store']);
+    });
+});
+LaravelRoute::group(['prefix' => 'admin'], function () {
+    LaravelRoute::delete('/users/{id}', [UserController::class, 'destroy']);
+});
+LaravelRoute::get(config('routes.health'), handler);
+LaravelRoute::match(['get', 'post'], '/reports', handler);
+LaravelRoute::match(['get', $method], '/dynamic-match', handler);
+LaravelRoute::resource('posts', PostController::class);
+function unusedRoutes() { LaravelRoute::get('/not-registered', handler); }
+`,
+    );
+    await writeFile(
+      join(root, "routes", "scoped.php"),
+      `<?php
+namespace Fixture;
+use Illuminate\\Support\\Facades\\Route as ScopedRoute;
+ScopedRoute::get('/scoped', handler);
+namespace Untrusted;
+use App\\Routing\\Route as ScopedRoute;
+ScopedRoute::get('/not-a-laravel-route', handler);
+`,
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const snapshot = await discoverProject(
+      { repositoryRoot: root, profile: "OBSERVE", environment: "local" },
+      randomUUID(),
+    );
+    const names = snapshot.declarations
+      .filter((fact) => fact.adapter === "laravel-php")
+      .map((fact) => fact.name)
+      .sort();
+    expect(names).toEqual([
+      "DELETE /admin/users/{id}",
+      "GET /api/users/{id}",
+      "GET /reports",
+      "GET /scoped",
+      "GET /users",
+      "POST /api/v2/users",
+      "POST /reports",
+    ]);
+    expect(snapshot.coverage.limitations.join(" ")).toContain(
+      "Laravel estáticas ou recursos",
+    );
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    expect(
+      readDeclarationsResult(
+        "routes/web.php",
+        "<?php Route::get('/users';",
+        10,
+      ),
+    ).toMatchObject({ ok: false, error: { kind: "invalid_syntax" } });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("Express AST compõe montagens literais e mantém prova da rota", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-express-"));
   const external = await mkdtemp(join(tmpdir(), "pie-express-history-"));
