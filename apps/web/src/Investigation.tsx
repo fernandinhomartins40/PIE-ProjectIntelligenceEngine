@@ -3,6 +3,7 @@ import { Verifications } from "./Verifications.js";
 import { VerificationQueue } from "./VerificationQueue.js";
 import { FunctionalReview } from "./FunctionalReview.js";
 import { DeclarationChanges } from "./DeclarationChanges.js";
+import { RetestPlan } from "./RetestPlan.js";
 import { useEffect, useRef, useState } from "react";
 import {
   api,
@@ -453,6 +454,12 @@ export function Investigation({
                 />
                 <DeclarationChanges
                   comparison={comparison}
+                  onEvidence={(id) => void showEvidence(id)}
+                />
+                <RetestPlan
+                  key={`${comparison.beforeId}:${comparison.afterId}`}
+                  beforeId={comparison.beforeId}
+                  afterId={comparison.afterId}
                   onEvidence={(id) => void showEvidence(id)}
                 />
                 <p>

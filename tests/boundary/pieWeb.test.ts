@@ -429,6 +429,10 @@ it.skipIf(!existsSync(executablePath))(
     const root = await mkdtemp(join(tmpdir(), "pie-web-"));
     const repo = join(root, "repo");
     await mkdir(repo);
+    await writeFile(
+      join(repo, "isolated.test.mjs"),
+      "throw new Error('planejar não executa');",
+    );
     await promisify(execFile)("git", ["init", repo]);
     await writeFile(
       join(repo, "index.ts"),
@@ -516,6 +520,27 @@ it.skipIf(!existsSync(executablePath))(
       await declarationDiff
         .getByRole("button", { name: /^Prova anterior/ })
         .click();
+      const retests = page.getByRole("region", {
+        name: "Planejamento de retestes",
+      });
+      await retests.getByRole("button", { name: "Planejar retestes" }).click();
+      await retests
+        .getByText(
+          "Nenhum candidato selecionado. Isso não comprova ausência de regressão.",
+          { exact: true },
+        )
+        .waitFor();
+      await retests.getByLabel("Escopo dos candidatos").selectOption("full");
+      await retests.getByRole("button", { name: "Planejar retestes" }).click();
+      await retests
+        .getByRole("cell", { name: "isolated.test.mjs", exact: true })
+        .waitFor();
+      await retests
+        .getByRole("button", { name: "Abrir prova do candidato" })
+        .click();
+      await page
+        .getByRole("heading", { name: "Evidência observada" })
+        .waitFor();
       await page
         .getByRole("heading", { name: "Evidência observada" })
         .waitFor();

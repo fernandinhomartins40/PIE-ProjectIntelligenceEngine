@@ -6,6 +6,7 @@ export type Graph = Awaited<ReturnType<PieService["graph"]>>;
 export type Declarations = Awaited<ReturnType<PieService["declarations"]>>;
 export type Trace = Awaited<ReturnType<PieService["trace"]>>;
 export type Comparison = Awaited<ReturnType<PieService["compare"]>>;
+export type RetestPlan = Awaited<ReturnType<PieService["retestPlan"]>>;
 export type Evidence = Awaited<ReturnType<PieService["evidence"]>>;
 export type FunctionalReview = Awaited<ReturnType<PieService["functional"]>>;
 export type FunctionalRecord = Awaited<

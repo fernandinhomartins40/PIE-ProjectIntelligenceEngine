@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Candidatos a reteste no painel — 17/10/2026
+
+Comparar versões agora inclui Planejamento de retestes com modo por impacto ou inventário completo observado. Consulta usa antes/depois da comparação aceita, não os controles ainda não submetidos. Resultado mostra arquivo candidato, motivo, compatibilidade não verificada, prova do snapshot posterior, testes anteriores removidos/não observados e limitações. Paginação é independente das mudanças de arquivo/declaração. Não produz grant nem inicia worker ou teste; autorização VERIFY continua separada. Nova comparação remonta o componente e cancela leituras anteriores.
+
+Teste Chrome real Git/SQLite adiciona arquivo isolated.test.mjs com código que falharia se fosse executado; affected não o seleciona sem dependência registrada e full o apresenta. Interface abre prova do candidato, sem execução. Teste focado passou (um teste, 12,40s). Após separar apresentação dos resultados, build e typecheck web passaram, lint do componente/teste sem avisos/erros. Regressão ampla passou: seis testes e um Linux ignorado em três arquivos (36,35s). Limites de módulos: 2057 fontes; descoberta: 1464 testes. CI 38999031226 do commit anterior f000fabbb terminou com sucesso. Nova entrega aguarda CI. Plano de retestes não equivale a motor de regressão completo: execução vinculada, métricas/screenshots e demais motores seguem pendentes. Goal integral ativo; custos CPU/memória/tokens não medidos.
+
 ## Candidatos a reteste por impacto — 17/10/2026
 
 CI 38998811119 (8ef69eed6) passou. Novo planRetests compara identidades de bytes e percorre impacto de ambos os grafos para selecionar arquivos de teste atuais. Import removido/arquivo não observado na versão posterior ainda pode afetar teste ligado no grafo anterior. Modo full inclui todos os testes observados na versão posterior, não apenas afetados. Seleção paginada preserva caminho/ID/prova atual, motivo e runnerCompatibility=not_probed. executionAuthorized/runtimeVerified permanecem false e estado unverified. Não gera grant nem inicia execução.
