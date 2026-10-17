@@ -2,7 +2,7 @@
 
 ## Estado atual — remotos sincronizados — 17/10/2026
 
-Atualizado após commit `f3e979496`: local, `origin/main` e `rea-fork/main` sincronizados; apenas `main` local. CI de ambos os repositórios pending; integração PIE e Release in_progress (`PIE`: 39039843326, 39039843258, 39039843313; fork: 39039849336, 39039849189, 39039849377). Próximo: acompanhar esses workflows e continuar trilhas parciais T1.1/T1.2/T1.3/T1.4/T1.5. Não declarar aceite integral.
+Atualizado após commit de código `f3e979496` e atualização documental `16fc5c689`: local, `origin/main` e `rea-fork/main` sincronizados; apenas `main` local. No código: integrações PIE `39039843258`/`39039849189` ainda in_progress e CI geral cancelada pela chegada de SHA mais novo. Para o SHA atual: CI `39039941445`/`39039947388` e Release `39039941494`/`39039947399` pending. Próximo: acompanhar integrações e CI, depois continuar trilhas parciais T1.1/T1.2/T1.3/T1.4/T1.5. Não declarar aceite integral.
 
 `origin/main` e `rea-fork/main` estão ambos em `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `upstream/main` `926e18b3f` é ancestral e só existe a branch local `main`. Para esse SHA, CI do PIE `39038524038` e do fork `39038534862` estão pendentes; Release do PIE `39038524037` está `in_progress` e do fork `39038534901` está `queued`. Próximo: acompanhar conclusões e seguir trilhas T1.1/T1.2/T1.3/T1.4/T1.5 ainda parciais; não declarar aceite integral.
 
