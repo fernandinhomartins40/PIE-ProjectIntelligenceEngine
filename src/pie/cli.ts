@@ -195,13 +195,19 @@ export async function runPie(args: string[]): Promise<void> {
     const { openConfiguredVerifier } =
       await import("./execution/coordinator.js");
     let verifier: VerificationCoordinator | undefined;
+    let queue: import("./jobs/contracts.js").JobQueue | undefined;
     try {
       verifier = await openConfiguredVerifier(store, target!, verification);
-      await servePie(new PieService(store), target!, verifier);
+      if (verifier) {
+        const { openQueue } = await import("./jobs/openQueue.js");
+        queue = await openQueue(dbPath);
+      }
+      await servePie(new PieService(store), target!, verifier, queue);
     } catch (cause) {
       try {
         await verifier?.close();
       } finally {
+        await queue?.close();
         await store.close();
       }
       throw cause;

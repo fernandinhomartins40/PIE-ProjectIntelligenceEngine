@@ -13,6 +13,8 @@ import type { JobQueue } from "./jobs/contracts.js";
 import { BrowserSessions } from "./browserSessions.js";
 import { loadWebAssets, WEB_CSP } from "./webAssets.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
+import { enqueueVerification } from "./jobs/verification.js";
+import { scopedJob } from "./jobs/access.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -183,6 +185,25 @@ export async function startPieApi(
         return;
       }
       if (
+        request.method === "POST" &&
+        url.pathname === "/v1/jobs/verification"
+      ) {
+        if (!options.queue || !options.verifier) {
+          respond(response, 403, { error: { code: "VERIFICATION_DISABLED" } });
+          return;
+        }
+        respond(
+          response,
+          202,
+          await enqueueVerification(
+            options.queue,
+            options.verifier,
+            await body(request),
+          ),
+        );
+        return;
+      }
+      if (
         options.queue &&
         request.method === "POST" &&
         url.pathname === "/v1/jobs"
@@ -219,7 +240,11 @@ export async function startPieApi(
         respond(
           response,
           200,
-          await options.queue.get(z.string().uuid().parse(segments[2])),
+          await scopedJob(
+            options.queue,
+            authorizedRoot,
+            z.string().uuid().parse(segments[2]),
+          ),
         );
         return;
       }
@@ -231,6 +256,11 @@ export async function startPieApi(
         segments[1] === "jobs" &&
         segments[3] === "cancel"
       ) {
+        await scopedJob(
+          options.queue,
+          authorizedRoot,
+          z.string().uuid().parse(segments[2]),
+        );
         respond(
           response,
           200,
@@ -375,10 +405,11 @@ export async function startPieApi(
           server.close((error) => (error ? reject(error) : accept())),
         );
         await options.verifier?.close();
+        server.closeIdleConnections();
+        // Drain admitted requests, including queue admission, before releasing their store.
+        await networkClosed;
         await service.close();
         sessions?.clear();
-        server.closeIdleConnections();
-        await networkClosed;
       })().catch((cause) => {
         closing = undefined;
         throw cause;

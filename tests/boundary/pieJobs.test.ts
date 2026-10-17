@@ -9,6 +9,7 @@ import { JobWorker } from "../../src/pie/jobs/worker.js";
 import { openStore } from "../../src/pie/store.js";
 import { PieService } from "../../src/pie/service.js";
 import { randomUUID } from "node:crypto";
+import { scopedJob } from "../../src/pie/jobs/access.js";
 
 it("VERIFY preserva grant, separa workers e nunca repete execução interrompida", async () => {
   const root = await realpath(
@@ -45,6 +46,15 @@ it("VERIFY preserva grant, separa workers e nunca repete execução interrompida
     };
     const queued = queue.enqueue(input);
     expect(queued.payload).toEqual(grant);
+    expect((await scopedJob(queue, root, queued.id, "verification")).id).toBe(
+      queued.id,
+    );
+    await expect(
+      scopedJob(queue, join(root, "other"), queued.id),
+    ).rejects.toThrow("escopo");
+    await expect(
+      scopedJob(queue, root, queued.id, "discovery"),
+    ).rejects.toThrow("escopo");
     expect(queue.enqueue(input).id).toBe(queued.id);
     expect(() => queue.enqueue({ ...input, maxAttempts: 2 })).toThrow();
     expect(() =>

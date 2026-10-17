@@ -10,6 +10,13 @@ import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { nodeTestGrantSchema } from "./execution/contracts.js";
 import { realpath } from "node:fs/promises";
+import type { JobQueue } from "./jobs/contracts.js";
+import { jobSchema } from "./jobs/contracts.js";
+import { scopedJob } from "./jobs/access.js";
+import {
+  enqueueVerification,
+  verificationJobInput,
+} from "./jobs/verification.js";
 import {
   verificationRunSchema,
   verificationHistorySchema,
@@ -42,6 +49,7 @@ export function createPieMcp(
   service: PieService,
   repositoryRoot: string,
   verifier?: VerificationCoordinator,
+  queue?: JobQueue,
 ): McpServer {
   if (verifier && verifier.options.root !== repositoryRoot)
     throw new PieError(
@@ -73,6 +81,46 @@ export function createPieMcp(
       return { ...result({ schemaVersion: 1, error }), isError: true };
     }
   };
+  if (verifier && queue) {
+    server.registerTool(
+      "pie_verification_enqueue",
+      {
+        description:
+          "Enfileira grant VERIFY explícito; não inicia testes. Worker separado, uma tentativa, sem repetição após interrupção. Job-id identifica execução e journal.",
+        inputSchema: verificationJobInput,
+        outputSchema: withError(jobSchema),
+        annotations: { ...write, idempotentHint: true },
+      },
+      (input) => guarded(() => enqueueVerification(queue, verifier, input)),
+    );
+    server.registerTool(
+      "pie_verification_job_get",
+      {
+        description:
+          "Consulta job VERIFY desta raiz; succeeded significa workflow concluído, examine result.state para aprovação.",
+        inputSchema: idInput,
+        outputSchema: withError(jobSchema),
+        annotations: read,
+      },
+      ({ id }) =>
+        guarded(() => scopedJob(queue, repositoryRoot, id, "verification")),
+    );
+    server.registerTool(
+      "pie_verification_job_cancel",
+      {
+        description:
+          "Solicita cancelamento de job VERIFY desta raiz; cancelling aguarda finalização e liberação dos recursos.",
+        inputSchema: idInput,
+        outputSchema: withError(jobSchema),
+        annotations: { ...write, idempotentHint: true },
+      },
+      ({ id }) =>
+        guarded(async () => {
+          await scopedJob(queue, repositoryRoot, id, "verification");
+          return queue.cancel(id);
+        }),
+    );
+  }
   if (verifier)
     server.registerTool(
       "pie_test_run",
@@ -217,14 +265,16 @@ export async function servePie(
   service: PieService,
   repositoryRoot: string,
   verifier?: VerificationCoordinator,
+  queue?: JobQueue,
 ): Promise<void> {
   const root = await realpath(repositoryRoot);
-  const handle = serveStdio(() => createPieMcp(service, root, verifier));
+  const handle = serveStdio(() => createPieMcp(service, root, verifier, queue));
   let closing: Promise<void> | undefined;
   const shutdown = () => {
     closing ??= (async () => {
       await verifier?.close();
       await handle.close();
+      await queue?.close();
       await service.close();
     })();
     void closing.catch(() => {

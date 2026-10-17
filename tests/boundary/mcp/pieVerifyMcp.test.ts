@@ -13,6 +13,57 @@ import { openStore } from "../../../src/pie/store.js";
 import { verificationRunSchema } from "../../../src/pie/execution/runContracts.js";
 import { verifyRunEvidence } from "../../../src/pie/execution/runEvidence.js";
 
+async function verifyQueue(
+  client: Client,
+  grant: Record<string, unknown>,
+  ajv: Ajv2020,
+) {
+  const enqueueTool = (await client.listTools()).tools.find(
+    (item) => item.name === "pie_verification_enqueue",
+  )!;
+  const validateJob = ajv.compile(enqueueTool.outputSchema as AnySchema);
+  const request = {
+    name: "pie_verification_enqueue",
+    arguments: { idempotencyKey: "mcp-verify-queue", authorization: grant },
+  };
+  const queued = await client.callTool(request);
+  expect(queued.isError).not.toBe(true);
+  expect(
+    validateJob(queued.structuredContent),
+    JSON.stringify(validateJob.errors),
+  ).toBe(true);
+  const job = queued.structuredContent as { id: string };
+  expect(queued.structuredContent).toMatchObject({
+    state: "queued",
+    kind: "verification",
+    payload: grant,
+    attempts: 0,
+  });
+  expect((await client.callTool(request)).structuredContent).toEqual(
+    queued.structuredContent,
+  );
+  expect(
+    (
+      await client.callTool({
+        name: "pie_verification_job_get",
+        arguments: { id: job.id },
+      })
+    ).structuredContent,
+  ).toEqual(queued.structuredContent);
+  const cancel = await client.callTool({
+    name: "pie_verification_job_cancel",
+    arguments: { id: job.id },
+  });
+  expect(cancel.structuredContent).toMatchObject({
+    state: "cancelled",
+    id: job.id,
+  });
+  expect(
+    validateJob(cancel.structuredContent),
+    JSON.stringify(validateJob.errors),
+  ).toBe(true);
+}
+
 it.skipIf(process.platform !== "linux")(
   "MCP stdio habilitado exige grant e persiste execução real",
   async () => {
@@ -107,6 +158,8 @@ it.skipIf(process.platform !== "linux")(
         output(denied.structuredContent),
         JSON.stringify(output.errors),
       ).toBe(true);
+      expect(store.verifications(snapshot.id).total).toBe(0);
+      await verifyQueue(client, grant, ajv);
       expect(store.verifications(snapshot.id).total).toBe(0);
       const responses = await Promise.all(
         (process.env.PIE_TEST_DOCKER_IMAGE ? [1, 2] : [1]).map(() =>

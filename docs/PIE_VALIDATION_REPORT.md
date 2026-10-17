@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Enfileiramento VERIFY pela API/MCP — 16/10/2026
+
+CI 38985908103 do commit d0cd0a6db passou: migração e fila PostgreSQL reais, worker VERIFY Docker e correlação job/run/journal. API agora oferece POST /v1/jobs/verification com idempotencyKey e authorization, apenas com fila e verificador habilitados; retorno 202 não executa testes. MCP habilitado oferece pie_verification_enqueue, pie_verification_job_get e pie_verification_job_cancel. Servidor MCP mantém fila até finalizar transporte/verificador. Consulta/cancelamento usam scopedJob compartilhado, restringindo raiz; MCP restringe também tipo verification. API mantém autenticação, origem e CSRF existentes.
+
+Testes locais: API/MCP padrão três passaram e três skipped (8,88s); após aplicar escopo, API dois passaram (2,80s) e fila três passaram (3,22s), incluindo recusa de outra raiz/tipo. Compilação PIE e typecheck completo passaram. Limites de módulos: 2046 fontes; descoberta: 1463 testes. API close agora drena requisições admitidas antes de fechar o armazenamento; regressão de fechamento/retry passou novamente (dois testes, 3,12s). Schemas Ajv e idempotência/cancelamento das chamadas novas incluídos nos testes reais Linux existentes; ignorados neste Windows, sem prova positiva local dessas chamadas. CI desta entrega ainda pendente. UI de execução/fila, daemon e demais runners/motores continuam pendentes; goal integral ativo.
+
 ## Fila VERIFY — implementação em validação, 16/10/2026
 
 CI 38984171283 (4bc84e2fc) e 38984646478 (8bb9308e6) passaram, incluindo API/MCP com Docker real. A fila agora discrimina discovery/verification, mantém grant completo e exige maxAttempts=1 em VERIFY. Workers selecionam o tipo; descoberta não consome execução. Lease vencida encerra VERIFY como failed/EXECUTION_INTERRUPTED e nunca reencaminha testes. Heartbeat mantém ownership durante cancelling, devolvendo false para cancelar o trabalho enquanto a finalização continua protegida. ID do job é o ID da execução/journal, permitindo localizar prova persistida mesmo se o recibo do job se perder.

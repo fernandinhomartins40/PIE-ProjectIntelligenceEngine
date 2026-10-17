@@ -11,6 +11,7 @@ import { VerificationJournal } from "../../src/pie/execution/resourceJournal.js"
 import { startPieApi } from "../../src/pie/api.js";
 import { verificationRunSchema } from "../../src/pie/execution/runContracts.js";
 import { verifyRunEvidence } from "../../src/pie/execution/runEvidence.js";
+import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "pie-verify-api-"));
@@ -42,7 +43,13 @@ async function fixture() {
     endpoint: "unix:///var/run/docker.sock",
   });
   const token = "fixture-verify-api-token-32-characters-minimum";
-  const api = await startPieApi(service, { root: repo, token, verifier });
+  const queue = new SqliteJobQueue(join(root, "queue.sqlite"));
+  const api = await startPieApi(service, {
+    root: repo,
+    token,
+    verifier,
+    queue,
+  });
   const headers = {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
@@ -68,13 +75,14 @@ async function fixture() {
       sourceBytes: 100000,
     },
   };
-  return { root, repo, state, store, api, headers, grant, snapshot };
+  return { root, repo, state, store, api, headers, grant, snapshot, queue };
 }
 
 it.skipIf(process.platform !== "linux")(
   "API exige autenticação e raiz fixa; grant permitido persiste resultado real",
   async () => {
-    const { root, api, headers, grant, store, snapshot } = await fixture();
+    const { root, api, headers, grant, store, snapshot, queue } =
+      await fixture();
     try {
       expect(
         (
@@ -104,6 +112,40 @@ it.skipIf(process.platform !== "linux")(
         ).status,
       ).toBe(400);
       expect(store.verifications(snapshot.id).total).toBe(0);
+      const enqueued = await fetch(`${api.url}/v1/jobs/verification`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          idempotencyKey: "api-grant",
+          authorization: grant,
+        }),
+      });
+      expect(enqueued.status).toBe(202);
+      const job = (await enqueued.json()) as { id: string };
+      expect(queue.get(job.id)).toMatchObject({
+        kind: "verification",
+        state: "queued",
+        payload: grant,
+        attempts: 0,
+      });
+      expect(store.verifications(snapshot.id).total).toBe(0);
+      const repeated = await fetch(`${api.url}/v1/jobs/verification`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          idempotencyKey: "api-grant",
+          authorization: grant,
+        }),
+      });
+      expect(await repeated.json()).toMatchObject({ id: job.id });
+      const cancelled = await fetch(`${api.url}/v1/jobs/${job.id}/cancel`, {
+        method: "POST",
+        headers,
+      });
+      expect(await cancelled.json()).toMatchObject({
+        id: job.id,
+        state: "cancelled",
+      });
       const responses = await Promise.all(
         (process.env.PIE_TEST_DOCKER_IMAGE ? [1, 2] : [1]).map(() =>
           fetch(`${api.url}/v1/verify`, {
@@ -133,6 +175,7 @@ it.skipIf(process.platform !== "linux")(
       ).toMatchObject({ verificationEnabled: true });
     } finally {
       await api.close();
+      queue.close();
       await rm(root, { recursive: true, force: true });
     }
   },
@@ -142,7 +185,8 @@ it.skipIf(process.platform !== "linux")(
 it.skipIf(process.platform !== "linux" || !process.env.PIE_TEST_DOCKER_IMAGE)(
   "fechamento da API cancela VERIFY, aguarda persistência e libera o journal",
   async () => {
-    const { root, state, api, headers, grant, snapshot } = await fixture();
+    const { root, state, api, headers, grant, snapshot, queue } =
+      await fixture();
     const journal = await VerificationJournal.open(
       join(state, "resources.sqlite"),
     );
@@ -171,6 +215,7 @@ it.skipIf(process.platform !== "linux" || !process.env.PIE_TEST_DOCKER_IMAGE)(
     } finally {
       journal.close();
       await api.close();
+      queue.close();
       await rm(root, { recursive: true, force: true });
     }
   },
