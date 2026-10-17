@@ -29,6 +29,7 @@ model Snapshot {
   functionalRecords FunctionalRecord[]
   httpProbes HttpProbe[]
   planContestations PlanContestation[]
+  planTriageEvents PlanTriageEvent[]
 
   @@index([projectId, createdAt, id])
   @@map("pie_snapshots")
@@ -77,6 +78,19 @@ model PlanContestation {
  snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
  @@index([snapshotId, planDigest, createdAt, id], map: "pie_plan_contestation_snapshot")
  @@map("pie_plan_contestations")
+}
+
+model PlanTriageEvent {
+ id String @id @db.Uuid
+ snapshotId String @map("snapshot_id") @db.Uuid
+ planDigest String @map("plan_digest")
+ itemId String @map("item_id")
+ revision Int
+ createdAt DateTime @map("created_at") @db.Timestamptz(3)
+ payload Json
+ snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+ @@unique([snapshotId, planDigest, itemId, revision])
+ @@map("pie_plan_triage_events")
 }
 
 model VerificationRun {

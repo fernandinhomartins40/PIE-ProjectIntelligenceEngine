@@ -24,6 +24,12 @@ import {
   planContestHistorySchema,
 } from "./planContestation.js";
 import {
+  planTriageInput,
+  planTriageEventSchema,
+  planTriageHistoryInput,
+  planTriageHistorySchema,
+} from "./planTriage.js";
+import {
   functionalRecordSchema,
   functionalRecordExportInput,
   functionalRecordExportOutput,
@@ -259,6 +265,29 @@ export function createPieMcp(
     },
     ({ snapshotId, ...paging }) =>
       guarded(() => service.planContestations(snapshotId, paging)),
+  );
+  server.registerTool(
+    "pie_plan_triage_set",
+    {
+      description:
+        "Registra mudança explícita de owner e/ou status da triagem com justificativa e revisão esperada; completed continua sem verificação técnica e não autoriza execução.",
+      inputSchema: planTriageInput,
+      outputSchema: withError(planTriageEventSchema),
+      annotations: { ...write, idempotentHint: true },
+    },
+    (input) => guarded(() => service.updatePlanTriage(input)),
+  );
+  server.registerTool(
+    "pie_plan_triage_history",
+    {
+      description:
+        "Lê estado atual e histórico append-only das mudanças de triagem para um item/digest, validando revisões e hash.",
+      inputSchema: planTriageHistoryInput,
+      outputSchema: withError(planTriageHistorySchema),
+      annotations: read,
+    },
+    ({ snapshotId, ...paging }) =>
+      guarded(() => service.planTriageHistory(snapshotId, paging)),
   );
   if (verifier && queue) {
     server.registerTool(

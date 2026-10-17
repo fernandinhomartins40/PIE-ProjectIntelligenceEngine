@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { resolve } from "node:path";
-import { PieError, policySchema, type Policy } from "./contracts.js";
+import {
+  PieError,
+  policySchema,
+  type Policy,
+  type Snapshot,
+} from "./contracts.js";
 import { discoverProjectResult, projectName } from "./discovery.js";
 import { page } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
@@ -24,12 +29,22 @@ import {
   sealFunctional,
 } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
-import { generateUnifiedPlan, planningInput } from "./planning.js";
+import {
+  generateUnifiedPlan,
+  planningInput,
+  unifiedPlanOutput,
+} from "./planning.js";
 import {
   planContestationInput,
   planContestHistoryInput,
   sealPlanContestation,
 } from "./planContestation.js";
+import {
+  applyLatestPlanTriage,
+  planTriageHistoryInput,
+  planTriageInput,
+  validatePlanTriageHistory,
+} from "./planTriage.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 import {
   compareVerificationRuns,
@@ -355,39 +370,64 @@ export class PieService {
       return planRetests(before, after, request);
     });
   }
+  async #findPlanItem(snapshot: Snapshot, planDigest: string, itemId: string) {
+    for (let offset = 0; ; offset += 200) {
+      const plan = await generateUnifiedPlan(snapshot, {
+        snapshotId: snapshot.id,
+        limit: 200,
+        offset,
+      });
+      if (plan.planDigest !== planDigest)
+        throw new PieError(
+          "INTEGRITY_ERROR",
+          "Digest informado não corresponde ao plano atual do snapshot.",
+        );
+      const item = plan.items.items.find(
+        (candidate) => candidate.id === itemId,
+      );
+      if (item) {
+        const events = await this.store.latestPlanTriageEvents(
+          snapshot.id,
+          planDigest,
+          [item.id],
+        );
+        return applyLatestPlanTriage(item, events[0]);
+      }
+      if (plan.items.nextOffset === null) break;
+    }
+    throw new PieError("NOT_FOUND", "Item não pertence ao plano informado.");
+  }
   plan(input: unknown) {
     return this.#read(async () => {
       const request = planningInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
-      return generateUnifiedPlan(snapshot, request);
+      const plan = await generateUnifiedPlan(snapshot, request);
+      const events = await this.store.latestPlanTriageEvents(
+        snapshot.id,
+        plan.planDigest,
+        plan.items.items.map((item) => item.id),
+      );
+      const byItem = new Map(events.map((event) => [event.itemId, event]));
+      return unifiedPlanOutput.parse({
+        ...plan,
+        items: {
+          ...plan.items,
+          items: plan.items.items.map((item) =>
+            applyLatestPlanTriage(item, byItem.get(item.id)),
+          ),
+        },
+      });
     });
   }
   contestPlanItem(input: unknown) {
     return this.#read(async () => {
       const request = planContestationInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
-      let item: unknown;
-      for (let offset = 0; ; offset += 200) {
-        const plan = await generateUnifiedPlan(snapshot, {
-          snapshotId: snapshot.id,
-          limit: 200,
-          offset,
-        });
-        if (plan.planDigest !== request.planDigest)
-          throw new PieError(
-            "INTEGRITY_ERROR",
-            "Digest informado não corresponde ao plano atual do snapshot.",
-          );
-        item = plan.items.items.find(
-          (candidate) => candidate.id === request.itemId,
-        );
-        if (item || plan.items.nextOffset === null) break;
-      }
-      if (!item)
-        throw new PieError(
-          "NOT_FOUND",
-          "Item não pertence ao plano informado.",
-        );
+      const item = await this.#findPlanItem(
+        snapshot,
+        request.planDigest,
+        request.itemId,
+      );
       const known = new Set(snapshot.evidence.map((entry) => entry.id));
       if (request.evidenceIds.some((id) => !known.has(id)))
         throw new PieError(
@@ -410,6 +450,31 @@ export class PieService {
       });
       await this.store.snapshot(snapshotId);
       return this.store.planContestations(snapshotId, request);
+    });
+  }
+  updatePlanTriage(input: unknown) {
+    return this.#read(async () => {
+      const request = planTriageInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      await this.#findPlanItem(snapshot, request.planDigest, request.itemId);
+      return this.store.savePlanTriage(request);
+    });
+  }
+  planTriageHistory(snapshotId: string, input: unknown) {
+    return this.#read(async () => {
+      const request = planTriageHistoryInput.parse({
+        ...((input ?? {}) as object),
+        snapshotId,
+      });
+      const snapshot = await this.store.snapshot(snapshotId);
+      const events = await this.store.planTriageEvents(
+        snapshotId,
+        request.planDigest,
+        request.itemId,
+      );
+      if (events.length === 0)
+        throw new PieError("NOT_FOUND", "Histórico de triagem não encontrado.");
+      return validatePlanTriageHistory(events, snapshot, request);
     });
   }
   functional(input: unknown) {

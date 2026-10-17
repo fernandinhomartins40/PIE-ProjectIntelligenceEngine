@@ -8,6 +8,7 @@ import { pagedOutput } from "./outputContracts.js";
 import { reviewSecurity } from "./security.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import { planTriageStatus } from "./planStates.js";
 
 export const planningInput = pageSchema.extend({
   snapshotId: z.string().uuid(),
@@ -27,9 +28,10 @@ export const planItemSchema = z.strictObject({
   engine,
   sourceId: z.string(),
   sourceState: z.string(),
-  status: z.literal("open"),
+  status: planTriageStatus,
   priority: z.literal("unassessed"),
-  owner: z.null(),
+  owner: z.string().max(160).nullable(),
+  triageRevision: z.number().int().nonnegative().optional(),
   title: z.string(),
   evidenceIds: z.array(z.string().uuid()).min(1),
   acceptance: z.array(z.string()).min(1),
@@ -261,7 +263,8 @@ export async function generateUnifiedPlan(
       limitations: [
         "O plano agrega somente páginas dos motores existentes, limitadas a 200 itens por origem; contagens não examinadas permanecem explícitas.",
         "Responsável e prioridade não são inferidos; owner permanece null e priority unassessed até triagem humana.",
-        "Nenhuma recomendação foi aceita, contestada, executada ou validada; este endpoint não persiste decisões nem autoriza execução.",
+        "A geração automática não aceita, contesta, executa nem valida recomendações; mudanças humanas de owner/status e contestações ficam em históricos separados e não autorizam execução.",
+        "planDigest identifica a geração estática; owner/status são projeções humanas versionadas em histórico separado e não alteram esse digest.",
         ...snapshot.coverage.limitations,
       ],
     },

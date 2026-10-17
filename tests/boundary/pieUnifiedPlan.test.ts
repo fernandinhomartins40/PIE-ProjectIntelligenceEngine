@@ -232,6 +232,190 @@ async function verifyContestPersistence(input: {
   ).rejects.toMatchObject({ code: "INVALID_INPUT" });
 }
 
+async function verifyTriageHistoryAdapters(input: {
+  snapshotId: string;
+  planDigest: string;
+  itemId: string;
+  database: string;
+  apiUrl: string;
+  token: string;
+  client: Client;
+}) {
+  const query = `snapshotId=${input.snapshotId}&planDigest=${input.planDigest}&itemId=${encodeURIComponent(input.itemId)}`;
+  const response = await fetch(
+    `${input.apiUrl}/v1/plan/triage-history?${query}`,
+    { headers: { Authorization: `Bearer ${input.token}` } },
+  );
+  expect(response.status).toBe(200);
+  const expected = await response.json();
+  const output = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    await runPie([
+      "plan-triage-history",
+      input.snapshotId,
+      input.planDigest,
+      input.itemId,
+      "--db",
+      input.database,
+    ]);
+    expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toEqual(expected);
+  } finally {
+    output.mockRestore();
+  }
+  const tool = await input.client.callTool({
+    name: "pie_plan_triage_history",
+    arguments: {
+      snapshotId: input.snapshotId,
+      planDigest: input.planDigest,
+      itemId: input.itemId,
+      limit: 10,
+    },
+  });
+  expect(tool.isError).not.toBe(true);
+  expect(tool.structuredContent).toEqual(expected);
+  const definition = (await input.client.listTools()).tools.find(
+    (candidate) => candidate.name === "pie_plan_triage_history",
+  );
+  const ajv = new Ajv2020({ strict: false, validateFormats: false });
+  expect(ajv.validateSchema(definition!.inputSchema)).toBe(true);
+  expect(ajv.validateSchema(definition!.outputSchema as AnySchema)).toBe(true);
+}
+
+async function verifyTriageAdapters(input: {
+  service: PieService;
+  itemId: string;
+  snapshotId: string;
+  planDigest: string;
+  root: string;
+  database: string;
+  apiUrl: string;
+  token: string;
+  client: Client;
+}) {
+  const request = {
+    id: randomUUID(),
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    expectedRevision: 0,
+    owner: "team-core",
+    status: "accepted",
+    justification: "A equipe assumiu a triagem; isso não valida o achado.",
+  };
+  const event = await input.service.updatePlanTriage(request);
+  expect(event.revision).toBe(1);
+  expect(await input.service.updatePlanTriage(request)).toEqual(event);
+  await expect(
+    input.service.updatePlanTriage({ ...request, owner: "other-team" }),
+  ).rejects.toMatchObject({ code: "INTEGRITY_ERROR" });
+  const file = join(input.root, "triage.json");
+  await writeFile(file, JSON.stringify(request));
+  const output = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    await runPie(["plan-triage", file, "--db", input.database]);
+    expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toEqual(event);
+  } finally {
+    output.mockRestore();
+  }
+  const response = await fetch(`${input.apiUrl}/v1/plan/triage`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${input.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  });
+  expect(response.status).toBe(201);
+  expect(await response.json()).toEqual(event);
+  const tool = await input.client.callTool({
+    name: "pie_plan_triage_set",
+    arguments: request,
+  });
+  expect(tool.isError).not.toBe(true);
+  expect(tool.structuredContent).toEqual(event);
+  const definition = (await input.client.listTools()).tools.find(
+    (candidate) => candidate.name === "pie_plan_triage_set",
+  );
+  const ajv = new Ajv2020({ strict: false, validateFormats: false });
+  expect(ajv.validateSchema(definition!.inputSchema)).toBe(true);
+  expect(ajv.validateSchema(definition!.outputSchema as AnySchema)).toBe(true);
+  const plan = await input.service.plan({
+    snapshotId: input.snapshotId,
+    limit: 20,
+  });
+  const item = plan.items.items.find(
+    (candidate) => candidate.id === input.itemId,
+  )!;
+  expect(item).toMatchObject({
+    owner: "team-core",
+    status: "accepted",
+    triageRevision: 1,
+  });
+  expect(plan.planDigest).toBe(input.planDigest);
+  expect(plan.state).toBe("unverified");
+  expect(plan.executionAuthorized).toBe(false);
+  await expect(
+    input.service.updatePlanTriage({
+      ...request,
+      id: randomUUID(),
+      status: "completed",
+    }),
+  ).rejects.toMatchObject({ code: "BUSY" });
+  await verifyTriageHistoryAdapters(input);
+  const database = new DatabaseSync(input.database);
+  try {
+    expect(() =>
+      database
+        .prepare("DELETE FROM pie_plan_triage_events WHERE id=?")
+        .run(event.id),
+    ).toThrow(/immutable/u);
+  } finally {
+    database.close();
+  }
+  const reassignment = await input.service.updatePlanTriage({
+    id: randomUUID(),
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    expectedRevision: 1,
+    owner: null,
+    justification:
+      "A atribuição foi removida após revisão da equipe responsável.",
+  });
+  expect(reassignment).toMatchObject({
+    revision: 2,
+    owner: null,
+    status: "accepted",
+  });
+  const nextPage = await input.service.planTriageHistory(input.snapshotId, {
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    limit: 1,
+    offset: 1,
+  });
+  expect(nextPage.items.items).toEqual([reassignment]);
+  const completed = await input.service.updatePlanTriage({
+    id: randomUUID(),
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    expectedRevision: 2,
+    status: "completed",
+    justification:
+      "A pessoa responsável marcou a triagem como concluída, sem teste técnico.",
+  });
+  const completedPlan = await input.service.plan({
+    snapshotId: input.snapshotId,
+    limit: 20,
+  });
+  expect(
+    completedPlan.items.items.find((item) => item.id === input.itemId),
+  ).toMatchObject({ status: "completed", triageRevision: 3 });
+  expect(completedPlan.state).toBe("unverified");
+  expect(completedPlan.executionAuthorized).toBe(false);
+  expect(completed.revision).toBe(3);
+}
+
 it("agrega propostas de motores com Evidence e sem promover verificação", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-unified-plan-"));
   const repo = join(root, "repo");
@@ -327,6 +511,17 @@ it("agrega propostas de motores com Evidence e sem promover verificação", asyn
       snapshotId: discovered.snapshot.id,
       planDigest: result.planDigest,
       item: result.items.items[0]!,
+      root,
+      database: storePath,
+      apiUrl: api.url,
+      token,
+      client,
+    });
+    await verifyTriageAdapters({
+      service,
+      itemId: result.items.items[0]!.id,
+      snapshotId: discovered.snapshot.id,
+      planDigest: result.planDigest,
       root,
       database: storePath,
       apiUrl: api.url,

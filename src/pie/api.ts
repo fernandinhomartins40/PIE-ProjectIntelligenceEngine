@@ -24,6 +24,7 @@ import { verificationExportInput } from "./execution/runContracts.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 import { planningInput } from "./planning.js";
 import { planContestationInput } from "./planContestation.js";
+import { planTriageInput } from "./planTriage.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -400,6 +401,32 @@ export async function startPieApi(
         const input = planContestationInput.parse(await body(request));
         await requireSnapshot(input.snapshotId);
         respond(response, 201, await service.contestPlanItem(input));
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/plan/triage") {
+        const input = planTriageInput.parse(await body(request));
+        await requireSnapshot(input.snapshotId);
+        respond(response, 201, await service.updatePlanTriage(input));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/plan/triage-history"
+      ) {
+        const snapshotId = z
+          .string()
+          .uuid()
+          .parse(url.searchParams.get("snapshotId"));
+        await requireSnapshot(snapshotId);
+        respond(
+          response,
+          200,
+          await service.planTriageHistory(snapshotId, {
+            planDigest: url.searchParams.get("planDigest"),
+            itemId: url.searchParams.get("itemId"),
+            ...paging(),
+          }),
+        );
         return;
       }
       if (

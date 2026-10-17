@@ -106,7 +106,7 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
-      "Plano unificado: plan <snapshot-id> --limit <1–200> --offset <n>; plan-contest <request.json> registra contestação justificada e imutável. Nenhum comando autoriza execução.",
+      "Plano: plan <snapshot-id>; plan-contest <request.json>; plan-triage <request.json>; plan-triage-history <snapshot-id> <digest> <item-id>. completed não significa verificado.",
     );
     console.log(
       "Candidatos a reteste: retest-plan <antes-id> <depois-id> --mode affected|full --limit <1–200> --offset <n>. Plano não autoriza execução nem comprova cobertura.",
@@ -188,6 +188,8 @@ export async function runPie(args: string[]): Promise<void> {
       "retest-plan",
       "plan",
       "plan-contest",
+      "plan-triage",
+      "plan-triage-history",
       "serve",
       "enqueue",
       "job",
@@ -403,6 +405,18 @@ export async function runPie(args: string[]): Promise<void> {
         result = await service.contestPlanItem(
           JSON.parse(await readFile(target!, "utf8")) as unknown,
         );
+        break;
+      case "plan-triage":
+        result = await service.updatePlanTriage(
+          JSON.parse(await readFile(target!, "utf8")) as unknown,
+        );
+        break;
+      case "plan-triage-history":
+        result = await service.planTriageHistory(target!, {
+          planDigest: parsed.positionals[2],
+          itemId: parsed.positionals[3],
+          ...paging,
+        });
         break;
       case "evidence":
         result = await service.evidence(target!);

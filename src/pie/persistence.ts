@@ -16,6 +16,7 @@ import type {
 } from "./execution/runContracts.js";
 import type { PlanContestation } from "./planContestation.js";
 import type { planContestHistorySchema } from "./planContestation.js";
+import type { PlanTriageEvent } from "./planTriage.js";
 
 type Awaitable<T> = T | Promise<T>;
 export interface ProjectRecord {
@@ -67,6 +68,17 @@ export interface PiePersistence {
     snapshotId: string,
     input: unknown,
   ): Awaitable<z.infer<typeof planContestHistorySchema>>;
+  savePlanTriage(input: unknown): Awaitable<PlanTriageEvent>;
+  planTriageEvents(
+    snapshotId: string,
+    planDigest: string,
+    itemId: string,
+  ): Awaitable<PlanTriageEvent[]>;
+  latestPlanTriageEvents(
+    snapshotId: string,
+    planDigest: string,
+    itemIds: string[],
+  ): Awaitable<PlanTriageEvent[]>;
   history(
     projectId: string,
     input?: unknown,

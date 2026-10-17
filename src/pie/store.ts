@@ -31,6 +31,13 @@ import {
   samePlanContestationIntent,
   validateContestationSnapshot,
 } from "./planContestation.js";
+import {
+  matchesPlanTriageRetry,
+  planTriageInput,
+  sealPlanTriageEvent,
+  validatePlanTriageHistory,
+  validatePlanTriageRow,
+} from "./planTriage.js";
 
 /** SQLite is the optional local persistence mode. */
 export class PieStore implements PiePersistence {
@@ -76,6 +83,11 @@ export class PieStore implements PiePersistence {
       CREATE TRIGGER IF NOT EXISTS pie_plan_contestation_immutable_update BEFORE UPDATE ON pie_plan_contestations BEGIN SELECT RAISE(ABORT,'plan contestation immutable'); END;
       CREATE TRIGGER IF NOT EXISTS pie_plan_contestation_immutable_delete BEFORE DELETE ON pie_plan_contestations BEGIN SELECT RAISE(ABORT,'plan contestation immutable'); END;
       INSERT OR IGNORE INTO pie_migrations(version) VALUES(5);`);
+    this.#db
+      .exec(`CREATE TABLE IF NOT EXISTS pie_plan_triage_events(id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL REFERENCES pie_snapshots(id), plan_digest TEXT NOT NULL, item_id TEXT NOT NULL, revision INTEGER NOT NULL, created_at TEXT NOT NULL, payload TEXT NOT NULL, UNIQUE(snapshot_id,plan_digest,item_id,revision));
+      CREATE TRIGGER IF NOT EXISTS pie_plan_triage_immutable_update BEFORE UPDATE ON pie_plan_triage_events BEGIN SELECT RAISE(ABORT,'plan triage immutable'); END;
+      CREATE TRIGGER IF NOT EXISTS pie_plan_triage_immutable_delete BEFORE DELETE ON pie_plan_triage_events BEGIN SELECT RAISE(ABORT,'plan triage immutable'); END;
+      INSERT OR IGNORE INTO pie_migrations(version) VALUES(6);`);
     this.#http = createHttpSqlitePersistence({
       db: this.#db,
       snapshot: (id) => this.snapshot(id),
@@ -237,6 +249,122 @@ export class PieStore implements PiePersistence {
             : null,
       },
     });
+  }
+  savePlanTriage(rawInput: unknown) {
+    const parsed = planTriageInput.parse(rawInput);
+    this.snapshot(parsed.snapshotId);
+    this.#db.exec("BEGIN IMMEDIATE");
+    try {
+      const existingRow = this.#db
+        .prepare(
+          "SELECT id,snapshot_id,plan_digest,item_id,revision,created_at,payload FROM pie_plan_triage_events WHERE id=?",
+        )
+        .get(parsed.id);
+      if (existingRow) {
+        const existing = validatePlanTriageRow(
+          JSON.parse(String(existingRow.payload)),
+          {
+            id: String(existingRow.id),
+            snapshotId: String(existingRow.snapshot_id),
+            planDigest: String(existingRow.plan_digest),
+            itemId: String(existingRow.item_id),
+            revision: Number(existingRow.revision),
+            createdAt: String(existingRow.created_at),
+          },
+        );
+        if (!matchesPlanTriageRetry(existing, parsed))
+          throw new PieError(
+            "INTEGRITY_ERROR",
+            "Evento de triagem existente não pode ser substituído.",
+          );
+        this.#db.exec("COMMIT");
+        return existing;
+      }
+      const events = this.planTriageEvents(
+        parsed.snapshotId,
+        parsed.planDigest,
+        parsed.itemId,
+      );
+      const history = validatePlanTriageHistory(
+        events,
+        this.snapshot(parsed.snapshotId),
+        {
+          snapshotId: parsed.snapshotId,
+          planDigest: parsed.planDigest,
+          itemId: parsed.itemId,
+          limit: 1,
+          offset: 0,
+        },
+      );
+      if (history.revision !== parsed.expectedRevision)
+        throw new PieError(
+          "BUSY",
+          "A triagem foi alterada; recarregue o plano antes de salvar.",
+        );
+      const event = sealPlanTriageEvent(
+        parsed,
+        { owner: history.owner, status: history.status },
+        history.revision + 1,
+      );
+      this.#db
+        .prepare(
+          "INSERT INTO pie_plan_triage_events(id,snapshot_id,plan_digest,item_id,revision,created_at,payload) VALUES(?,?,?,?,?,?,?)",
+        )
+        .run(
+          event.id,
+          event.snapshotId,
+          event.planDigest,
+          event.itemId,
+          event.revision,
+          event.createdAt,
+          JSON.stringify(event),
+        );
+      this.#db.exec("COMMIT");
+      return event;
+    } catch (cause) {
+      this.#db.exec("ROLLBACK");
+      throw cause;
+    }
+  }
+  planTriageEvents(snapshotId: string, planDigest: string, itemId: string) {
+    const rows = this.#db
+      .prepare(
+        "SELECT id,snapshot_id,plan_digest,item_id,revision,created_at,payload FROM pie_plan_triage_events WHERE snapshot_id=? AND plan_digest=? AND item_id=? ORDER BY revision",
+      )
+      .all(snapshotId, planDigest, itemId);
+    return rows.map((row) =>
+      validatePlanTriageRow(JSON.parse(String(row.payload)), {
+        id: String(row.id),
+        snapshotId: String(row.snapshot_id),
+        planDigest: String(row.plan_digest),
+        itemId: String(row.item_id),
+        revision: Number(row.revision),
+        createdAt: String(row.created_at),
+      }),
+    );
+  }
+  latestPlanTriageEvents(
+    snapshotId: string,
+    planDigest: string,
+    itemIds: string[],
+  ) {
+    if (itemIds.length === 0) return [];
+    const placeholders = itemIds.map(() => "?").join(",");
+    const rows = this.#db
+      .prepare(
+        `SELECT id,snapshot_id,plan_digest,item_id,revision,created_at,payload FROM (SELECT id,snapshot_id,plan_digest,item_id,revision,created_at,payload,ROW_NUMBER() OVER(PARTITION BY item_id ORDER BY revision DESC) AS position FROM pie_plan_triage_events WHERE snapshot_id=? AND plan_digest=? AND item_id IN (${placeholders})) WHERE position=1`,
+      )
+      .all(snapshotId, planDigest, ...itemIds);
+    return rows.map((row) =>
+      validatePlanTriageRow(JSON.parse(String(row.payload)), {
+        id: String(row.id),
+        snapshotId: String(row.snapshot_id),
+        planDigest: String(row.plan_digest),
+        itemId: String(row.item_id),
+        revision: Number(row.revision),
+        createdAt: String(row.created_at),
+      }),
+    );
   }
 
   async assertOutside(targetRoot: string): Promise<void> {

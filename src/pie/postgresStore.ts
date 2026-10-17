@@ -34,6 +34,13 @@ import {
   samePlanContestationIntent,
   validateContestationSnapshot,
 } from "./planContestation.js";
+import {
+  matchesPlanTriageRetry,
+  planTriageInput,
+  sealPlanTriageEvent,
+  validatePlanTriageHistory,
+  validatePlanTriageRow,
+} from "./planTriage.js";
 
 const json = (value: object): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -320,6 +327,140 @@ export class PostgresPieStore implements PiePersistence {
         });
       },
       { isolationLevel: "RepeatableRead" },
+    );
+  }
+  async savePlanTriage(rawInput: unknown) {
+    const input = planTriageInput.parse(rawInput);
+    const snapshot = await this.snapshot(input.snapshotId);
+    return this.#client.$transaction(
+      async (tx) => {
+        const lock = `${input.snapshotId}:${input.planDigest}:${input.itemId}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lock}))`;
+        const existingRows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            snapshot_id: string;
+            plan_digest: string;
+            item_id: string;
+            revision: number;
+            created_at: Date;
+            payload: unknown;
+          }>
+        >`SELECT id::text,snapshot_id::text,plan_digest,item_id,revision,created_at,payload FROM pie_plan_triage_events WHERE id=${input.id}::uuid`;
+        if (existingRows[0]) {
+          const row = existingRows[0];
+          const existing = validatePlanTriageRow(row.payload, {
+            id: row.id,
+            snapshotId: row.snapshot_id,
+            planDigest: row.plan_digest,
+            itemId: row.item_id,
+            revision: row.revision,
+            createdAt: row.created_at.toISOString(),
+          });
+          if (!matchesPlanTriageRetry(existing, input))
+            throw new PieError(
+              "INTEGRITY_ERROR",
+              "Evento de triagem existente não pode ser substituído.",
+            );
+          return existing;
+        }
+        const rows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            snapshot_id: string;
+            plan_digest: string;
+            item_id: string;
+            revision: number;
+            created_at: Date;
+            payload: unknown;
+          }>
+        >`SELECT id::text,snapshot_id::text,plan_digest,item_id,revision,created_at,payload FROM pie_plan_triage_events WHERE snapshot_id=${input.snapshotId}::uuid AND plan_digest=${input.planDigest} AND item_id=${input.itemId} ORDER BY revision`;
+        const events = rows.map((row) =>
+          validatePlanTriageRow(row.payload, {
+            id: row.id,
+            snapshotId: row.snapshot_id,
+            planDigest: row.plan_digest,
+            itemId: row.item_id,
+            revision: row.revision,
+            createdAt: row.created_at.toISOString(),
+          }),
+        );
+        const history = validatePlanTriageHistory(events, snapshot, {
+          snapshotId: input.snapshotId,
+          planDigest: input.planDigest,
+          itemId: input.itemId,
+          limit: 1,
+          offset: 0,
+        });
+        if (history.revision !== input.expectedRevision)
+          throw new PieError(
+            "BUSY",
+            "A triagem foi alterada; recarregue o plano antes de salvar.",
+          );
+        const event = sealPlanTriageEvent(
+          input,
+          { owner: history.owner, status: history.status },
+          history.revision + 1,
+        );
+        await tx.$executeRaw`INSERT INTO pie_plan_triage_events(id,snapshot_id,plan_digest,item_id,revision,created_at,payload) VALUES(${event.id}::uuid,${event.snapshotId}::uuid,${event.planDigest},${event.itemId},${event.revision},${new Date(event.createdAt)},${JSON.stringify(event)}::jsonb)`;
+        return event;
+      },
+      { isolationLevel: "ReadCommitted", maxWait: 5000, timeout: 15_000 },
+    );
+  }
+  async planTriageEvents(
+    snapshotId: string,
+    planDigest: string,
+    itemId: string,
+  ) {
+    const rows = await this.#client.$queryRaw<
+      Array<{
+        id: string;
+        snapshot_id: string;
+        plan_digest: string;
+        item_id: string;
+        revision: number;
+        created_at: Date;
+        payload: unknown;
+      }>
+    >`SELECT id::text,snapshot_id::text,plan_digest,item_id,revision,created_at,payload FROM pie_plan_triage_events WHERE snapshot_id=${snapshotId}::uuid AND plan_digest=${planDigest} AND item_id=${itemId} ORDER BY revision`;
+    return rows.map((row) =>
+      validatePlanTriageRow(row.payload, {
+        id: row.id,
+        snapshotId: row.snapshot_id,
+        planDigest: row.plan_digest,
+        itemId: row.item_id,
+        revision: row.revision,
+        createdAt: row.created_at.toISOString(),
+      }),
+    );
+  }
+  async latestPlanTriageEvents(
+    snapshotId: string,
+    planDigest: string,
+    itemIds: string[],
+  ) {
+    if (itemIds.length === 0) return [];
+    const rows = await this.#client.$queryRaw<
+      Array<{
+        id: string;
+        snapshot_id: string;
+        plan_digest: string;
+        item_id: string;
+        revision: number;
+        created_at: Date;
+        payload: unknown;
+      }>
+    >`SELECT DISTINCT ON (item_id) id::text,snapshot_id::text,plan_digest,item_id,revision,created_at,payload FROM pie_plan_triage_events WHERE snapshot_id=${snapshotId}::uuid AND plan_digest=${planDigest} AND item_id IN (${Prisma.join(itemIds)}) ORDER BY item_id,revision DESC`;
+    return rows.map((row) =>
+      validatePlanTriageRow(row.payload, {
+        id: row.id,
+        snapshotId: row.snapshot_id,
+        planDigest: row.plan_digest,
+        itemId: row.item_id,
+        revision: row.revision,
+        createdAt: row.created_at.toISOString(),
+      }),
     );
   }
   async assertOutside(_root: string): Promise<void> {
