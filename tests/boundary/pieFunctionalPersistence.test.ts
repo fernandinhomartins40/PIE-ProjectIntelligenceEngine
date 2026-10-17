@@ -46,6 +46,30 @@ it("registro funcional real é imutável, íntegro, limitado à página e reabre
     });
     expect(await service.functionalRecord(record.id)).toEqual(record);
     expect(store.saveFunctional(record)).toEqual(record);
+    const second = await service.retainFunctional({ ...request, offset: 0 });
+    const history = await service.functionalRecords(record.snapshotId, {
+      limit: 1,
+    });
+    expect(history).toMatchObject({
+      total: 2,
+      offset: 0,
+      nextOffset: 1,
+      items: [{ id: record.id, count: 1, total: 2, state: "unverified" }],
+    });
+    expect(
+      (
+        await service.functionalRecords(record.snapshotId, {
+          limit: 1,
+          offset: 1,
+        })
+      ).items[0]!.id,
+    ).toBe(second.id);
+    expect(
+      (await service.functionalRecords(record.snapshotId, { offset: 2 })).items,
+    ).toEqual([]);
+    await expect(
+      service.functionalRecords(record.snapshotId, { limit: 0 }),
+    ).rejects.toThrow();
     const changedPayload = {
       ...record,
       createdAt: new Date(Date.parse(record.createdAt) + 1).toISOString(),

@@ -72,6 +72,9 @@ export async function runPie(args: string[]): Promise<void> {
       "Análise funcional OBSERVE: functional <snapshot-id> --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Lacunas de verificação não são defeitos comprovados.",
     );
     console.log(
+      "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n>. Retenção preserva somente a página solicitada.",
+    );
+    console.log(
       "VERIFY Linux: verify <autorização.json> --state-dir <diretório-0700> --docker-bin <executável-absoluto> --docker-host <daemon-local>. Recursos: resources --state-dir <diretório> | recover <run-id> com as mesmas opções Docker. Sem pull automático.",
     );
     console.log(
@@ -164,6 +167,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional",
       "functional-retain",
       "functional-record",
+      "functional-records",
       "trace",
       "evidence",
       "verification",
@@ -311,6 +315,12 @@ export async function runPie(args: string[]): Promise<void> {
       case "functional-record":
         result = await service.functionalRecord(
           z.string().uuid().parse(target!),
+        );
+        break;
+      case "functional-records":
+        result = await service.functionalRecords(
+          z.string().uuid().parse(target!),
+          paging,
         );
         break;
       case "trace":

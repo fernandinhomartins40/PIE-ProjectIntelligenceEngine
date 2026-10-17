@@ -278,6 +278,20 @@ export async function startPieApi(
         return;
       }
       if (
+        request.method === "GET" &&
+        url.pathname === "/v1/functional-records"
+      ) {
+        respond(
+          response,
+          200,
+          await service.functionalRecords(
+            z.string().uuid().parse(url.searchParams.get("snapshotId")),
+            paging(),
+          ),
+        );
+        return;
+      }
+      if (
         request.method === "POST" &&
         url.pathname === "/v1/functional-records"
       ) {

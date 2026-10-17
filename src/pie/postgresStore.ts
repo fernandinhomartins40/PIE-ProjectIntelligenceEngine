@@ -3,6 +3,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import canonicalize from "canonicalize";
 import {
   functionalRecordSchema,
+  functionalHistorySchema,
+  functionalSummary,
   validateFunctional,
   validateStoredFunctional,
 } from "./functionalRecord.js";
@@ -50,6 +52,45 @@ export class PostgresPieStore implements PiePersistence {
   }
   async close(): Promise<void> {
     await this.#client.$disconnect();
+  }
+  async functionalRecords(snapshotId: string, input: unknown = {}) {
+    const snapshot = await this.snapshot(snapshotId);
+    const { offset, limit } = pageSchema.parse(input);
+    return this.#client.$transaction(
+      async (tx) => {
+        const counts = await tx.$queryRaw<
+          Array<{ total: bigint }>
+        >`SELECT count(*) AS total FROM pie_functional_records WHERE snapshot_id=${snapshotId}::uuid`;
+        const rows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            snapshot_id: string;
+            created_at: Date;
+            payload: unknown;
+          }>
+        >`SELECT id::text,snapshot_id::text,created_at,payload FROM pie_functional_records WHERE snapshot_id=${snapshotId}::uuid ORDER BY created_at,id LIMIT ${limit} OFFSET ${offset}`;
+        const total = Number(counts[0]!.total);
+        return functionalHistorySchema.parse({
+          items: rows.map((row) =>
+            functionalSummary(
+              validateStoredFunctional(
+                {
+                  id: row.id,
+                  snapshotId: row.snapshot_id,
+                  createdAt: row.created_at.toISOString(),
+                  payload: row.payload,
+                },
+                snapshot,
+              ),
+            ),
+          ),
+          total,
+          offset,
+          nextOffset: offset + limit < total ? offset + limit : null,
+        });
+      },
+      { isolationLevel: "RepeatableRead" },
+    );
   }
   async saveFunctional(input: unknown) {
     const parsed = functionalRecordSchema.parse(input);

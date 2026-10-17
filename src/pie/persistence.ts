@@ -1,6 +1,9 @@
 import type { z } from "zod";
 import type { Snapshot, Evidence } from "./contracts.js";
-import type { FunctionalRecord } from "./functionalRecord.js";
+import type {
+  FunctionalRecord,
+  functionalHistorySchema,
+} from "./functionalRecord.js";
 import type { historyOutput, projectsOutput } from "./outputContracts.js";
 import type {
   VerificationRun,
@@ -25,6 +28,10 @@ export interface PiePersistence {
   evidence(id: string): Awaitable<Evidence>;
   saveFunctional(input: unknown): Awaitable<FunctionalRecord>;
   functionalRecord(id: string): Awaitable<FunctionalRecord>;
+  functionalRecords(
+    snapshotId: string,
+    input?: unknown,
+  ): Awaitable<z.infer<typeof functionalHistorySchema>>;
   saveVerification(input: unknown): Awaitable<VerificationRun>;
   verification(id: string): Awaitable<VerificationRun>;
   verifications(

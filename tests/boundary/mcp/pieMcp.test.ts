@@ -156,6 +156,38 @@ async function verifyFunctional(
       ).stdout,
     ),
   ).toEqual(retained.structuredContent);
+  const listed = await client.callTool({
+    name: "pie_functional_records_list",
+    arguments: { snapshotId, limit: 1 },
+  });
+  expect(listed.structuredContent).toMatchObject({
+    total: 1,
+    nextOffset: null,
+    items: [{ id: record.id, state: "unverified" }],
+  });
+  const historySchema = catalog.find(
+    (item) => item.name === "pie_functional_records_list",
+  )!;
+  expect(
+    ajv.compile(historySchema.outputSchema as AnySchema)(
+      listed.structuredContent,
+    ),
+  ).toBe(true);
+  expect(
+    JSON.parse(
+      (
+        await exec(process.execPath, [
+          script,
+          "functional-records",
+          snapshotId,
+          "--limit",
+          "1",
+          "--db",
+          db,
+        ])
+      ).stdout,
+    ),
+  ).toEqual(listed.structuredContent);
 }
 
 function verifySchemas(

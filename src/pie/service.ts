@@ -189,4 +189,9 @@ export class PieService {
   functionalRecord(id: string) {
     return this.#read(async () => this.store.functionalRecord(id));
   }
+  functionalRecords(snapshotId: string, input: unknown = {}) {
+    return this.#read(async () =>
+      this.store.functionalRecords(snapshotId, input),
+    );
+  }
 }

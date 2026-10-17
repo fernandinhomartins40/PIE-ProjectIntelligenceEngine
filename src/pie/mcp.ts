@@ -8,7 +8,10 @@ import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import { functionalInput, functionalOutput } from "./functional.js";
-import { functionalRecordSchema } from "./functionalRecord.js";
+import {
+  functionalRecordSchema,
+  functionalHistorySchema,
+} from "./functionalRecord.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { nodeTestGrantSchema } from "./execution/contracts.js";
 import { realpath } from "node:fs/promises";
@@ -115,6 +118,18 @@ export function createPieMcp(
       annotations: read,
     },
     ({ id }) => guarded(() => service.functionalRecord(id)),
+  );
+  server.registerTool(
+    "pie_functional_records_list",
+    {
+      description:
+        "Lista páginas de análises funcionais preservadas por snapshot, ordenadas por data/ID, com módulo, cobertura e hash. Não recalcula nem aprova funcionalidades; leitura do registro completo por ID.",
+      inputSchema: pageSchema.extend({ snapshotId: z.string().uuid() }),
+      outputSchema: withError(functionalHistorySchema),
+      annotations: read,
+    },
+    ({ snapshotId, ...paging }) =>
+      guarded(() => service.functionalRecords(snapshotId, paging)),
   );
   if (verifier && queue) {
     server.registerTool(

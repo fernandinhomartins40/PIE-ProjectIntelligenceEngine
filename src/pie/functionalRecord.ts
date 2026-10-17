@@ -9,6 +9,33 @@ import {
 import { PieError, type Snapshot } from "./contracts.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import { pagedOutput } from "./outputContracts.js";
+export const functionalHistorySchema = pagedOutput(
+  z.strictObject({
+    id: z.string().uuid(),
+    snapshotId: z.string().uuid(),
+    createdAt: z.iso.datetime(),
+    modulePath: z.string(),
+    offset: z.number().int().nonnegative(),
+    count: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+    state: z.literal("unverified"),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+);
+export function functionalSummary(record: FunctionalRecord) {
+  return {
+    id: record.id,
+    snapshotId: record.snapshotId,
+    createdAt: record.createdAt,
+    modulePath: record.request.modulePath,
+    offset: record.result.findings.offset,
+    count: record.result.findings.items.length,
+    total: record.result.findings.total,
+    state: record.result.state,
+    sha256: record.sha256,
+  };
+}
 
 const payload = z.strictObject({
   schemaVersion: z.literal(1),

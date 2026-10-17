@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Histórico funcional paginado — 16/10/2026
+
+SQLite/PostgreSQL agora listam registros funcionais por snapshot com ordenação createdAt/id, limite 1–200 e offset, total/nextOffset. Resumo preserva ID, módulo, offset/quantidade de achados da página retida, total de declarações, estado unverified e SHA-256. Cada item deriva de registro validado, sem reinterpretar fontes nem recalcular achados. Contagem/leitura usam transação consistente (SQLite BEGIN e PostgreSQL RepeatableRead). Não confundir paginação do histórico com cobertura da página analisada.
+
+PieService/PiePersistence compartilham functionalRecords. CLI functional-records <snapshot-id>, MCP pie_functional_records_list e GET /v1/functional-records?snapshotId=UUID&limit=1&offset=0 usam o contrato paginado versionado. Leitura por ID existente permanece. Testes SQLite reais cobrem duas páginas, vazio após fim e limite inválido; MCP Ajv e CLI comparam respostas; HTTP compara ao serviço. Quatro testes em três arquivos passaram (11,64s). PostgreSQL incluído no teste real da CI, ignorado localmente. Build PIE e typecheck web passaram; lint focado sem avisos/erros. CI 38992099547 da entrega anterior 48d61ab69 terminou com sucesso, incluindo persistência PostgreSQL real. Nova entrega aguarda CI. UI de histórico/retenção, contestação, motores completos e aceite integral permanecem pendentes; goal ativo. Custos comparativos de leitura/CPU/memória/tokens não medidos.
+
 ## Registros funcionais imutáveis — 16/10/2026
 
 Análise funcional pode ser preservada explicitamente com pedido completo, página retornada, data e SHA-256 canônico. Registro schemaVersion 1 é artefato derivado de observação, não prova runtime. Guarda somente a página solicitada: total/offset/nextOffset e módulo permanecem explícitos, sem alegar auditoria completa. selectFunctionalTargets é dono da seleção por módulo/página, reutilizado na validação do registro; fatos/IDs/provas e cobertura são conferidos contra o snapshot imutável. Texto histórico não é recalculado por nova versão do motor.

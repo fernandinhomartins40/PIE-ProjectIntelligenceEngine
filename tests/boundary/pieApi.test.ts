@@ -38,6 +38,14 @@ async function verifyFunctionalHistory(
       })
     ).json(),
   ).toEqual(record);
+  const listed = await fetch(
+    `${url}/v1/functional-records?snapshotId=${snapshotId}&limit=1`,
+    { headers },
+  );
+  expect(listed.status).toBe(200);
+  expect(await listed.json()).toEqual(
+    await service.functionalRecords(snapshotId, { limit: 1 }),
+  );
 }
 
 it("API local exige token, nega origem de navegador e compartilha descoberta persistente", async () => {

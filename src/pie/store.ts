@@ -10,6 +10,8 @@ import { validateSnapshot } from "./snapshotIntegrity.js";
 import canonicalize from "canonicalize";
 import {
   functionalRecordSchema,
+  functionalHistorySchema,
+  functionalSummary,
   validateFunctional,
   validateStoredFunctional,
 } from "./functionalRecord.js";
@@ -57,6 +59,38 @@ export class PieStore implements PiePersistence {
 
   close(): void {
     this.#db.close();
+  }
+  functionalRecords(snapshotId: string, input: unknown = {}) {
+    this.snapshot(snapshotId);
+    const { offset, limit } = pageSchema.parse(input);
+    this.#db.exec("BEGIN");
+    try {
+      const total = Number(
+        this.#db
+          .prepare(
+            "SELECT count(*) AS total FROM pie_functional_records WHERE snapshot_id=?",
+          )
+          .get(snapshotId)!.total,
+      );
+      const rows = this.#db
+        .prepare(
+          "SELECT id FROM pie_functional_records WHERE snapshot_id=? ORDER BY created_at,id LIMIT ? OFFSET ?",
+        )
+        .all(snapshotId, limit, offset);
+      const result = functionalHistorySchema.parse({
+        items: rows.map((row) =>
+          functionalSummary(this.functionalRecord(String(row.id))),
+        ),
+        total,
+        offset,
+        nextOffset: offset + limit < total ? offset + limit : null,
+      });
+      this.#db.exec("COMMIT");
+      return result;
+    } catch (cause) {
+      this.#db.exec("ROLLBACK");
+      throw cause;
+    }
   }
   saveFunctional(input: unknown) {
     const parsed = functionalRecordSchema.parse(input);

@@ -99,6 +99,13 @@ it.skipIf(!url)(
       });
       expect(await peer.functionalRecord(retained.id)).toEqual(retained);
       expect(await peer.saveFunctional(retained)).toEqual(retained);
+      expect(
+        await peer.functionalRecords(snapshot.id, { limit: 1 }),
+      ).toMatchObject({
+        total: 1,
+        nextOffset: null,
+        items: [{ id: retained.id, state: "unverified" }],
+      });
       await expect(
         pool.query(
           "UPDATE pie_functional_records SET created_at=now() WHERE id=$1",
