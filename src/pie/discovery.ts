@@ -153,8 +153,8 @@ export async function discoverProject(
   const declarations: AdapterFact[] = [];
   const limitations = [
     "Somente arquivos rastreados pelo Git; arquivos novos não rastreados não foram examinados.",
-    "Inventário e imports estáticos relativos TS/JS; não comprova rotas, serviços, permissões ou funcionamento.",
-    "Imports dinâmicos, require, aliases, resolução de pacotes e exports condicionais não são rastreados nesta versão.",
+    "Inventário Git e imports estáticos TS/JS; relação de pacote significa somente declaração no manifest observado, sem comprovar instalação, subpath resolvido ou carregamento.",
+    "Imports dinâmicos, require, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
     "Conteúdo de arquivos não é retido. Não há execução do projeto auditado.",
     "A leitura não é atômica em relação a alterações concorrentes do sistema de arquivos.",
   ];
@@ -284,21 +284,48 @@ export async function discoverProject(
       .filter((item) => item.source.line === null)
       .map((item) => [item.source.path, item]),
   );
-  const resolved = resolveImports(nodes, imports, (path, line) => {
-    const original = evidenceByPath.get(path)!;
-    const { sha256: previousDigest, ...fields } = original;
-    void previousDigest;
-    const item = sealEvidence({
-      ...fields,
-      id: randomUUID(),
-      source: { ...original.source, line },
-      confidence: "derived",
-      observation:
-        "Declaração AST de importação ou reexportação com destino relativo resolvido convencionalmente; não comprova carregamento em runtime.",
-    });
-    evidence.push(item);
-    return item.id;
+  const manifestNodes = new Map(
+    nodes
+      .filter((node) => node.kind === "manifest")
+      .map((node) => [node.path, node]),
+  );
+  const packages = declarations.flatMap((declaration) => {
+    if (
+      declaration.kind !== "dependency" ||
+      declaration.adapter !== "node-manifest"
+    )
+      return [];
+    const manifestNode = manifestNodes.get(declaration.source.path);
+    return manifestNode
+      ? [
+          {
+            name: declaration.name,
+            evidenceId: declaration.evidenceId,
+            manifestNodeId: manifestNode.id,
+          },
+        ]
+      : [];
   });
+  const resolved = resolveImports(
+    nodes,
+    imports,
+    (path, line) => {
+      const original = evidenceByPath.get(path)!;
+      const { sha256: previousDigest, ...fields } = original;
+      void previousDigest;
+      const item = sealEvidence({
+        ...fields,
+        id: randomUUID(),
+        source: { ...original.source, line },
+        confidence: "derived",
+        observation:
+          "Declaração AST de importação ou reexportação com destino relativo resolvido convencionalmente; não comprova carregamento em runtime.",
+      });
+      evidence.push(item);
+      return item.id;
+    },
+    packages,
+  );
   if (resolved.unresolved > 0)
     limitations.push(
       `${resolved.unresolved} declarações de importação não resolvidas; ausência de aresta não prova ausência de dependência.`,

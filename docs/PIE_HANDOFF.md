@@ -1,6 +1,10 @@
-﻿# PIE — Continuidade
+# PIE — Continuidade
 
-## Continuidade atual — comparação VERIFY — 17/10/2026
+## Continuidade atual — imports de pacotes no grafo — 17/10/2026
+
+Implementação local relaciona imports estáticos a dependências declaradas de nome único, com Evidence do import e do manifest; pacotes ausentes ou ambiguamente declarados permanecem sem destino. Após o endurecimento para nomes duplicados, quatro arquivos boundary passaram novamente (17 testes) e `check:fast` passou. `format:check`, build PIE e `docs:check:built` passaram; próximo passo: commit/push direto em `main`. A aresta chega ao manifest e não comprova instalação, subpath runtime ou carregamento. Goal integral ativo.
+
+## Histórico da continuidade — comparação VERIFY — 17/10/2026
 
 Comparação compartilhada (`verification-diff`, `pie_verification_compare`, POST `/v1/verification-comparison`) implementada e validada localmente. `check:fast`, typecheck, build PIE, docs:check:built, Git/SQLite com API/CLI/MCP e Ajv passaram; testes VERIFY dependentes de Docker foram skipped no Windows. A próxima ação autorizada é revisar diff, commit e push em `main`; depois acompanhar CI e registrar seu resultado. Não alegar CI antes da execução nem encerrar o goal; findings vinculados, métricas, comparison UI e motores integrais seguem no plano.
 

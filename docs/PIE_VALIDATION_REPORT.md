@@ -1,4 +1,8 @@
-﻿# PIE — Registro de validação contínua
+# PIE — Registro de validação contínua
+
+## Imports de pacotes — 17/10/2026
+
+`resolveImports` passou a relacionar imports estáticos de pacote com dependências de nome único em manifests inventariados. A aresta conserva Evidence da linha importadora e do campo declarado. Pacotes sem declaração ou com declaração ambígua não recebem destino. `piePackageImports.test.ts` usa Git e descoberta reais com fixture sintética somente no teste; cobre pacote scoped/subpath, pacote ausente, proveniência de ambas as pontas e limitação. Após endurecimento para nomes duplicados, quatro arquivos boundary passaram novamente (17 testes) e `check:fast` passou. `format:check`, build PIE e `docs:check:built` passaram após a formatação final. Não há resolução de pacote instalado, subpath export/runtime, dependência transitiva ou prova de carregamento. CPU/memória/tokens não medidos.
 
 ## Comparação de execuções VERIFY — 17/10/2026
 
