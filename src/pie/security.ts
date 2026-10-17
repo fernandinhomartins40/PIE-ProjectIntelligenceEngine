@@ -24,11 +24,16 @@ const secretKind = z.enum([
   "private_key_material",
   "global_eval",
   "function_constructor",
+  "tls_verification_disabled",
 ]);
 
 const findingSchema = z.strictObject({
   id: z.string(),
-  category: z.enum(["credential_like_material", "dynamic_code_evaluation"]),
+  category: z.enum([
+    "credential_like_material",
+    "dynamic_code_evaluation",
+    "insecure_tls_configuration",
+  ]),
   state: z.literal("suspected"),
   severity: z.enum(["high", "critical"]),
   kind: secretKind,
@@ -134,6 +139,17 @@ function supportsDynamicCodeAst(path: string): boolean {
   return /\.(?:[cm]?js|jsx|[cm]?ts|tsx)$/iu.test(path);
 }
 
+function staticMemberPath(node: Node): string[] | null {
+  if (node.type === "Identifier") return [node.name];
+  if (node.type !== "MemberExpression") return null;
+  const base = staticMemberPath(node.object);
+  if (!base) return null;
+  if (node.property.type === "Identifier") return [...base, node.property.name];
+  if (node.property.type === "StringLiteral")
+    return [...base, node.property.value];
+  return null;
+}
+
 function analyzeDynamicCode(
   path: string,
   source: string,
@@ -152,35 +168,57 @@ function analyzeDynamicCode(
   let truncated = maxFindings === 0;
   const record = (
     line: number,
-    kind: "global_eval" | "function_constructor",
+    kind: "global_eval" | "function_constructor" | "tls_verification_disabled",
   ) => {
+    const tls = kind === "tls_verification_disabled";
     findings.push({
-      id: `security:dynamic-code:${identity(path, line, kind, digest)}`,
-      category: "dynamic_code_evaluation",
+      id: `security:${tls ? "tls" : "dynamic-code"}:${identity(path, line, kind, digest)}`,
+      category: tls ? "insecure_tls_configuration" : "dynamic_code_evaluation",
       state: "suspected",
       severity: "high",
       kind,
-      condition: `Uma chamada global direta ${kind} foi encontrada em AST.`,
-      impact:
-        "Se o valor for influenciado por entrada não confiável e o trecho for alcançável, pode ocorrer execução de código arbitrário.",
+      condition: tls
+        ? "Uma configuração estática desativa a validação de certificados TLS."
+        : `Uma chamada global direta ${kind} foi encontrada em AST.`,
+      impact: tls
+        ? "Se aplicada a conexões de rede, a ausência de validação pode permitir interceptação de tráfego por um intermediário."
+        : "Se o valor for influenciado por entrada não confiável e o trecho for alcançável, pode ocorrer execução de código arbitrário.",
       probability: "unassessed",
       source: { path, line },
       evidenceIds: [evidenceId],
-      observation: `Foi observada chamada compatível com ${kind}; fluxo de dados e alcançabilidade não foram analisados.`,
-      uncertainty: [
-        "A presença da chamada não prova que dados controlados por usuário cheguem ao argumento nem que o trecho seja alcançável.",
-        "Aliases, propriedades globais, outras linguagens e sinks não reconhecidos não são cobertos.",
-      ],
-      reproduction: [
-        "Inspecionar a linha e os chamadores na revisão do mesmo snapshot, sem executar o projeto.",
-        "Em fixture isolada e com dados inertes, testar se entrada não confiável pode alcançar o argumento antes de qualquer conclusão.",
-      ],
-      remediation:
-        "Preferir parser de formato e operações permitidas explícitas; remover execução dinâmica quando não for requisito funcional.",
-      regression: [
-        "Adicionar teste estático para impedir retorno acidental da chamada dinâmica após a correção.",
-        "Se a funcionalidade exigir expressão dinâmica, testar lista permitida e entradas inválidas sem executar código externo.",
-      ],
+      observation: tls
+        ? "Foi observada uma configuração explícita de TLS desativado; seu uso efetivo não foi verificado."
+        : `Foi observada chamada compatível com ${kind}; fluxo de dados e alcançabilidade não foram analisados.`,
+      uncertainty: tls
+        ? [
+            "A análise não determina se a opção é usada por uma conexão, se o código é alcançável ou se há compensações em outra camada.",
+            "Outras formas de configurar TLS, aliases e linguagens não são cobertos.",
+          ]
+        : [
+            "A presença da chamada não prova que dados controlados por usuário cheguem ao argumento nem que o trecho seja alcançável.",
+            "Aliases, propriedades globais, outras linguagens e sinks não reconhecidos não são cobertos.",
+          ],
+      reproduction: tls
+        ? [
+            "Inspecionar os chamadores e confirmar se a opção alcança um cliente TLS na configuração efetiva.",
+            "Em ambiente local isolado, verificar a rejeição de certificado inválido antes e depois da correção.",
+          ]
+        : [
+            "Inspecionar a linha e os chamadores na revisão do mesmo snapshot, sem executar o projeto.",
+            "Em fixture isolada e com dados inertes, testar se entrada não confiável pode alcançar o argumento antes de qualquer conclusão.",
+          ],
+      remediation: tls
+        ? "Remover a desativação da validação TLS e manter a verificação de certificado habilitada; configurar autoridades confiáveis explicitamente quando necessário."
+        : "Preferir parser de formato e operações permitidas explícitas; remover execução dinâmica quando não for requisito funcional.",
+      regression: tls
+        ? [
+            "Adicionar teste de configuração que falhe se rejectUnauthorized=false ou NODE_TLS_REJECT_UNAUTHORIZED=0 voltar a ser aplicado.",
+            "Verificar em teste local que certificados inválidos continuam sendo rejeitados.",
+          ]
+        : [
+            "Adicionar teste estático para impedir retorno acidental da chamada dinâmica após a correção.",
+            "Se a funcionalidade exigir expressão dinâmica, testar lista permitida e entradas inválidas sem executar código externo.",
+          ],
       verificationStatus: "not_run",
       owner: null,
     });
@@ -215,6 +253,43 @@ function analyzeDynamicCode(
         !astPath.scope.getBinding("Function")
       )
         record(astPath.node.loc?.start.line ?? 1, "function_constructor");
+      if (findings.length >= maxFindings) {
+        truncated = true;
+        astPath.stop();
+      }
+    },
+    ObjectProperty(astPath) {
+      if (truncated) return astPath.stop();
+      const { key, value, computed } = astPath.node;
+      const name =
+        key.type === "Identifier"
+          ? key.name
+          : key.type === "StringLiteral"
+            ? key.value
+            : null;
+      if (
+        !computed &&
+        name === "rejectUnauthorized" &&
+        value.type === "BooleanLiteral" &&
+        !value.value
+      )
+        record(astPath.node.loc?.start.line ?? 1, "tls_verification_disabled");
+      if (findings.length >= maxFindings) {
+        truncated = true;
+        astPath.stop();
+      }
+    },
+    AssignmentExpression(astPath) {
+      if (truncated) return astPath.stop();
+      const target = staticMemberPath(astPath.node.left);
+      const { right } = astPath.node;
+      if (
+        astPath.node.operator === "=" &&
+        target?.join(".") === "process.env.NODE_TLS_REJECT_UNAUTHORIZED" &&
+        ((right.type === "StringLiteral" && right.value === "0") ||
+          (right.type === "NumericLiteral" && right.value === 0))
+      )
+        record(astPath.node.loc?.start.line ?? 1, "tls_verification_disabled");
       if (findings.length >= maxFindings) {
         truncated = true;
         astPath.stop();

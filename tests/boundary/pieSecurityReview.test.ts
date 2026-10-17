@@ -91,7 +91,7 @@ async function verifySecurityFindings(
     engine: "security",
     state: "suspected_findings",
     findings: {
-      total: 5,
+      total: 7,
       items: [
         {
           category: "credential_like_material",
@@ -158,9 +158,19 @@ async function verifySecurityFindings(
         kind: "function_constructor",
         source: { path: "dynamic.ts", line: 3 },
       }),
+      expect.objectContaining({
+        category: "insecure_tls_configuration",
+        kind: "tls_verification_disabled",
+        source: { path: "dynamic.ts", line: 7 },
+      }),
+      expect.objectContaining({
+        category: "insecure_tls_configuration",
+        kind: "tls_verification_disabled",
+        source: { path: "dynamic.ts", line: 8 },
+      }),
     ]),
   );
-  expect(allFindings.findings.items).toHaveLength(5);
+  expect(allFindings.findings.items).toHaveLength(7);
   expect(allFindings.findings.items[0]).toMatchObject({
     condition: expect.any(String),
     impact: expect.any(String),
@@ -199,6 +209,9 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       `const example = "eval('ignored')"; // eval('comment')`,
       "function shadowed(eval: (value: string) => void) { eval('local'); }",
       "const object = { eval(value: string) {} }; object.eval(userInput);",
+      "const agent = { rejectUnauthorized: false };",
+      "process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';",
+      "const secure = { rejectUnauthorized: true };",
       "",
     ].join("\n"),
   );
@@ -240,7 +253,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(3);
+    expect(stale.findings.total).toBe(5);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
