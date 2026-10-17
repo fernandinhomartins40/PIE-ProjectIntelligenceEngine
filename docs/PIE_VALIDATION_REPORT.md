@@ -410,8 +410,6 @@ Após refatorar o teste para separar fixture e assertions (exigência do limite 
 
 ## Result nos parsers declarativos — 17/10/2026
 
-`pie:build` passou antes dos últimos ajustes de mensagens; boundaries `pieAdapters` e `pieExpressCrossFile` passaram (16 testes) após a correção, cobrindo falhas YAML/OpenAPI/manifest tipadas e descoberta que preserva nó sem declarações inventadas. `check:fast`, checagem docs/licenças e `format:check` da etapa ainda pendentes. Nenhum código do projeto alvo é executado.
+Implementação `b3e03b83c8c59374a59c0ce89bb9a2369a232c46` altera falhas esperadas de adapters declarativos para `Result` tagged: sintaxe inválida, estrutura inválida e formato OpenAPI não suportado. O lexer Nginx preserva mensagens detalhadas enquanto fornece tipo estável. A descoberta mantém o nó do arquivo e explica a omissão sem criar fatos. `collectDeclarations` não captura erros internos; discovery só absorve falhas reconhecidas de inventário (I/O/política).
 
-Atualização final: pie:build, check:fast, docs:check:built, ormat:check, git diff --check e boundaries de adapters/Express passaram (16 testes).
-
-Correção estrutural: o catch genérico de collectDeclarations foi eliminado; a descoberta classifica apenas falhas esperadas de inventário (I/O e política) e propaga erros inesperados. O teste com Git real remove um arquivo após stage e confirma a omissão com io_error, sem declaração inventada.
+Validação executada: `pie:build`, `check:fast`, `docs:check:built`, `format:check`, `git diff --check`, `pieAdapters` e `pieExpressCrossFile` (16 testes) passaram. A fixture usa Git real e remove um arquivo depois do stage. Nenhum código do projeto alvo é executado. CI do novo SHA ainda não foi listada pela API pública nesta consulta.

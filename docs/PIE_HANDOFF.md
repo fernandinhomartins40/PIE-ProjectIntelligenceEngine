@@ -330,8 +330,6 @@ CI pública observada do commit anterior `4b69794de`: PIE integration passou (39
 
 ## Continuação — falhas tipadas nos parsers declarativos — 17/10/2026
 
-Em andamento sobre `4e6d06d5a34f422ce200176912eceb63ca151d92`: `readDeclarationsResult` retorna categorias conhecidas para sintaxe inválida, estrutura inválida e formato OpenAPI não suportado; Nginx preserva mensagens detalhadas com tipo; descoberta mantém nó e registra limitação tipada. Erros de implementação não são capturados pela nova fronteira. Build e 16 boundaries (`pieAdapters`/`pieExpressCrossFile`) passaram após duas regressões de mensagem terem sido corrigidas. Reexecutar gates completos, revisar e commitar na main. T1.1 segue parcial.
+Commit-base `4e6d06d5a34f422ce200176912eceb63ca151d92`; implementação publicada em `b3e03b83c8c59374a59c0ce89bb9a2369a232c46`. `readDeclarationsResult` retorna `invalid_syntax`, `invalid_structure` ou `unsupported_format` para rejeições esperadas de JSON/YAML/Prisma/Nginx/OpenAPI. O conversor de Evidence já não mascara falhas internas; a descoberta só omite erros conhecidos de I/O/política e relança os inesperados. Fixture Git real cobre arquivo removido após stage.
 
-Validação final da fatia declarativa: pie:build, check:fast, docs:check:built, ormat:check, git diff --check e 16 boundaries (pieAdapters/pieExpressCrossFile) passaram. Working tree pronta para commit; T1.1 continua parcial.
-
-Correção estrutural adicional: removido catch genérico do conversor collectDeclarations, que antes ocultava erros de integridade como falha de formato. A descoberta só registra omissão para erros conhecidos de filesystem/política e relança falhas inesperadas. Fixture Git real verifica arquivo removido após stage. CI da entrega anterior: PIE integration passou, Release falhou por política de criação de PR, CI geral ainda em andamento; os links e SHA estão no plano mestre.
+Validação: `pie:build`, `check:fast`, `docs:check:built`, `format:check`, `git diff --check` e 16 testes nas boundaries `pieAdapters`/`pieExpressCrossFile` passaram. Goal integral segue ativo; T1.1 permanece parcial. CI no novo SHA ainda não apareceu na API pública durante esta consulta.
