@@ -1,7 +1,8 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { expect, it } from "vitest";
 import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
@@ -10,6 +11,144 @@ import { openStore } from "../../src/pie/store.js";
 import { PieService } from "../../src/pie/service.js";
 import { randomUUID } from "node:crypto";
 import { scopedJob } from "../../src/pie/jobs/access.js";
+import { JobDaemon } from "../../src/pie/jobs/daemon.js";
+
+it.skipIf(process.platform !== "linux")(
+  "CLI contínua real consome descoberta e encerra por SIGTERM sem novo job",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "pie-daemon-cli-"));
+    const repo = join(root, "repo");
+    await mkdir(repo);
+    await promisify(execFile)("git", ["init", repo]);
+    await writeFile(join(repo, "index.ts"), "export const fixture = true;");
+    await promisify(execFile)("git", ["-C", repo, "add", "."]);
+    const db = join(root, "history.sqlite");
+    const queue = new SqliteJobQueue(db);
+    const job = queue.enqueue({
+      kind: "discovery",
+      idempotencyKey: "cli-continuous",
+      payload: {
+        repositoryRoot: repo,
+        profile: "OBSERVE",
+        environment: "local",
+      },
+    });
+    const child = spawn(
+      process.execPath,
+      [
+        resolve("scripts/pie.mjs"),
+        "work",
+        repo,
+        "--db",
+        db,
+        "--continuous",
+        "--poll-ms",
+        "100",
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let output = "";
+    let errors = "";
+    child.stdout.on("data", (chunk) => {
+      output += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      errors += String(chunk);
+    });
+    const exited = once(child, "exit");
+    try {
+      await expect
+        .poll(() => output.includes('"state":"listening"'), { timeout: 10000 })
+        .toBe(true);
+      await expect
+        .poll(() => queue.get(job.id).state, { timeout: 10000 })
+        .toBe("succeeded");
+      child.kill("SIGTERM");
+      expect(await exited, errors).toEqual([0, null]);
+      const records = output
+        .trim()
+        .split("\n")
+        .map(
+          (line) => JSON.parse(line) as { mode: string; processed?: number },
+        );
+      expect(records.at(-1)).toMatchObject({
+        mode: "continuous",
+        processed: 1,
+      });
+      expect(queue.get(job.id).attempts).toBe(1);
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGTERM");
+        await exited;
+      }
+      queue.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);
+
+it("daemon real consome jobs que chegam depois de ocioso e encerra espera longa sem novo claim", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-daemon-"));
+  const repo = join(root, "repo");
+  await mkdir(repo);
+  await promisify(execFile)("git", ["init", repo]);
+  await writeFile(join(repo, "index.ts"), "export const value = 1;");
+  await promisify(execFile)("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "history.sqlite"), repo);
+  const service = new PieService(store);
+  const queue = new SqliteJobQueue(join(root, "queue.sqlite"));
+  const worker = new JobWorker(queue, repo, { kind: "discovery", service });
+  const daemon = new JobDaemon(worker, 100);
+  const operation = daemon.run();
+  try {
+    await expect(daemon.run()).rejects.toThrow("iniciado");
+    const input = {
+      kind: "discovery",
+      idempotencyKey: "first",
+      payload: {
+        repositoryRoot: repo,
+        profile: "OBSERVE",
+        environment: "local",
+      },
+    };
+    const first = queue.enqueue(input);
+    await expect
+      .poll(() => queue.get(first.id).state, { timeout: 5000 })
+      .toBe("succeeded");
+    const second = queue.enqueue({ ...input, idempotencyKey: "second" });
+    await expect
+      .poll(() => queue.get(second.id).state, { timeout: 5000 })
+      .toBe("succeeded");
+    await daemon.close();
+    expect(await operation).toEqual({ processed: 2 });
+    await daemon.close();
+    await expect(daemon.run()).rejects.toThrow("encerrado");
+    const idle = new JobDaemon(
+      new JobWorker(queue, repo, { kind: "discovery", service }),
+      30_000,
+    );
+    const waiting = idle.run();
+    await idle.close();
+    expect(await waiting).toEqual({ processed: 0 });
+    const unavailable = new JobDaemon(
+      new JobWorker(queue, join(root, "missing-root"), {
+        kind: "discovery",
+        service,
+      }),
+      100,
+    );
+    await expect(unavailable.run()).rejects.toThrow();
+    await unavailable.close();
+    await expect(unavailable.run()).rejects.toThrow("encerrado");
+    expect(store.history(store.projects().items[0]!.id).total).toBe(2);
+  } finally {
+    await daemon.close();
+    await service.close();
+    queue.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}, 10_000);
 
 it("VERIFY preserva grant, separa workers e nunca repete execução interrompida", async () => {
   const root = await realpath(

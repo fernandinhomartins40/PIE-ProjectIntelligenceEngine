@@ -30,6 +30,8 @@ export async function runPie(args: string[]): Promise<void> {
       "state-dir": { type: "string" },
       "docker-bin": { type: "string" },
       "docker-host": { type: "string" },
+      continuous: { type: "boolean" },
+      "poll-ms": { type: "string" },
     },
   });
   const [command, target] = parsed.positionals;
@@ -70,6 +72,9 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Fila VERIFY Linux: enqueue-verify <autorização.json> --key <chave> | work-verify <raiz-git>, com as mesmas opções Docker/estado e --db. Sem repetição automática após interrupção; job-id também identifica execução/journal.",
+    );
+    console.log(
+      "Workers: work/work-verify aceitam --continuous --poll-ms <100–30000> para consumir sequencialmente até SIGINT/SIGTERM. Sem continuous, processam um job.",
     );
     return;
   }
@@ -236,14 +241,15 @@ export async function runPie(args: string[]): Promise<void> {
       const { runJobCommand } = await import("./jobs/cli.js");
       console.log(
         JSON.stringify(
-          await runJobCommand(
-            command,
-            target!,
-            dbPath,
-            service,
-            parsed.values.key,
+          await runJobCommand(command, target!, dbPath, service, {
+            key: parsed.values.key,
             verification,
-          ),
+            continuous: parsed.values.continuous,
+            pollMs:
+              parsed.values["poll-ms"] === undefined
+                ? undefined
+                : Number(parsed.values["poll-ms"]),
+          }),
           null,
           2,
         ),

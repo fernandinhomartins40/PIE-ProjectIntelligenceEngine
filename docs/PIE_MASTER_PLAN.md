@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Workers contínuos — 16/10/2026
+
+CI 38986773802 (1d4880fe6) passou, incluindo enfileiramento/cancelamento real pelo painel Chrome Linux. work/work-verify agora aceitam --continuous e --poll-ms 100–30000 (padrão 1000). JobDaemon consome sequencialmente, concorrência 1, espera ociosa abortável e para diante de falha operacional; não repete auditorias VERIFY interrompidas. SIGINT/SIGTERM cancelam trabalho ativo e drenam worker/coordenador antes de fechar fila/store. Worker revalida encerramento após resolver raiz, antes de novo claim. Sem continuous, comportamento de um job preservado. É processo em primeiro plano; não instala serviço do sistema.
+
+workerCli.ts passou a ser dono da composição/encerramento do worker; cli.ts mantém admissão de opções, fila e comandos. Testes locais SQLite/Git reais: consumo de jobs posteriores ao início, rejeição de segundo run, encerramento/retry idempotente, espera de 30s interrompida e raiz indisponível encerra sem retry. Rodada fila+MCP: cinco passaram, um skipped (12s); extensão de falha operacional passou em nova rodada (quatro passaram, um skipped, 4,76s). CLI contínua POSIX com SIGTERM foi adicionada à trilha existente, ignorada no Windows e aguarda CI. Build PIE passou. Lint sem erros; aviso de quantidade de parâmetros já existente em runJobCommand. Sem comprovação de desempenho comparativo/CPU/memória. Runners HTTP/Playwright, seis motores e aceite integral permanecem pendentes; goal ativo.
+
 ## Painel conectado à fila VERIFY — 16/10/2026
 
 CI 38986542581 (d8f17ba62) passou, incluindo Chrome Linux. Painel agora envia authorization JSON completo com chave idempotente para a fila real, exige snapshot selecionado, consulta job por UUID e solicita cancelamento com sessão/CSRF. GET /v1/context informa verificationQueueEnabled somente quando fila e verificador existem; formulário permanece indisponível por padrão. Nenhuma autorização é gerada automaticamente nem armazenada no navegador; grant enviado permanece no job persistido. Estado succeeded é exibido como workflow concluído, com orientação para ler o resultado real. Worker permanece separado, sem início/retry automático pelo painel.

@@ -46,6 +46,7 @@ export class JobWorker {
 
   async #run(): Promise<boolean> {
     const root = await realpath(this.authorizedRoot);
+    if (this.#closing) return false;
     const job = await this.queue.claim(
       this.owner,
       this.leaseMs,

@@ -199,3 +199,8 @@ Abaixo da investigação estática, Verificações executadas lista resultados p
 A seção Autorizar e acompanhar verificação aceita o grant VERIFY completo em JSON e uma chave idempotente escolhida pelo operador. O grant precisa apontar para o snapshot selecionado; servidor valida política, raiz, imagem, expiração e limites. A capacidade depende das opções VERIFY e da fila habilitadas ao iniciar serve; sem isso o formulário fica indisponível.
 
 O envio cria um job, consumido somente pelo worker separado work-verify. O UUID retornado permite consultar e solicitar cancelamento, inclusive após reabrir o painel. Não há polling, retry automático, armazenamento de grants no navegador nem autorização inferida de arquivos. Uma resposta de envio incerta pode ser repetida com a mesma chave e grant. Dados enviados ficam preservados na fila do serviço. Job concluído exige consultar o histórico para interpretar o resultado dos testes.
+## Workers em modo contínuo
+
+`work /projeto --db /dados-pie/pie.sqlite --continuous --poll-ms 1000` consome descoberta sequencialmente. `work-verify /projeto --continuous` exige também --db e as três opções explícitas Docker/estado já descritas. O intervalo ocioso aceita 100–30000 ms e exige continuous; sem essa opção cada comando processa um job.
+
+O processo publica uma linha JSON listening e continua em primeiro plano; SIGINT/SIGTERM encerram espera e cancelam/drenam operação ativa antes de liberar recursos. Ao concluir, publica a contagem de jobs processados, que não significa testes aprovados. Falha operacional encerra o processo, sem laço de retry silencioso. Não há instalação automática de serviço do sistema nem repetição de VERIFY interrompido; recuperação continua sendo ação explícita pelo journal.
