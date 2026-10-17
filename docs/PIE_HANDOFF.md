@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Runner HTTP: cutoff de cancelamento na publicação — 17/10/2026
+
+O `PieService.probeHttp` agora documenta o cutoff: abort antes da chamada síncrona/atômica impede publicação; após entrar no commit assíncrono, retorna o recibo persistido mesmo se o caller cancelar. Boundary usa servidor HTTP, repositório Git e SQLite reais com barreira na fronteira de publicação. `pieHttpPersistence` 3/3, `pie:build`, `check:fast` 2/2 e `format:check` (4.113 arquivos) passaram. PostgreSQL não executado; sem vínculo de identidade entre servidor e bytes do snapshot; T3.2 segue parcial.
+
 ## Motor Dados: relações Prisma e FOREIGN KEY — 17/10/2026
 
 Quarto slice T4.5: relation facts preservam field, arrays ordenadas `fields`/`references` e colunas SQL da FK. `data-review` aplica `@@map` e `@map` literais e retorna colunas alinhadas, incompatíveis ou não comparáveis; relação inversa sem arrays explícitos não recebe falso aceite por coluna. Mappings, fields não encontrados, alvo ambíguo e cobertura parcial permanecem inconclusivos. Contrato schemaVersion 4. Fixture cobre FK via `CREATE TABLE` e `ALTER TABLE`, alinhamento com coluna mapeada, mismatch, relação inversa não comparável, FK ausente e FK composta. Validação: boundaries `pieAdapters`/`pieDataReview` 11/11, `pie:build`, `check:fast` (2/2), `docs:check:built` (licenses:check: 902 lock/365 runtime), `format:check` (4.113 arquivos) e `git diff --check` passaram. PostgreSQL runtime não foi executado; T4.5 permanece parcial.

@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Cutoff de cancelamento na publicação HTTP — 17/10/2026
+
+A fronteira de publicação em `PieService.probeHttp` está explícita: abort é observado imediatamente antes de iniciar a escrita; a gravação atômica em andamento preserva o recibo mesmo após abort do caller. Boundary sincronizada com transporte HTTP, Git e SQLite reais: 3/3; `pie:build`, `check:fast` (2/2) e `format:check` (4.113 arquivos) passaram. PostgreSQL não executado e identidade do processo respondente não provada; T3.2 permanece parcial.
+
 ## Comparação estática de migrations Prisma — 17/10/2026
 
 T4.5 avança: discovery converte um subconjunto estático de PostgreSQL sob `prisma/migrations/<nome>/migration.sql` em facts com Evidence para tabelas, uniques e FKs com colunas ordenadas. `data-review` compara relações Prisma às colunas SQL, aplica `@@map`/`@map` literais e distingue alinhamento, incompatibilidade observada e colunas não comparáveis; mappings, fields e inventários incompletos permanecem inconclusivos. Contrato schemaVersion 4 compartilhado por CLI, HTTP e MCP. Fixture Git/SQLite cobre FK observada em `CREATE TABLE`/`ALTER TABLE`, ausente, composta, inversa, colunas alinhadas/mismatch e Evidence. Estado permanece `unverified`: parser não calcula estado final, renames, schemas SQL ou SQL dinâmico, nem verifica migrations/constraints/dados no PostgreSQL aplicado; T4.5 permanece parcial.

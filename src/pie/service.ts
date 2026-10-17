@@ -132,6 +132,8 @@ export class PieService {
         effective,
       );
       if (!result.ok) return result;
+      // Publication is the cancellation cutoff: before it, cancellation prevents
+      // a write; once the atomic store call begins, its receipt must be returned.
       effective.throwIfAborted();
       return {
         ok: true as const,

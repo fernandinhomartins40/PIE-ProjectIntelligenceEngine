@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Cutoff de cancelamento na publicação HTTP — 17/10/2026
+
+- `PieService.probeHttp` fixa a publicação atômica como cutoff: checa abort antes do início; depois do início, preserva e devolve o recibo committed.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieHttpPersistence.test.ts`: 3/3 passaram. O novo cenário sincroniza abort durante o commit usando servidor HTTP, Git e SQLite reais; `npm.cmd run pie:build`, `npm.cmd run check:fast` (2/2) e `npm.cmd run format:check` (4.113 arquivos) passaram.
+- Sem execução PostgreSQL; prova de persistência/cutoff é SQLite. A resposta HTTP continua sem provar que o servidor executa os bytes do snapshot; T3.2 permanece parcial.
+
 ## Relações Prisma e chaves estrangeiras estáticas — 17/10/2026
 
 - Discovery reconhece relações entre models, arrays Prisma `fields`/`references` e colunas de FKs em migrations (`CREATE TABLE` e `ALTER TABLE ADD`). `data-review` aplica `@@map`/`@map` literais, distinguindo colunas alinhadas, mismatch estático e alinhamento não comparável. Incompletude não vira ausência confirmada; Evidence inclui relation, fields, mappings e SQL. Contrato público schemaVersion 4.

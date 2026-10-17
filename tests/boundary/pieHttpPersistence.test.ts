@@ -11,6 +11,14 @@ import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
 import { startPieApi } from "../../src/pie/api.js";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 async function verifyHttpApi(details: {
   api: Awaited<ReturnType<typeof startPieApi>>;
   service: PieService;
@@ -251,6 +259,84 @@ it("rolls back evidence if publishing the probe fails inside the transaction", a
     }
   } finally {
     await service.close();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+it("retains the atomic HTTP publication receipt when cancellation arrives during commit", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "pie-http-cancel-commit-"));
+  const repository = join(temporary, "repo");
+  await mkdir(repository);
+  await promisify(execFile)("git", ["init", repository]);
+  await writeFile(join(repository, "index.ts"), "export const ready = true;");
+  await promisify(execFile)("git", ["-C", repository, "add", "."]);
+  const responseBody = "commit-cutoff";
+  const digest = createHash("sha256").update(responseBody).digest("hex");
+  const server = createServer((_request, response) =>
+    response.end(responseBody),
+  );
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("No port");
+  const store = await openStore(join(temporary, "pie.sqlite"), repository);
+  const baseService = new PieService(store);
+  const enteredCommit = deferred<void>();
+  const finishCommit = deferred<void>();
+  try {
+    const discovered = await baseService.discover({
+      repositoryRoot: repository,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = await store.snapshot(discovered.snapshot.id);
+    const grant = {
+      schemaVersion: 1,
+      profile: "VERIFY",
+      allowLocalHttpRequests: true,
+      environment: "local",
+      repositoryRoot: repository,
+      snapshotId: snapshot.id,
+      treeDigest: snapshot.treeDigest,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      evidenceTtlMs: 30_000,
+      request: {
+        address: "127.0.0.1",
+        port: address.port,
+        path: "/health",
+        method: "GET",
+        timeoutMs: 2_000,
+        maxResponseBytes: 1024,
+      },
+      expectedStatus: 200,
+      expectedBodySha256: digest,
+    };
+    const persistence = new Proxy(store, {
+      get(target, property) {
+        if (property === "saveHttpProbe")
+          return async (record: unknown) => {
+            enteredCommit.resolve();
+            await finishCommit.promise;
+            return target.saveHttpProbe(record);
+          };
+        const value: unknown = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const service = new PieService(persistence);
+    const caller = new AbortController();
+    const operation = service.probeHttp(grant, repository, caller.signal);
+    await enteredCommit.promise;
+    caller.abort(new Error("caller cancelled during commit"));
+    finishCommit.resolve();
+    const result = await operation;
+    expect(result).toMatchObject({ ok: true, value: { state: "passed" } });
+    if (!result.ok) throw new Error("Committed result was not returned");
+    expect(await store.httpProbe(result.value.id)).toEqual(result.value);
+  } finally {
+    await baseService.close();
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
     );
