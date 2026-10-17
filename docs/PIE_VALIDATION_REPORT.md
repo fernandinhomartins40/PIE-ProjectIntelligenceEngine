@@ -1,5 +1,9 @@
 ﻿# PIE — Registro de validação contínua
 
+## Comparação de execuções VERIFY — 17/10/2026
+
+Implementação de comparação foi adicionada ao serviço, CLI, API autenticada e MCP; o teste de fronteira usa Git/SQLite reais, compara as interfaces contra o mesmo resultado, valida schema MCP convertido com Ajv e cobre regressão, estabilidade, cronologia e divergência de imagem. A fixture é selada pelo produtor de Evidence e persistida no armazenamento real; não simula o serviço de produção. Passaram `npm run typecheck`, `npm run check:fast`, `npm run pie:build`, `npm run docs:check:built`, 4 testes focados em 3 arquivos e o teste pieMcp; 4 testes VERIFY dependentes de serviços/Docker foram skipped por ambiente. `git diff --check` passou. CI PIE ainda não executada para esta alteração; VERIFY Docker real segue restrito ao lane Linux.
+
 ## Execução HTTP compartilhada e retenção — 17/10/2026
 
 Evidência executada nesta etapa: `npm run check:fast`, `tsc -p tsconfig.pie.json` e `docs:check:built` passaram. Quatro testes de comparação/admissão passaram em dois arquivos; Git e SQLite reais verificaram digest e recusa de arquivos não candidatos, plano adulterado e snapshot fora do escopo. API/fila: 7 passaram e 3 foram skipped; MCP stdio/Ajv: 1 passou e 1 foi skipped. CI 39005274487 passou no SHA `27af7591e`, incluindo o job `postgres`; a CI HTTP 39004309946 também passou no commit `8d1f85c42`. `test:focused` não executou neste Windows: o verificador de dependências bloqueia o fluxo por ausência dos artefatos REA `native/windows/build/manifest.json` e `.node`; Vitest boundary/MCP foi executado diretamente. Docker VERIFY real segue restrito ao Linux comprovado. A captura HTTP continua limitada a status/digest e não associa identidade do servidor ao snapshot.

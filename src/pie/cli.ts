@@ -89,13 +89,16 @@ export async function runPie(args: string[]): Promise<void> {
   }
   if (!command || parsed.values.help || command === "help") {
     console.log(
+      "Regressão: verification-diff <run-antes-id> <run-depois-id> --limit <1–200> --offset <n>. Compara somente casos Node compatíveis e pode concluir inconclusivo.",
+    );
+    console.log(
       "PIE — Project Intelligence Engine\nComandos: doctor | discover <raiz-git> | projects | history <projeto-id> | graph <snapshot-id> | compare <antes-id> <depois-id> | evidence <evidência-id> | export <snapshot-id> | mcp <raiz-git>\nOpções: --db <arquivo> --format <json|md|html> --limit <1–200> --offset <n> --max-files <n> --max-bytes <n>\nModo atual: OBSERVE. Inventário estático não verifica funcionamento. Documentação: docs/PIE_DEVELOPMENT.md",
     );
     console.log(
       "Fila: enqueue <raiz-git> --key <chave> | job <id> | cancel-job <id> | work <raiz-git> (um job por execução). API: serve <raiz-git> --port <n>. PostgreSQL: configure PIE_DATABASE_URL e aplique pie:db:migrate antes de usar.",
     );
     console.log(
-      "Resultados persistidos: verification <run-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta não inicia testes.",
+      "Resultados persistidos: verification <run-id> | verification-diff <run-antes-id> <run-depois-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta e comparação não iniciam testes.",
     );
     console.log(
       "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova e http-probes <snapshot-id> lista o histórico. Não inicia o servidor do projeto.",
@@ -208,6 +211,7 @@ export async function runPie(args: string[]): Promise<void> {
       "trace",
       "evidence",
       "verification",
+      "verification-diff",
       "verifications",
       "export",
       "mcp",
@@ -392,6 +396,13 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "verification":
         result = await service.verification(target!);
+        break;
+      case "verification-diff":
+        result = await service.verificationComparison({
+          beforeRunId: target!,
+          afterRunId: parsed.positionals[2],
+          ...paging,
+        });
         break;
       case "http-probe":
         result = await service.httpProbe(z.string().uuid().parse(target!));

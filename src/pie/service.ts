@@ -11,6 +11,10 @@ import { assessFunctional, functionalInput } from "./functional.js";
 import { sealFunctional } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
+import {
+  compareVerificationRuns,
+  verificationComparisonInput,
+} from "./regressionResults.js";
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
@@ -163,6 +167,24 @@ export class PieService {
   }
   verifications(snapshotId: string, input: unknown = {}) {
     return this.#read(async () => this.store.verifications(snapshotId, input));
+  }
+  verificationComparison(input: unknown) {
+    return this.#read(async () => {
+      const request = verificationComparisonInput.parse(input);
+      const before = await this.store.verification(request.beforeRunId);
+      const after = await this.store.verification(request.afterRunId);
+      const [beforeSnapshot, afterSnapshot] = await Promise.all([
+        this.store.snapshot(before.snapshotId),
+        this.store.snapshot(after.snapshotId),
+      ]);
+      return compareVerificationRuns(
+        before,
+        beforeSnapshot,
+        after,
+        afterSnapshot,
+        request,
+      );
+    });
   }
 
   graph(snapshotId: string, input: unknown = {}) {

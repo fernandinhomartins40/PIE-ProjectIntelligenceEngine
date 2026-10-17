@@ -16,6 +16,10 @@ import {
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { nodeTestGrantSchema } from "./execution/contracts.js";
 import { httpGrantSchema, httpProbeSchema } from "./execution/httpProbe.js";
+import {
+  verificationComparisonInput,
+  verificationComparisonOutput,
+} from "./regressionResults.js";
 import { realpath } from "node:fs/promises";
 import type { JobQueue } from "./jobs/contracts.js";
 import { jobSchema } from "./jobs/contracts.js";
@@ -247,6 +251,17 @@ export function createPieMcp(
       },
       (input, extra) => guarded(() => verifier.run(input, extra.mcpReq.signal)),
     );
+  server.registerTool(
+    "pie_verification_compare",
+    {
+      description:
+        "Compara casos Node entre duas execuções VERIFY persistidas. Só alinha identidades únicas dentro dos arquivos autorizados; imagem, captura incompleta, limpeza, skips e casos sem contraparte limitam a conclusão. No máximo informa regressão observada ou ausência observada; nunca aprova o produto.",
+      inputSchema: verificationComparisonInput,
+      outputSchema: withError(verificationComparisonOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.verificationComparison(input)),
+  );
   server.registerTool(
     "pie_verification_get",
     {

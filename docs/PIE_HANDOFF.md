@@ -1,5 +1,9 @@
 ﻿# PIE — Continuidade
 
+## Continuidade atual — comparação VERIFY — 17/10/2026
+
+Comparação compartilhada (`verification-diff`, `pie_verification_compare`, POST `/v1/verification-comparison`) implementada e validada localmente. `check:fast`, typecheck, build PIE, docs:check:built, Git/SQLite com API/CLI/MCP e Ajv passaram; testes VERIFY dependentes de Docker foram skipped no Windows. A próxima ação autorizada é revisar diff, commit e push em `main`; depois acompanhar CI e registrar seu resultado. Não alegar CI antes da execução nem encerrar o goal; findings vinculados, métricas, comparison UI e motores integrais seguem no plano.
+
 ## Estado atual — 17/10/2026
 
 O runner HTTP está integrado à CLI, MCP e API. Execução explícita usa `PieService.probeHttp`; histórico individual e paginado preserva Evidence imutável e valida hash/vínculos. SQLite/API e MCP/CLI passaram em testes reais com servidor local. A listagem PostgreSQL passou no job `postgres` da CI 39004309946 (commit `8d1f85c42`). PostgreSQL local foi pulado por falta de `PIE_TEST_DATABASE_URL`. Nesta continuação, o reteste passou a vincular um grant VERIFY a digest determinístico e aos snapshots; o coordenador recalcula plano e seleção antes da execução. Quatro testes Git/SQLite passaram, assim como `npm run check:fast`; API/fila/MCP também passaram nos testes executáveis. A CI 39005274487 passou no commit `27af7591e`, inclusive job `postgres`. `test:focused` é bloqueado pela ausência dos binários nativos Windows REA, e VERIFY Docker não está comprovado neste host. Captura HTTP não associa a identidade do servidor ao snapshot. Motores e critérios integrais continuam pendentes; goal ativo.

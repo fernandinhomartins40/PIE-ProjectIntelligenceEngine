@@ -1,5 +1,11 @@
 ﻿# PIE — Plano mestre de implementação integral
 
+## Comparação de execuções VERIFY — 17/10/2026
+
+Nova operação compartilhada compara duas execuções VERIFY persistidas: `PieService.verificationComparison`, CLI `verification-diff`, MCP `pie_verification_compare` e POST autenticado `/v1/verification-comparison`. Valida integridade dos registros e provas, projeto/raiz e ordem temporal; alinha somente casos Node únicos pela identidade caminho/nome/profundidade e pela interseção de arquivos explicitamente autorizados. Retorna IDs de Evidence, cobertura e paginação, distinguindo regressão, recuperação, resultado diferente, ambiente diferente e inconclusivo. `no_regression_observed` exige imagem/seleção iguais, relatórios/limpeza completos e todos os casos correspondentes; nunca significa aprovação.
+
+Limites: identidade emitida pelo Node pode não distinguir homônimos, casos ambíguos ficam fora; nomes renomeados/adicionados/removidos não são inferidos; somente a interseção VERIFY é comparada. A comparação é recalculada de registros imutáveis e não gera artefato comparativo persistido. Não mede tempo, memória, cobertura de linhas/branches, screenshots, journeys ou funcionalidades. Git/SQLite e paridade serviço/CLI/API/MCP com Ajv passaram; `check:fast`, typecheck, build PIE e validação documental passaram. Quatro testes focados passaram; quatro testes dependentes de Docker/serviço foram explicitamente skipped no Windows. CI desta mudança ainda pendente. T4.6 continua parcial até findings vinculados, métricas/visuais, cobertura suficiente e validação real de motores; goal integral ativo.
+
 ## Execução e histórico HTTP compartilhados — 17/10/2026
 
 O transporte HTTP local agora percorre `PieService.probeHttp`: recebe grant VERIFY explícito, lê o snapshot persistido, confere escopo/raiz/expiração, faz somente GET/HEAD local, sela a captura e publica registro e evidência em transação atômica. A leitura histórica verifica hash, índices relacionais e vínculo ao snapshot. Histórico por snapshot é paginado, ordenado por data/ID e valida cada registro completo antes de retornar resumo, prova e expiração. SQLite e PostgreSQL têm tabelas/migração, índices e triggers imutáveis. CLI `http-probe-run`/`http-probe`/`http-probes`, MCP `pie_http_probe_run`/`pie_http_probe_get`/`pie_http_probes_list` e API POST/GET `/v1/http-probes` compartilham o mesmo fluxo; adaptadores respeitam cancelamento HTTP/MCP.
@@ -191,7 +197,7 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 | T4.3 | P0 | Motor segurança/LGPD/receita | pendente | T2/T3; dois tenants, entitlement, webhook, créditos concorrentes |
 | T4.4 | P1 | Motor infraestrutura/VPS/performance | pendente | T2/T3; baseline comparável, p95/p99, rollback |
 | T4.5 | P1 | Motor dados/integrações | pendente | T2/T3; constraints, migrations, contratos, retry/idempotência |
-| T4.6 | P1 | Motor regressão | parcial | Plano de reteste por impacto/full pode vincular digest, snapshots e arquivos ao grant VERIFY; ainda faltam findings de regressão, métricas, comparação visual e motor de cobertura pleno |
+| T4.6 | P1 | Motor regressão | parcial | Plano por impacto/full vincula digest, snapshots e arquivos ao grant; comparação persistida agora classifica casos Node idênticos e limita conclusões por Evidence, escopo autorizado, imagem, completude e limpeza. Findings ligados, métricas, comparação visual e motor de cobertura pleno permanecem pendentes |
 | T5.1 | P1 | Plano unificado e contestação com trilha histórica | pendente | T4; responsável/evidência/aceite |
 | T5.2 | P1 | Handoff Codex/Claude, branch/patch, aprovação sensível e reteste | pendente | T5.1; demonstração ponta a ponta |
 | T6.1 | P1 | Exports JSON/MD/HTML, histórico e CI incremental | parcial | Exports reais com escape, CSP e referência de evidências; CI incremental pendente |

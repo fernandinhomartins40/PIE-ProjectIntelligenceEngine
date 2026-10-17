@@ -1,5 +1,11 @@
 # Desenvolvimento PIE
 
+## Comparar resultados VERIFY
+
+`verification-diff <run-antes-id> <run-depois-id> --limit 50 --offset 0` compara registros Node persistidos. A API autenticada usa `POST /v1/verification-comparison`; o MCP usa `pie_verification_compare`. O serviço compartilha a mesma operação e retorna IDs de execução, snapshots e evidências, cobertura e casos paginados.
+
+A identidade usa caminho relativo observado pelo reporter, nome e profundidade. Só compara a interseção dos arquivos registrados nos grants VERIFY v2; casos duplicados/ambíguos, sem contraparte ou fora do escopo não são alinhados por suposição. Imagem divergente torna a conclusão inconclusiva. `regression_observed` descreve um teste antes aprovado que falhou depois, sob a mesma imagem; `no_regression_observed` significa apenas que nenhum caso comparável regrediu quando imagem, seleção, relatórios e limpeza são compatíveis/completos. Nenhum estado aprova o produto. Esta versão não calcula desempenho, coverage de código, screenshot, journeys ou motor de cobertura funcional; cada comparação é derivada novamente dos registros e não fica persistida como artefato separado.
+
 ## Execução HTTP local autorizada
 
 Uma sondagem é opt-in por um grant JSON explícito ligado a snapshot completo; o PIE não inicia o servidor do projeto. Somente GET/HEAD para `127.0.0.1` com porta, caminho, timeout, limite de bytes e status/digest esperados declarados. Exemplo: `node scripts/pie.mjs http-probe-run C:/dados/grant-http.json --db C:/dados-pie/pie.sqlite`. Consultar por ID com `node scripts/pie.mjs http-probe UUID --db C:/dados-pie/pie.sqlite` ou listar histórico paginado com `http-probes UUID_DO_SNAPSHOT --limit 50 --offset 0`. MCP anuncia `pie_http_probe_run`, `pie_http_probe_get` e `pie_http_probes_list`; API local usa `POST /v1/http-probes`, `GET /v1/http-probes/UUID` e `GET /v1/http-probes?snapshotId=UUID` com a autenticação existente. Resultado limitado a observação de status/digest; não prova identidade do processo respondente, jornada, autorização ou persistência.

@@ -287,6 +287,17 @@ export async function startPieApi(
         respond(response, 200, await service.retestPlan(await body(request)));
         return;
       }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/verification-comparison"
+      ) {
+        respond(
+          response,
+          200,
+          await service.verificationComparison(await body(request)),
+        );
+        return;
+      }
       if (request.method === "POST" && url.pathname === "/v1/functional") {
         respond(
           response,
