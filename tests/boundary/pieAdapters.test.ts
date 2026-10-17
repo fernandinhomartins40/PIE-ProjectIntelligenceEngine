@@ -18,7 +18,39 @@ import { DatabaseSync } from "node:sqlite";
 import { readCodeFacts, readCodeFactsResult } from "../../src/pie/codeFacts.js";
 import { nginxDirectives } from "../../src/pie/adapters/nginxSyntax.js";
 import { renderSnapshot } from "../../src/pie/reports.js";
-import { assessFunctional } from "../../src/pie/functional.js";
+import type { Snapshot } from "../../src/pie/contracts.js";
+import {
+  assessFunctional,
+  assessFunctionalResult,
+} from "../../src/pie/functional.js";
+
+function functionalResultFailures(snapshot: Snapshot) {
+  const policy = {
+    profile: "OBSERVE" as const,
+    environment: "local" as const,
+    repositoryRoot: snapshot.root,
+  };
+  expect(
+    assessFunctionalResult(snapshot, { snapshotId: randomUUID() }, policy),
+  ).toEqual({
+    ok: false,
+    error: { kind: "policy_denied", reason: "snapshot_mismatch" },
+  });
+  expect(
+    assessFunctionalResult(
+      snapshot,
+      { snapshotId: snapshot.id, modulePath: "../outside" },
+      policy,
+    ),
+  ).toMatchObject({ ok: false, error: { kind: "invalid_input" } });
+  expect(
+    assessFunctionalResult(
+      { ...snapshot, id: "invalid" },
+      { snapshotId: snapshot.id },
+      policy,
+    ),
+  ).toEqual({ ok: false, error: { kind: "invalid_snapshot" } });
+}
 
 it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-next-"));
@@ -134,6 +166,7 @@ it("Next App Router usa exports AST, uma árvore e prova rastreável sem executa
         },
       ),
     ).toThrow("correspondentes");
+    functionalResultFailures(snapshot);
     expect(() =>
       assessFunctional(
         snapshot,

@@ -7,7 +7,7 @@ import { page } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
 import { compareSnapshots, comparisonInput } from "./compare.js";
 import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
-import { assessFunctional, functionalInput } from "./functional.js";
+import { assessFunctionalResult, functionalInput } from "./functional.js";
 import { sealFunctional } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
@@ -15,6 +15,25 @@ import {
   compareVerificationRuns,
   verificationComparisonInput,
 } from "./regressionResults.js";
+
+function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot funcional inválido.");
+  if (result.error.kind === "policy_denied")
+    throw new PieError(
+      "POLICY_DENIED",
+      result.error.reason === "snapshot_mismatch"
+        ? "Análise funcional pertence a outro snapshot."
+        : "Análise funcional estática exige escopo OBSERVE correspondente.",
+    );
+  throw new PieError(
+    "INVALID_INPUT",
+    result.error.reason === "module_path"
+      ? "Módulo deve ser caminho relativo canônico, sem segmentos vazios ou traversal."
+      : "Entrada funcional inválida.",
+  );
+}
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
@@ -249,22 +268,26 @@ export class PieService {
     return this.#read(async () => {
       const request = functionalInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
-      return assessFunctional(snapshot, request, {
-        profile: "OBSERVE",
-        environment: "local",
-        repositoryRoot: snapshot.root,
-      });
+      return functionalValue(
+        assessFunctionalResult(snapshot, request, {
+          profile: "OBSERVE",
+          environment: "local",
+          repositoryRoot: snapshot.root,
+        }),
+      );
     });
   }
   retainFunctional(input: unknown) {
     return this.#read(async () => {
       const request = functionalInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
-      const result = assessFunctional(snapshot, request, {
-        profile: "OBSERVE",
-        environment: "local",
-        repositoryRoot: snapshot.root,
-      });
+      const result = functionalValue(
+        assessFunctionalResult(snapshot, request, {
+          profile: "OBSERVE",
+          environment: "local",
+          repositoryRoot: snapshot.root,
+        }),
+      );
       return this.store.saveFunctional(sealFunctional(request, result));
     });
   }

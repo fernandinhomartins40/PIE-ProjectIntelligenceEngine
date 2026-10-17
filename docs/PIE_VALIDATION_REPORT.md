@@ -1,5 +1,10 @@
 # PIE — Registro de validação contínua
 
+## Result tagged do motor funcional — 17/10/2026
+
+- `assessFunctionalResult` distingue rejeição de input, caminho não canônico, escopo/política e snapshot inválido. Não captura falhas inesperadas. O serviço aplica a tradução uma vez e a reutiliza em review e persistência funcional.
+- Boundary `pieAdapters`/`pieFunctionalPersistence`: 11/11 passaram, incluindo snapshots Git/SQLite reais, paginação, erro de caminho e integridade histórica. `npm.cmd run pie:build` e `npm.cmd run check:fast` passaram; gatefast executou typecheck/lint (2/2, lint sem erros). Ainda falta Result uniforme nas demais trilhas.
+
 ## Cobertura do motor funcional paginado — 17/10/2026
 
 - Corrigida a contagem de cobertura: total declarado permanece global ao módulo; examinados corresponde aos itens da página retornada. Validação de registros históricos exige as mesmas contagens derivadas do snapshot e da solicitação.

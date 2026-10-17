@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Erros esperados tagged no motor funcional — 17/10/2026
+
+`assessFunctionalResult` tipa input/schema inválido, module path inválido, escopo/política recusados e snapshot malformado; falhas inesperadas não são capturadas. `PieService` converte falhas esperadas ao erro compartilhado usado pelos adaptadores CLI/MCP/API, tanto em review quanto em retenção. Boundary funcional/persistência 11/11, `pie:build` e `check:fast` passaram. T1.1 permanece parcial; aplicar o padrão nas demais fronteiras é trabalho restante. Próximo eixo: T1.2 retenção/expiração e redação com ownership no produtor, preservando evidências históricas imutáveis.
+
 ## Continuação do motor funcional — 17/10/2026
 
 Corrigida a semântica da cobertura paginada: `declaredTargets` é o total no escopo e `examinedTargets` é o tamanho da página efetivamente avaliada. O validador histórico confere ambas as contagens contra snapshot e request. Validação: 11/11 boundaries (`pieAdapters`, `pieFunctionalPersistence`), `pie:build`, `check:fast`, `format:check` e `git diff --check`. Próximo: seguir o plano integral com execução real autorizada e vinculada a cenários/evidências; o motor permanece `unverified`, e não há suporte completo para jornadas funcionais.

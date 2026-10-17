@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Result esperado no motor funcional — 17/10/2026
+
+`assessFunctionalResult` agora retorna falhas tagged para schema inválido, caminho de módulo não canônico, policy fora do escopo e snapshot rejeitado pelo schema, sem capturar erros internos inesperados. O serviço compartilhado traduz essas falhas para `PieError` e usa o mesmo caminho tanto na leitura quanto na retenção histórica. Mantidos estados `unverified`, formato público e política OBSERVE. `pieAdapters` + `pieFunctionalPersistence`: 11/11; `pie:build` e `check:fast` passaram. Ainda não é Result uniforme em discovery, demais engines/adapters, persistência ou runners; T1.1 continua parcial.
+
 ## Paginação e cobertura do motor funcional — 17/10/2026
 
 `scope.declaredTargets` continua contando todas as páginas/endpoints declarados no módulo; `scope.examinedTargets` agora conta somente as declarações materializadas na página solicitada. O validador de registros históricos aplica a mesma semântica, impedindo que um registro declare cobertura de itens que não retornou. Isso preserva a distinção entre total conhecido e trabalho examinado sem afirmar comportamento funcional verificado. `pieAdapters` e `pieFunctionalPersistence` passaram (11/11); `pie:build`, `check:fast`, `format:check` e `git diff --check` passaram em Windows. T4.1 segue parcial: execução e verificação de jornadas, permissões, persistência e reload ainda não implementadas neste motor.

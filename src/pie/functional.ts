@@ -9,11 +9,19 @@ import {
 import { page, pageSchema } from "./graph.js";
 import { pagedOutput } from "./outputContracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import { err, ok, type Result } from "../domain/result.js";
 
 export const functionalInput = pageSchema.extend({
   snapshotId: z.string().uuid(),
   modulePath: z.string().max(1000).default(""),
 });
+export type FunctionalFailure =
+  | {
+      kind: "invalid_input";
+      reason: "schema" | "module_path";
+    }
+  | { kind: "policy_denied"; reason: "snapshot_mismatch" | "scope" }
+  | { kind: "invalid_snapshot" };
 const target = z.strictObject({
   id: z.string(),
   state: z.literal("unverified"),
@@ -48,20 +56,24 @@ export const functionalOutput = z.strictObject({
   }),
 });
 
+function canonicalModulePath(modulePath: string): boolean {
+  return (
+    !modulePath ||
+    (!modulePath.startsWith("/") &&
+      !modulePath.includes("\\") &&
+      !modulePath
+        .split("/")
+        .some((segment) => !segment || segment === "." || segment === "..") &&
+      !modulePath.includes(":"))
+  );
+}
+
 export function selectFunctionalTargets(
   snapshot: Snapshot,
   request: z.infer<typeof functionalInput>,
 ) {
   const modulePath = request.modulePath;
-  if (
-    modulePath &&
-    (modulePath.startsWith("/") ||
-      modulePath.includes("\\") ||
-      modulePath
-        .split("/")
-        .some((segment) => !segment || segment === "." || segment === "..") ||
-      modulePath.includes(":"))
-  )
+  if (!canonicalModulePath(modulePath))
     throw new PieError(
       "INVALID_INPUT",
       "Módulo deve ser caminho relativo canônico, sem segmentos vazios ou traversal.",
@@ -155,4 +167,43 @@ export function assessFunctional(
       ],
     },
   });
+}
+
+/** Expected caller and snapshot rejections use a tagged result; internal faults escape. */
+export function assessFunctionalResult(
+  snapshotInput: unknown,
+  input: unknown,
+  policyInput: unknown,
+): Result<ReturnType<typeof assessFunctional>, FunctionalFailure> {
+  const request = functionalInput.safeParse(input);
+  if (!request.success)
+    return err({
+      kind: "invalid_input",
+      reason: "schema",
+    });
+  if (!canonicalModulePath(request.data.modulePath))
+    return err({ kind: "invalid_input", reason: "module_path", issues: [] });
+  const policy = policySchema.safeParse(policyInput);
+  if (!policy.success)
+    return err({
+      kind: "invalid_input",
+      reason: "schema",
+    });
+  let snapshot: Snapshot;
+  try {
+    snapshot = validateSnapshot(snapshotInput);
+  } catch (cause) {
+    if (cause instanceof z.ZodError) return err({ kind: "invalid_snapshot" });
+    throw cause;
+  }
+  if (request.data.snapshotId !== snapshot.id)
+    return err({ kind: "policy_denied", reason: "snapshot_mismatch" });
+  if (
+    policy.data.repositoryRoot !== snapshot.root ||
+    policy.data.profile !== "OBSERVE" ||
+    policy.data.allowTargetExecution ||
+    policy.data.allowTargetMutation
+  )
+    return err({ kind: "policy_denied", reason: "scope" });
+  return ok(assessFunctional(snapshot, request.data, policy.data));
 }
