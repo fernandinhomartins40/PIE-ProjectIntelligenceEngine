@@ -369,7 +369,7 @@ describe("PIE: imports dinâmicos e CommonJS", () => {
       observation: expect.stringContaining("syntax=commonjs"),
     });
     expect(snapshot.coverage.limitations).toContain(
-      "Imports dinâmicos calculados, require calculado/sombreado, composição Express cross-file por CommonJS, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
+      "Imports dinâmicos calculados, require calculado/sombreado, reexports CommonJS, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
     );
   });
 });

@@ -711,6 +711,14 @@ it("Express distingue bindings, CommonJS, escopos, mutação e limites sem execu
     ).declarations,
   ).toMatchObject([{ name: "PUT /x", parent: "r" }]);
   expect(
+    readCodeFacts(
+      "api.ts",
+      "const express=require('express');const app=express();const router=require('./router');router=other;app.use('/api',router);",
+      20,
+      20,
+    ).express.crossFileMounts,
+  ).toEqual([]);
+  expect(
     facts(
       "import express from 'express';const r=express.Router();r.all('/x',h);",
     ).declarations,

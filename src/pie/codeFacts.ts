@@ -41,7 +41,7 @@ export function readCodeFacts(
   };
 } {
   return cachedAnalysis(
-    ["pie-code-facts-v8", path, sha256(source), maxReferences, maxDeclarations],
+    ["pie-code-facts-v9", path, sha256(source), maxReferences, maxDeclarations],
     () => {
       const tree = parse(source, {
         sourceType: "unambiguous",

@@ -7,6 +7,7 @@ export type ExpressRouterMountEvidence = {
   importLine: number;
   prefix: string;
   targetPath: string;
+  syntax?: "commonjs";
 };
 
 export const expressRouterMountObservation = (
@@ -19,13 +20,14 @@ export const expressRouterMountObservation = (
     fact.importLine,
     fact.prefix,
     fact.targetPath,
-  ])}; importação estática não comprova registro em runtime.`;
+  ])}; ${fact.syntax === "commonjs" ? "require CommonJS" : "importação estática"} não comprova registro em runtime.`;
 
 export const expressRouterExportObservation = (
   exportName: string,
   localName: string,
+  syntax?: "commonjs",
 ) =>
-  `Express AST router export ${JSON.stringify([exportName, localName])}; tipo de retorno não inspecionado em runtime.`;
+  `Express AST router export ${JSON.stringify([exportName, localName])}; ${syntax === "commonjs" ? "module.exports estático não comprova retorno" : "tipo de retorno não inspecionado"} em runtime.`;
 
 export const expressRouterReExportObservation = (
   exportName: string,
@@ -40,6 +42,7 @@ export const expressRouterMountEdgeId = (
   fact: ExpressRouterMountEvidence,
   mountLine: number,
   exportLine: number,
+  syntax?: "commonjs",
 ) =>
   sha256(
     JSON.stringify([
@@ -54,5 +57,6 @@ export const expressRouterMountEdgeId = (
       fact.targetPath,
       mountLine,
       exportLine,
+      ...(syntax === "commonjs" ? [syntax] : []),
     ]),
   );

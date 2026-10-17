@@ -314,7 +314,7 @@ export async function discoverProject(
   const limitations = [
     "Somente arquivos rastreados pelo Git; arquivos novos não rastreados não foram examinados.",
     "Inventário Git e imports ESM estáticos/dinâmicos literais TS/JS; relação de pacote significa somente declaração no manifest observado, sem comprovar instalação, subpath resolvido ou carregamento.",
-    "Imports dinâmicos calculados, require calculado/sombreado, composição Express cross-file por CommonJS, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
+    "Imports dinâmicos calculados, require calculado/sombreado, reexports CommonJS, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
     "Conteúdo de arquivos não é retido. Não há execução do projeto auditado.",
     "A leitura não é atômica em relação a alterações concorrentes do sistema de arquivos.",
   ];
@@ -626,6 +626,9 @@ export async function discoverProject(
         !targetPath ||
         !targetModule ||
         !resolvedExport ||
+        (mount.syntax === "commonjs") !==
+          (resolvedExport.first.kind === "local" &&
+            resolvedExport.first.export.syntax === "commonjs") ||
         !sourceNode ||
         !sourceEvidence
       ) {
@@ -648,7 +651,7 @@ export async function discoverProject(
           module.path,
           mount.line,
           mount.specifier,
-          "static",
+          mount.syntax === "commonjs" ? "commonjs" : "static",
           "relative-file",
           targetPath.path,
         ]),
@@ -664,6 +667,7 @@ export async function discoverProject(
         importLine: mount.line,
         prefix: mount.prefix,
         targetPath: targetPath.path,
+        ...(mount.syntax === "commonjs" ? { syntax: "commonjs" as const } : {}),
       };
       const mountProof = makeDerivedEvidence(
         sourceEvidence,
@@ -676,6 +680,7 @@ export async function discoverProject(
           ? expressRouterExportObservation(
               exported.exportName,
               exported.localName,
+              exported.syntax,
             )
           : expressRouterReExportObservation(
               resolvedExport.first.export.exportName,
@@ -702,6 +707,7 @@ export async function discoverProject(
           mountFact,
           mount.mountLine,
           exportLine,
+          mount.syntax,
         ),
         from: sourceNode.id,
         to: targetNode.id,

@@ -193,7 +193,7 @@ function validateExpressMountEdges(snapshot: Snapshot) {
         item?.observation.startsWith("Express AST router re-export "),
     );
     const mountMatch = mountProof
-      ? /^Express AST cross-file router mount (.+); importação estática não comprova registro em runtime\.$/.exec(
+      ? /^Express AST cross-file router mount (.+); (?:importação estática|require CommonJS) não comprova registro em runtime\.$/.exec(
           mountProof.observation,
         )
       : null;
@@ -203,7 +203,7 @@ function validateExpressMountEdges(snapshot: Snapshot) {
         )
       : null;
     const exportMatch = exportProof
-      ? /^Express AST router export (.+); tipo de retorno não inspecionado em runtime\.$/.exec(
+      ? /^Express AST router export (.+); (?:tipo de retorno não inspecionado|module\.exports estático não comprova retorno) em runtime\.$/.exec(
           exportProof.observation,
         )
       : null;
@@ -237,6 +237,20 @@ function validateExpressMountEdges(snapshot: Snapshot) {
     )
       ? exportTuple
       : [];
+    const mountSyntax = mountProof?.observation.endsWith(
+      "; require CommonJS não comprova registro em runtime.",
+    )
+      ? "commonjs"
+      : undefined;
+    const importSyntax =
+      /; syntax=(static|dynamic|commonjs); não comprova carregamento em runtime\.$/.exec(
+        importProof?.observation ?? "",
+      )?.[1] ?? "static";
+    const exportSyntax = exportProof?.observation.includes(
+      "; module.exports estático não comprova retorno em runtime.",
+    )
+      ? "commonjs"
+      : undefined;
     const sourceFile = sourceNode
       ? fileEvidence.get(sourceNode.path)
       : undefined;
@@ -269,6 +283,8 @@ function validateExpressMountEdges(snapshot: Snapshot) {
       targetPath !== targetNode.path ||
       importSpecifier !== specifier ||
       importKind !== "relative-file" ||
+      importSyntax !== (mountSyntax ?? "static") ||
+      (exportSyntax ?? "static") !== importSyntax ||
       importTarget !== targetPath ||
       !Array.isArray(exportTuple) ||
       (exportMatch && exportTuple.length !== 2) ||
@@ -300,10 +316,15 @@ function validateExpressMountEdges(snapshot: Snapshot) {
           importLine,
           prefix,
           targetPath,
+          ...(mountSyntax === "commonjs" ? { syntax: "commonjs" } : {}),
         }) ||
       (exportMatch &&
         exportProof.observation !==
-          expressRouterExportObservation(exportName, exportLocalName)) ||
+          expressRouterExportObservation(
+            exportName,
+            exportLocalName,
+            exportSyntax,
+          )) ||
       (reExportMatch &&
         (typeof reExportSpecifier !== "string" ||
           !reExportSpecifier.startsWith(".") ||
@@ -355,6 +376,7 @@ function validateExpressMountEdges(snapshot: Snapshot) {
           },
           mountProof.source.line,
           exportProof.source.line,
+          mountSyntax,
         )
     )
       throw new PieError(

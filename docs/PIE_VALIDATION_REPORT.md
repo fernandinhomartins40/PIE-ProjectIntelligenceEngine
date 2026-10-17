@@ -538,3 +538,12 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts tests/boundary/pieAdapters.test.ts tests/boundary/pieExpressCrossFile.test.ts`: passou, 31/31.
 - Evidência em Git/SQLite comprova `require("./lazy.js")` → `lazy.ts`; chamada dentro de função com parâmetro `require` foi excluída. Não cobre require calculado nem composição Express cross-file CommonJS.
 - `npm run licenses:refresh-notices`: 12 avisos de runtime adicionados, zero gaps, fingerprint `0218c076d58ea6b6887d57a02b0b2533bb997f0c7472d398c156fd4062e03bbf`.
+
+# Validação incremental — Express CommonJS cross-file — 17/10/2026
+
+- `npm run pie:build` com Node 24.18.0/npm 11.16.0: passou.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieExpressCrossFile.test.ts tests/boundary/pieAdapters.test.ts tests/boundary/pieFoundation.test.ts`: 32/32 passou.
+- Fixture Git real: `main.cjs` importa router com `require` literal e prefixa `/api`; `routes/api.cjs` define endpoint, exporta por `module.exports`. Snapshot produz `GET /api/health`, Evidence distinta para require/mount/export e trace até endpoint; `validateSnapshot` passou.
+- Limite: sem reexports CommonJS, bindings dinâmicos/sombreados, chamadas aninhadas ou app Express real executado.
+
+Reteste negativo da composição: import ESM apontando a `module.exports` CommonJS não gera relação de mount nem endpoint prefixado; a limitação continua explícita e o snapshot valida. Boundary final: 33/33 testes em `pieExpressCrossFile`, `pieAdapters`, `pieFoundation`.

@@ -27,6 +27,106 @@ it("imports relativos comuns não anunciam cobertura Express", () => {
   expect(parsed.declarations.limitations).toEqual([]);
 });
 
+it("compõe mounts Express CommonJS literais e module.exports com Evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-express-commonjs-"));
+  try {
+    await exec("git", ["init", root]);
+    await mkdir(join(root, "routes"), { recursive: true });
+    await writeFile(
+      join(root, "main.cjs"),
+      'const express = require("express");\nconst app = express();\nconst api = require("./routes/api.cjs");\napp.use("/api", api);\n',
+    );
+    await writeFile(
+      join(root, "routes", "api.cjs"),
+      'const express = require("express");\nconst router = express.Router();\nrouter.get("/health", handler);\nmodule.exports = router;\n',
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const snapshot = await discoverFixture(root);
+    const sourceId = snapshot.nodes.find(
+      (node) => node.path === "main.cjs",
+    )!.id;
+    const targetId = snapshot.nodes.find(
+      (node) => node.path === "routes/api.cjs",
+    )!.id;
+    expect(snapshot.declarations).toContainEqual(
+      expect.objectContaining({
+        name: "GET /api/health",
+        source: expect.objectContaining({ path: "routes/api.cjs" }),
+        derivations: expect.arrayContaining([
+          expect.objectContaining({ sourcePath: "main.cjs", prefix: "/api" }),
+        ]),
+      }),
+    );
+    const mount = snapshot.edges.find(
+      (edge) => edge.kind === "calls" && edge.from === sourceId,
+    )!;
+    expect(mount.to).toBe(targetId);
+    const proofs = mount.evidenceIds.map((id) =>
+      snapshot.evidence.find((item) => item.id === id)!,
+    );
+    expect(proofs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: expect.objectContaining({ path: "main.cjs", line: 3 }),
+          observation: expect.stringContaining("syntax=commonjs"),
+        }),
+        expect.objectContaining({
+          source: expect.objectContaining({ path: "main.cjs", line: 4 }),
+          observation: expect.stringContaining("require CommonJS"),
+        }),
+        expect.objectContaining({
+          source: expect.objectContaining({ path: "routes/api.cjs", line: 4 }),
+          observation: expect.stringContaining("module.exports estático"),
+        }),
+      ]),
+    );
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    const trace = traceSnapshot(snapshot, {
+      snapshotId: snapshot.id,
+      nodeId: sourceId,
+      direction: "both",
+    });
+    expect(
+      trace.nodes.items.some(
+        (node) =>
+          node.path === "routes/api.cjs" && node.label === "GET /api/health",
+      ),
+    ).toBe(true);
+  } finally {
+    clearAnalysisCache();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("não compõe Express entre import ESM e export CommonJS", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-express-mixed-modules-"));
+  try {
+    await exec("git", ["init", root]);
+    await mkdir(join(root, "routes"), { recursive: true });
+    await writeFile(
+      join(root, "main.ts"),
+      "import express from 'express';\nimport api from './routes/api.cjs';\nconst app = express();\napp.use('/api', api);\n",
+    );
+    await writeFile(
+      join(root, "routes", "api.cjs"),
+      'const express = require("express");\nconst router = express.Router();\nrouter.get("/health", handler);\nmodule.exports = router;\n',
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const snapshot = await discoverFixture(root);
+    expect(snapshot.edges.filter((edge) => edge.kind === "calls")).toEqual([]);
+    expect(
+      snapshot.declarations.some((fact) => fact.name === "GET /api/health"),
+    ).toBe(false);
+    expect(snapshot.coverage.limitations.join(" ")).toContain(
+      "mounts Express importados não foram resolvidos",
+    );
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+  } finally {
+    clearAnalysisCache();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 async function createCrossFileFixture() {
   const root = await mkdtemp(join(tmpdir(), "pie-express-cross-file-"));
   const stateRoot = await mkdtemp(
