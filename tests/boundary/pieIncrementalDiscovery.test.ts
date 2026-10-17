@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  cachedAnalysis,
   clearAnalysisCache,
   analysisCacheStats,
 } from "../../src/pie/analysisCache.js";
@@ -98,5 +99,29 @@ describe("PIE incremental discovery", () => {
     expect(readCodeFacts("index.ts", source, 1, 10).references).toHaveLength(1);
     expect(readCodeFacts("index.ts", source, 2, 10).references).toHaveLength(2);
     expect(analysisCacheStats()).toMatchObject({ misses: 2, hits: 0 });
+  });
+
+  it("respeita o limite LRU de entradas e ignora resultados superdimensionados", () => {
+    clearAnalysisCache();
+    const { maxEntries, maxEntryBytes } = analysisCacheStats();
+    for (let index = 0; index <= maxEntries; index++)
+      cachedAnalysis(["lru-boundary-test", index], () => index);
+
+    expect(analysisCacheStats()).toMatchObject({
+      entries: maxEntries,
+      evictions: 1,
+    });
+    expect(cachedAnalysis(["lru-boundary-test", 0], () => "reparsed")).toBe(
+      "reparsed",
+    );
+    expect(
+      cachedAnalysis(["oversized-boundary-test"], () =>
+        "x".repeat(maxEntryBytes + 1),
+      ),
+    ).toHaveLength(maxEntryBytes + 1);
+    expect(analysisCacheStats()).toMatchObject({
+      entries: maxEntries,
+      evictions: 2,
+    });
   });
 });
