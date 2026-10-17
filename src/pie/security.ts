@@ -5,6 +5,7 @@ import { inventoryPath } from "./inventoryPath.js";
 import { readInventoryFile } from "./readFile.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import { adapterFactSchema } from "./adapters/contracts.js";
 import { z } from "zod";
 
 export const securityInput = pageSchema.extend({
@@ -34,6 +35,12 @@ const findingSchema = z.strictObject({
   observation: z.string(),
   uncertainty: z.array(z.string()),
 });
+const authorizationSurfaceSchema = z.strictObject({
+  declaration: adapterFactSchema,
+  state: z.literal("unverified"),
+  evidenceIds: z.array(z.string().uuid()).min(1),
+  requiredChecks: z.array(z.string()),
+});
 
 export const securityOutput = z.strictObject({
   schemaVersion: z.literal(1),
@@ -46,9 +53,17 @@ export const securityOutput = z.strictObject({
     offset: z.number().int().nonnegative(),
     nextOffset: z.number().int().nonnegative().nullable(),
   }),
+  authorizationSurfaces: z.strictObject({
+    items: z.array(authorizationSurfaceSchema),
+    total: z.number().int().nonnegative(),
+    offset: z.number().int().nonnegative(),
+    nextOffset: z.number().int().nonnegative().nullable(),
+  }),
   coverage: z.strictObject({
     discovery: z.enum(["complete", "partial"]),
     credentialPatterns: z.literal("partial"),
+    authorization: z.literal("unverified"),
+    authorizationTargets: z.number().int().nonnegative(),
     filesExamined: z.number().int().nonnegative(),
     filesSkipped: z.number().int().nonnegative(),
     bytesExamined: z.number().int().nonnegative(),
@@ -251,6 +266,25 @@ export async function reviewSecurity(
     offset: input.offset,
     limit: input.limit,
   });
+  const authorizationTargets = snapshot.declarations.filter(
+    (declaration) => declaration.kind === "endpoint",
+  );
+  const authorizationSurfaces = page(
+    authorizationTargets.map((declaration) => ({
+      declaration,
+      state: "unverified" as const,
+      evidenceIds: [
+        declaration.evidenceId,
+        ...declaration.derivations.map((item) => item.evidenceId),
+      ],
+      requiredChecks: [
+        "Verificar resposta sem identidade e com sessão expirada.",
+        "Verificar acesso horizontal com identificador de outro usuário ou tenant quando esse modelo existir.",
+        "Verificar privilégios menores e acesso direto por API, jobs e exports quando aplicável.",
+      ],
+    })),
+    { offset: input.offset, limit: input.limit },
+  );
   return securityOutput.parse({
     schemaVersion: 1,
     engine: "security",
@@ -264,9 +298,12 @@ export async function reviewSecurity(
           ? "suspected_findings"
           : "no_patterns_observed",
     findings: selected,
+    authorizationSurfaces,
     coverage: {
       discovery: snapshot.coverage.status,
       credentialPatterns: "partial",
+      authorization: "unverified",
+      authorizationTargets: authorizationTargets.length,
       filesExamined,
       filesSkipped,
       bytesExamined,
@@ -276,6 +313,7 @@ export async function reviewSecurity(
         ...limitations,
         "Cobertura limitada a formatos de credencial de alta identificabilidade; ausência de padrões não comprova ausência de segredos.",
         "Nenhum valor detectado é incluído na resposta; Findings são suspeitas estáticas, não validação de credenciais nem pentest.",
+        "Rotas declaradas são inventário de escopo; não determinam se existe ou falta autorização e permanecem unverified sem testes negativos de runtime.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },

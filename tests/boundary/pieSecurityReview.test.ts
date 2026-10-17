@@ -30,6 +30,10 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     `export const token = "${canary}";\nexport const key = "AKIA1234567890ABCDEF";\n`,
   );
   await writeFile(join(repo, "ordinary.ts"), "export const ready = true;\n");
+  await writeFile(
+    join(repo, "routes.js"),
+    "import express from 'express';\nconst app = express();\napp.get('/accounts/:id', handler);\n",
+  );
   await exec("git", ["-C", repo, "add", "."]);
 
   const store = await openStore(db, repo);
@@ -65,8 +69,24 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
         ],
         nextOffset: 1,
       },
+      authorizationSurfaces: {
+        total: 1,
+        items: [
+          {
+            state: "unverified",
+            declaration: expect.objectContaining({
+              adapter: "express-ast",
+              kind: "endpoint",
+              name: "GET /accounts/:id",
+            }),
+            evidenceIds: [expect.any(String)],
+          },
+        ],
+      },
       coverage: {
-        filesExamined: 2,
+        authorization: "unverified",
+        authorizationTargets: 1,
+        filesExamined: 3,
         filesSkipped: 0,
         runtime: false,
       },

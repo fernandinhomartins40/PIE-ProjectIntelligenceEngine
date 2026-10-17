@@ -18,7 +18,9 @@ Data: 17/10/2026. Escopo: implementação da API/painel local do PIE, conforme c
 - `tests/boundary/pieProductWeb.test.ts` percorreu sessão real do painel local e leitura autenticada de Evidence; é evidência da jornada do painel PIE, não de um projeto-alvo.
 - Inventário de licenças roda em `docs:check`; não equivale a scanner de vulnerabilidades.
 - O incremento `security-review` procura formatos AWS access key, GitHub token, Slack token, Stripe live secret, Google API key e marcador de chave privada. Relê somente arquivos com Evidence estática e confirma que o hash dos bytes atuais corresponde ao hash selado do snapshot; mudanças desde a descoberta são omitidas e reduzem cobertura. Os valores nunca entram no relatório, que registra tipo, linha, Evidence, suspeita e incerteza.
+- Endpoints presentes nas declarações do snapshot são listados separadamente como superfícies de autorização `unverified`, com Evidence e verificações negativas sugeridas. Isso não infere ausência/presença de middleware e não declara a rota segura ou vulnerável.
 - `npm run test:focused -- tests/boundary/pieSecurityReview.test.ts`: 2 boundaries passaram após `pie:build`, verificando repositório Git real, valores canário ausentes, paginação, arquivo alterado, teto de 10.000 findings e paridade do mesmo serviço por CLI, API autenticada e MCP com schema validado.
+- A lane `PIE integration` do GitHub Actions run `39065504175` passou para o SHA `66e2c3b14`, incluindo a implementação e as duas boundaries então vigentes. O inventário separado de endpoints `unverified` foi acrescentado depois desse SHA; depende da CI do próximo commit.
 
 ## Lacunas e limitações
 
