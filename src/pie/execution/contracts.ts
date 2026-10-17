@@ -13,6 +13,13 @@ export const nodeTestGrantSchema = z.strictObject({
   image: z.string().regex(/^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$/),
   expiresAt: z.iso.datetime(),
   testFiles: z.array(z.string().min(1)).min(1).max(1000),
+  retestPlan: z
+    .strictObject({
+      beforeSnapshotId: z.string().uuid(),
+      mode: z.enum(["affected", "full"]),
+      planDigest: digestSchema,
+    })
+    .optional(),
   limits: z.strictObject({
     timeoutMs: z.number().int().min(100).max(300_000),
     memoryMiB: z.number().int().min(64).max(4096),

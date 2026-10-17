@@ -10,7 +10,10 @@ import canonicalize from "canonicalize";
 import { z } from "zod";
 import type { PrivateRuntimeRoot } from "../../process/PrivateRuntimeRoot.js";
 import { AnalysisError } from "../../domain/analysisErrorBase.js";
-import { AnalysisOutputError } from "../../domain/analysisErrorCore.js";
+import {
+  AnalysisInputError,
+  AnalysisOutputError,
+} from "../../domain/analysisErrorCore.js";
 import { sha256 } from "../evidence.js";
 import { runEvidence, verifyRunEvidence } from "./runEvidence.js";
 import { admitNodeTests, type AdmittedNodeTests } from "./admission.js";
@@ -21,12 +24,18 @@ import { buildDockerPlan } from "./dockerPlan.js";
 import { NODE_REPORTER_SOURCE } from "./nodeReporter.js";
 import { normalizeNodeResult } from "./nodeResults.js";
 import type { VerificationJournal } from "./resourceJournal.js";
+import type { Snapshot } from "../contracts.js";
+import type { NodeTestGrant } from "./contracts.js";
 
 export interface VerificationOptions {
   executable: string;
   endpoint: string;
   temporaryParent: string;
   journal?: VerificationJournal;
+  validateRetestPlan?: (
+    grant: NodeTestGrant,
+    snapshot: Snapshot,
+  ) => Promise<void>;
 }
 
 /** Composes admission, acquisition and execution; owns every resource until cleanup is proven. */
@@ -126,6 +135,14 @@ export class NodeVerification {
     const admission = await admitNodeTests(input, snapshot);
     if (!admission.ok) throw admission.error;
     const { grant, snapshot: observed } = admission.value;
+    if (grant.retestPlan) {
+      if (!this.options.validateRetestPlan)
+        throw new AnalysisInputError("pie.verify", {
+          userMessage:
+            "Plano de reteste precisa ser validado pelo coordenador persistente.",
+        });
+      await this.options.validateRetestPlan(grant, observed);
+    }
     const createdAt = new Date().toISOString();
     const deadline = AbortSignal.timeout(grant.limits.timeoutMs);
     const effective = AbortSignal.any([signal, deadline]);

@@ -4,6 +4,8 @@ import { snapshotFiles } from "./snapshotFiles.js";
 import { impactedNodes, page, pageSchema } from "./graph.js";
 import { pagedOutput } from "./outputContracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import canonicalize from "canonicalize";
+import { sha256 } from "./evidence.js";
 
 export const retestInput = pageSchema.extend({
   beforeId: z.string().uuid(),
@@ -21,10 +23,11 @@ const candidateSchema = z.strictObject({
   runnerCompatibility: z.literal("not_probed"),
 });
 export const retestOutput = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   beforeId: z.string().uuid(),
   afterId: z.string().uuid(),
   mode: z.enum(["affected", "full"]),
+  planDigest: z.string().regex(/^[a-f0-9]{64}$/),
   state: z.literal("unverified"),
   executionAuthorized: z.literal(false),
   runtimeVerified: z.literal(false),
@@ -40,21 +43,15 @@ export const retestOutput = z.strictObject({
   }),
 });
 
-/** Selects current test files from recorded import impact; selection never grants execution. */
-export function planRetests(
+/** Stable identity for the complete selection, independent of response pagination. */
+export function selectRetestCandidates(
   beforeInput: Snapshot,
   afterInput: Snapshot,
-  raw: unknown,
+  mode: "affected" | "full",
 ) {
-  const input = retestInput.parse(raw);
   const before = validateSnapshot(beforeInput);
   const after = validateSnapshot(afterInput);
-  if (
-    input.beforeId !== before.id ||
-    input.afterId !== after.id ||
-    before.projectId !== after.projectId ||
-    before.root !== after.root
-  )
+  if (before.projectId !== after.projectId || before.root !== after.root)
     throw new PieError(
       "INVALID_INPUT",
       "Reteste exige snapshots correspondentes do mesmo projeto e raiz.",
@@ -86,27 +83,56 @@ export function planRetests(
   }
   const tests = after.nodes.filter((node) => node.kind === "test");
   const selected = tests
-    .filter((node) => input.mode === "full" || reached.has(node.path))
-    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-  const candidates = selected.map((node) => ({
-    path: node.path,
-    nodeId: node.id,
-    evidenceIds: node.evidenceIds,
-    reason:
-      input.mode === "full"
-        ? "full_observed_test_inventory"
-        : "recorded_dependency_impact",
-    runnerCompatibility: "not_probed",
-  }));
+    .filter((node) => mode === "full" || reached.has(node.path))
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+    .map((node) => ({
+      path: node.path,
+      nodeId: node.id,
+      evidenceIds: node.evidenceIds,
+      reason:
+        mode === "full"
+          ? ("full_observed_test_inventory" as const)
+          : ("recorded_dependency_impact" as const),
+      runnerCompatibility: "not_probed" as const,
+    }));
+  const planDigest = sha256(
+    canonicalize({
+      schemaVersion: 2,
+      beforeId: before.id,
+      beforeTreeDigest: before.treeDigest,
+      afterId: after.id,
+      afterTreeDigest: after.treeDigest,
+      mode,
+      candidates: selected,
+    })!,
+  );
+  return { before, after, tests, selected, reached, current, planDigest };
+}
+
+/** Selects current test files from recorded import impact; selection never grants execution. */
+export function planRetests(
+  beforeInput: Snapshot,
+  afterInput: Snapshot,
+  raw: unknown,
+) {
+  const input = retestInput.parse(raw);
+  const plan = selectRetestCandidates(beforeInput, afterInput, input.mode);
+  const { before, after, tests, selected, reached, current } = plan;
+  if (input.beforeId !== before.id || input.afterId !== after.id)
+    throw new PieError(
+      "INVALID_INPUT",
+      "Reteste exige snapshots correspondentes do mesmo projeto e raiz.",
+    );
   return retestOutput.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     beforeId: before.id,
     afterId: after.id,
     mode: input.mode,
+    planDigest: plan.planDigest,
     state: "unverified",
     executionAuthorized: false,
     runtimeVerified: false,
-    candidates: page(candidates, { offset: input.offset, limit: input.limit }),
+    candidates: page(selected, { offset: input.offset, limit: input.limit }),
     coverage: {
       before: before.coverage.status,
       after: after.coverage.status,

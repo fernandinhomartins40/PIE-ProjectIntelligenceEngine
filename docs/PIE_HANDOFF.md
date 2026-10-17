@@ -2,7 +2,7 @@
 
 ## Estado atual — 17/10/2026
 
-O runner HTTP está integrado à CLI, MCP e API. Execução explícita usa `PieService.probeHttp`; histórico individual e paginado preserva Evidence imutável e valida hash/vínculos. SQLite/API e MCP/CLI passaram em testes reais com servidor local. `npm run check:fast`, typecheck PIE, Prisma validate/generate, build, limites de módulos e descoberta passaram. A CI 39003507601 validou a persistência anterior; o novo histórico PostgreSQL será comprovado na CI após o push. PostgreSQL local foi pulado por falta de `PIE_TEST_DATABASE_URL`. A captura não associa a identidade do servidor ao snapshot. Outros runners e motores permanecem pendentes; goal ativo.
+O runner HTTP está integrado à CLI, MCP e API. Execução explícita usa `PieService.probeHttp`; histórico individual e paginado preserva Evidence imutável e valida hash/vínculos. SQLite/API e MCP/CLI passaram em testes reais com servidor local. A listagem PostgreSQL passou no job `postgres` da CI 39004309946 (commit `8d1f85c42`). PostgreSQL local foi pulado por falta de `PIE_TEST_DATABASE_URL`. Nesta continuação, o reteste passou a vincular um grant VERIFY a digest determinístico e aos snapshots; o coordenador recalcula plano e seleção antes da execução. Quatro testes Git/SQLite passaram, assim como `npm run check:fast`; API/fila/MCP também passaram nos testes executáveis. `test:focused` é bloqueado pela ausência dos binários nativos Windows REA, e VERIFY Docker não está comprovado neste host. Captura HTTP não associa a identidade do servidor ao snapshot. Motores e critérios integrais continuam pendentes; goal ativo.
 
 ## Base real do runner HTTP local — 17/10/2026
 

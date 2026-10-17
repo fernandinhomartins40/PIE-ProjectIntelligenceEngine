@@ -8,6 +8,34 @@ import { privateState } from "./stateDirectory.js";
 import { validateDockerClientSelection } from "./dockerCommand.js";
 import { VerificationJournal } from "./resourceJournal.js";
 import { admitNodeTests } from "./admission.js";
+import { selectRetestCandidates } from "../retestPlan.js";
+import type { NodeTestGrant } from "./contracts.js";
+import type { Snapshot } from "../contracts.js";
+
+/** Binds explicit test choices to a freshly recomputed, immutable snapshot plan. */
+export function validateRetestAuthorization(
+  grant: NodeTestGrant,
+  before: Snapshot,
+  after: Snapshot,
+): void {
+  const authorized = grant.retestPlan;
+  if (!authorized) return;
+  if (
+    authorized.beforeSnapshotId !== before.id ||
+    after.id !== grant.snapshotId
+  )
+    throw new PieError("POLICY_DENIED", "Plano de reteste fora do escopo.");
+  const plan = selectRetestCandidates(before, after, authorized.mode);
+  const candidates = new Set(plan.selected.map((item) => item.path));
+  if (
+    plan.planDigest !== authorized.planDigest ||
+    grant.testFiles.some((path) => !candidates.has(path))
+  )
+    throw new PieError(
+      "POLICY_DENIED",
+      "Plano mudou ou teste autorizado não pertence à seleção recalculada.",
+    );
+}
 
 export interface CoordinatorOptions {
   root: string;
@@ -121,7 +149,16 @@ export class VerificationCoordinator {
       );
     const admitted = await admitNodeTests(grant, snapshot);
     if (!admitted.ok) throw admitted.error;
+    await this.#validateRetestPlan(grant, snapshot);
     return { grant, snapshot };
+  }
+  async #validateRetestPlan(
+    grant: NodeTestGrant,
+    after: Snapshot,
+  ): Promise<void> {
+    if (!grant.retestPlan) return;
+    const before = await this.store.snapshot(grant.retestPlan.beforeSnapshotId);
+    validateRetestAuthorization(grant, before, after);
   }
   async #run(input: unknown, signal: AbortSignal, runId?: string) {
     signal.throwIfAborted();
@@ -132,6 +169,8 @@ export class VerificationCoordinator {
       endpoint: this.options.endpoint,
       temporaryParent: this.options.stateDirectory,
       journal: this.journal,
+      validateRetestPlan: (grant, snapshot) =>
+        this.#validateRetestPlan(grant, snapshot),
     });
     this.#owners.add(owner);
     try {
