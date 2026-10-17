@@ -471,3 +471,7 @@ Reteste final acrescentou negativa ESM→CommonJS: nenhuma chamada/rota composta
 # Continuação — Grant VERIFY v2 e identidade de caminho Windows (17/10/2026)
 
 Foi adicionado grant discriminado v2 com bindings explícitos teste→declaração: arquivo precisa estar no grant e declaração no snapshot; duplicatas são recusadas. V1 permanece aceito. O registro/evidence digest preserva o grant completo, mas binding continua declarado e não equivale a cobertura comprovada. O teste Windows encontrou contorno do isolamento quando a mesma raiz era apresentada como nome Unicode longo e caminho 8.3; a fronteira de cópia agora usa `realpathSync.native`, e a regressão verifica que preparar workspace dentro do alvo é recusado. `check:fast`, `pie:build`, `toolSchemaValidity` (15/15), boundaries (8 passou, 3 skips por plataforma/Docker), formato e gate docs passaram. Próximo: expor bindings declarados com semântica explícita na comparação e avançar para cobertura funcional real; T4.1 não está completo.
+
+# Painel de Produto/UX — 17/10/2026
+
+O painel consome o relatório `product` de forma real, com seleção de módulo e paginação; não contém mock nem inventa jornada, fricção ou recomendação. O usuário vê as declarações examinadas, a falta de Evidence de jornada e as limitações. `check:fast`, `build:cached`, typecheck direto de `apps/web`, format check e boundaries CLI/API/MCP passaram. Próximo: captura VERIFY explicitamente autorizada de jornada no navegador, ligação dos passos observados às declarações e avaliação dos cinco movimentos; não marcar T4.2 completo antes disso.

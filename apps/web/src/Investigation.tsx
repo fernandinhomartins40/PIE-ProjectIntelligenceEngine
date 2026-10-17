@@ -2,6 +2,7 @@ import { TraceResult } from "./TraceResult.js";
 import { Verifications } from "./Verifications.js";
 import { VerificationQueue } from "./VerificationQueue.js";
 import { FunctionalReview } from "./FunctionalReview.js";
+import { ProductReview } from "./ProductReview.js";
 import { DeclarationChanges } from "./DeclarationChanges.js";
 import { RetestPlan } from "./RetestPlan.js";
 import { useEffect, useRef, useState } from "react";
@@ -531,6 +532,7 @@ export function Investigation({
         key={`functional-${snapshotId}`}
         snapshotId={snapshotId}
       />
+      <ProductReview key={`product-${snapshotId}`} snapshotId={snapshotId} />
       <VerificationQueue key={`queue-${snapshotId}`} snapshotId={snapshotId} />
     </>
   );

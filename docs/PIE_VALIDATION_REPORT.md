@@ -649,3 +649,7 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - Limite: sem reexports CommonJS, bindings dinâmicos/sombreados, chamadas aninhadas ou app Express real executado.
 
 Reteste negativo da composição: import ESM apontando a `module.exports` CommonJS não gera relação de mount nem endpoint prefixado; a limitação continua explícita e o snapshot valida. Boundary final: 33/33 testes em `pieExpressCrossFile`, `pieAdapters`, `pieFoundation`.
+
+# Integração do produto/UX no painel — 17/10/2026
+
+`ProductReview` consome a rota autenticada local existente via sessão/CSRF e mostra declaração, origem, estado de evidência insuficiente, lacunas e paginação. A view não afirma jornada observada nem oferece recomendação gerada por heurística estática. `check:fast`, `build:cached`, typecheck explícito `node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit`, `format:check` passaram. Testes de jornada real de navegador e acessibilidade visual não foram executados; a implementação exibe somente dados do snapshot.

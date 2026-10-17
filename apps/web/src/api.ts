@@ -9,6 +9,7 @@ export type Comparison = Awaited<ReturnType<PieService["compare"]>>;
 export type RetestPlan = Awaited<ReturnType<PieService["retestPlan"]>>;
 export type Evidence = Awaited<ReturnType<PieService["evidence"]>>;
 export type FunctionalReview = Awaited<ReturnType<PieService["functional"]>>;
+export type ProductReview = Awaited<ReturnType<PieService["product"]>>;
 export type FunctionalRecord = Awaited<
   ReturnType<PieService["functionalRecord"]>
 >;
