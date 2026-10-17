@@ -478,4 +478,8 @@ Plano e relatório em `docs/SECURITY_IMPLEMENTATION_PLAN.md` e `docs/SECURITY_VA
 
 # Painel de Produto/UX — 17/10/2026
 
+# Isolamento de raízes da API histórica — 17/10/2026
+
+Dois repositórios Git reais na mesma base SQLite reproduziram acesso cruzado: GET autenticado `/v1/graph/:snapshotId` retornava `200` para o segundo projeto. As rotas históricas agora validam snapshot/projeto proprietário antes da resposta e a listagem inclui somente a raiz configurada. Boundary de escopo e API/jobs: 7 testes passaram, 1 PostgreSQL skipped sem `PIE_TEST_DATABASE_URL`. O adapter PostgreSQL implementa ownership, ainda sem ensaio em banco real. SEC-03 segue em validação; após checks, commit/push direto para `main` e revisar CI.
+
 O painel consome o relatório `product` de forma real, com seleção de módulo e paginação; abre Evidence vinculada e expõe origem/hash/limitações usando o endpoint de leitura existente. Boundary Playwright real do PIE (1/1) passou com login local, Evidence e hash consultados, troca de escopo e viewports 360/1440 sem overflow. Não contém mock nem inventa jornada, fricção ou recomendação. `check:fast`, `pie:build`, typecheck direto de `apps/web`, format check e boundaries CLI/API/MCP passaram. Próximo: obter decisão de escopo de mantenedor para integração de captura Playwright que executa o alvo; enquanto isso, aprofundar motores estáticos de T4 sem marcar jornada observada.

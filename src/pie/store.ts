@@ -207,6 +207,18 @@ export class PieStore implements PiePersistence {
     });
   }
 
+  project(id: string) {
+    const row = this.#db
+      .prepare("SELECT id,root,name FROM pie_projects WHERE id=?")
+      .get(id);
+    if (!row) throw new PieError("NOT_FOUND", "Projeto nÃ£o encontrado.");
+    return {
+      id: String(row.id),
+      root: String(row.root),
+      name: String(row.name),
+    };
+  }
+
   saveSnapshot(input: unknown): Snapshot {
     const snapshot = validateSnapshot(input);
     const payload = JSON.stringify(snapshot);
@@ -258,6 +270,14 @@ export class PieStore implements PiePersistence {
       .get(id);
     if (!row) throw new PieError("NOT_FOUND", "Evidência não encontrada.");
     return verifyEvidence(JSON.parse(String(row.payload)));
+  }
+
+  evidenceSnapshotId(id: string) {
+    const row = this.#db
+      .prepare("SELECT snapshot_id FROM pie_evidence WHERE id=?")
+      .get(id);
+    if (!row) throw new PieError("NOT_FOUND", "EvidÃªncia nÃ£o encontrada.");
+    return String(row.snapshot_id);
   }
 
   history(projectId: string, input: unknown = {}) {

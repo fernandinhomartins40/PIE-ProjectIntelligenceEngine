@@ -169,6 +169,33 @@ export async function startPieApi(
           limit: Number(url.searchParams.get("limit") ?? 50),
         });
       const segments = url.pathname.split("/").filter(Boolean);
+      const requireSnapshot = async (id: string) => {
+        const snapshot = await service.store.snapshot(id);
+        if (snapshot.root !== authorizedRoot)
+          throw new PieError("NOT_FOUND", "Snapshot nÃ£o encontrado.");
+        return snapshot;
+      };
+      const requireProject = async (id: string) => {
+        const project = await service.project(id);
+        if (project.root !== authorizedRoot)
+          throw new PieError("NOT_FOUND", "Projeto nÃ£o encontrado.");
+        return project;
+      };
+      const requireVerification = async (id: string) => {
+        const run = await service.verification(id);
+        await requireSnapshot(run.snapshotId);
+        return run;
+      };
+      const requireFunctionalRecord = async (id: string) => {
+        const record = await service.functionalRecord(id);
+        await requireSnapshot(record.snapshotId);
+        return record;
+      };
+      const requireHttpProbe = async (id: string) => {
+        const probe = await service.httpProbe(id);
+        await requireSnapshot(probe.snapshotId);
+        return probe;
+      };
       if (
         request.method === "GET" &&
         segments.length === 4 &&
@@ -176,6 +203,7 @@ export async function startPieApi(
         segments[1] === "snapshots" &&
         segments[3] === "export"
       ) {
+        await requireSnapshot(segments[2]!);
         respond(
           response,
           200,
@@ -197,6 +225,7 @@ export async function startPieApi(
         segments[1] === "verifications" &&
         segments[3] === "export"
       ) {
+        await requireVerification(segments[2]!);
         respond(
           response,
           200,
@@ -218,6 +247,7 @@ export async function startPieApi(
         segments[3] === "verifications"
       ) {
         const projectId = z.string().uuid().parse(segments[2]);
+        await requireProject(projectId);
         respond(
           response,
           200,
@@ -231,6 +261,8 @@ export async function startPieApi(
           response,
           service,
           authorizedRoot,
+          requireSnapshot,
+          requireHttpProbe,
           url,
           segments,
           readBody: body,
@@ -344,48 +376,60 @@ export async function startPieApi(
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/retest-plan") {
-        respond(response, 200, await service.retestPlan(await body(request)));
+        const input = await body(request);
+        const ids = z
+          .object({ beforeId: z.string().uuid(), afterId: z.string().uuid() })
+          .parse(input);
+        await Promise.all([
+          requireSnapshot(ids.beforeId),
+          requireSnapshot(ids.afterId),
+        ]);
+        respond(response, 200, await service.retestPlan(input));
         return;
       }
       if (
         request.method === "POST" &&
         url.pathname === "/v1/verification-comparison"
       ) {
-        respond(
-          response,
-          200,
-          await service.verificationComparison(await body(request)),
-        );
+        const input = await body(request);
+        const ids = z
+          .object({
+            beforeRunId: z.string().uuid(),
+            afterRunId: z.string().uuid(),
+          })
+          .parse(input);
+        await Promise.all([
+          requireVerification(ids.beforeRunId),
+          requireVerification(ids.afterRunId),
+        ]);
+        respond(response, 200, await service.verificationComparison(input));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/functional") {
-        respond(
-          response,
-          200,
-          await service.functional(functionalInput.parse(await body(request))),
-        );
+        const input = functionalInput.parse(await body(request));
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.functional(input));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/product") {
-        respond(
-          response,
-          200,
-          await service.product(functionalInput.parse(await body(request))),
-        );
+        const input = functionalInput.parse(await body(request));
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.product(input));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/data-review") {
-        respond(
-          response,
-          200,
-          await service.dataReview(dataReviewInput.parse(await body(request))),
-        );
+        const input = dataReviewInput.parse(await body(request));
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.dataReview(input));
         return;
       }
       if (
         request.method === "GET" &&
         url.pathname === "/v1/functional-records"
       ) {
+        await requireSnapshot(
+          z.string().uuid().parse(url.searchParams.get("snapshotId")),
+        );
         respond(
           response,
           200,
@@ -400,11 +444,9 @@ export async function startPieApi(
         request.method === "POST" &&
         url.pathname === "/v1/functional-records"
       ) {
-        respond(
-          response,
-          201,
-          await service.retainFunctional(await body(request)),
-        );
+        const input = await body(request);
+        await requireSnapshot(functionalInput.parse(input).snapshotId);
+        respond(response, 201, await service.retainFunctional(input));
         return;
       }
       if (
@@ -413,6 +455,7 @@ export async function startPieApi(
         segments[0] === "v1" &&
         segments[1] === "functional-records"
       ) {
+        await requireFunctionalRecord(z.string().uuid().parse(segments[2]));
         respond(
           response,
           200,
@@ -427,6 +470,7 @@ export async function startPieApi(
         segments[1] === "functional-records" &&
         segments[3] === "export"
       ) {
+        await requireFunctionalRecord(z.string().uuid().parse(segments[2]));
         respond(
           response,
           200,
@@ -459,7 +503,34 @@ export async function startPieApi(
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/projects") {
-        respond(response, 200, await service.projects(paging()));
+        const { offset, limit } = paging();
+        const selected: Awaited<ReturnType<PieService["projects"]>>["items"] =
+          [];
+        let projectOffset = 0;
+        let scopedTotal = 0;
+        for (;;) {
+          const projects = await service.projects({
+            offset: projectOffset,
+            limit: 200,
+          });
+          for (const project of projects.items) {
+            if (project.root !== authorizedRoot) continue;
+            if (scopedTotal >= offset && selected.length < limit)
+              selected.push(project);
+            scopedTotal += 1;
+          }
+          if (projects.nextOffset === null) break;
+          projectOffset = projects.nextOffset;
+        }
+        respond(response, 200, {
+          items: selected,
+          total: scopedTotal,
+          offset,
+          nextOffset:
+            offset + selected.length < scopedTotal
+              ? offset + selected.length
+              : null,
+        });
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/discover") {
@@ -493,11 +564,23 @@ export async function startPieApi(
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/compare") {
-        respond(response, 200, await service.compare(await body(request)));
+        const input = await body(request);
+        const ids = z
+          .object({ beforeId: z.string().uuid(), afterId: z.string().uuid() })
+          .parse(input);
+        await Promise.all([
+          requireSnapshot(ids.beforeId),
+          requireSnapshot(ids.afterId),
+        ]);
+        respond(response, 200, await service.compare(input));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/trace") {
-        respond(response, 200, await service.trace(await body(request)));
+        const input = await body(request);
+        await requireSnapshot(
+          z.object({ snapshotId: z.string().uuid() }).parse(input).snapshotId,
+        );
+        respond(response, 200, await service.trace(input));
         return;
       }
       if (
@@ -508,21 +591,27 @@ export async function startPieApi(
         const id = z.string().uuid().parse(segments[2]);
         switch (segments[1]) {
           case "verification":
+            await requireVerification(id);
             respond(response, 200, await service.verification(id));
             return;
           case "verifications":
+            await requireSnapshot(id);
             respond(response, 200, await service.verifications(id, paging()));
             return;
           case "graph":
+            await requireSnapshot(id);
             respond(response, 200, await service.graph(id, paging()));
             return;
           case "declarations":
+            await requireSnapshot(id);
             respond(response, 200, await service.declarations(id, paging()));
             return;
           case "evidence":
+            await requireSnapshot(await service.store.evidenceSnapshotId(id));
             respond(response, 200, await service.evidence(id));
             return;
           case "history":
+            await requireProject(id);
             respond(response, 200, await service.history(id, paging()));
             return;
         }

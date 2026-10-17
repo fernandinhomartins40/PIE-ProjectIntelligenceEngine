@@ -1,7 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
 import { pageSchema } from "./graph.js";
-import { httpGrantSchema } from "./execution/httpProbe.js";
+import {
+  httpGrantSchema,
+  type httpProbeSchema,
+} from "./execution/httpProbe.js";
 import type { PieService } from "./service.js";
 
 interface HttpProbeRouteContext {
@@ -11,6 +14,8 @@ interface HttpProbeRouteContext {
   authorizedRoot: string;
   url: URL;
   segments: string[];
+  requireSnapshot(id: string): Promise<unknown>;
+  requireHttpProbe(id: string): Promise<z.infer<typeof httpProbeSchema>>;
   readBody(request: IncomingMessage): Promise<unknown>;
   respond(response: ServerResponse, status: number, value: unknown): void;
 }
@@ -39,6 +44,9 @@ export async function handleHttpProbeRoute(
   }
   if (request.method !== "GET" || segments[0] !== "v1") return false;
   if (segments.length === 2 && segments[1] === "http-probes") {
+    await context.requireSnapshot(
+      z.string().uuid().parse(url.searchParams.get("snapshotId")),
+    );
     context.respond(
       response,
       200,
@@ -53,11 +61,10 @@ export async function handleHttpProbeRoute(
     return true;
   }
   if (segments.length === 3 && segments[1] === "http-probes") {
-    context.respond(
-      response,
-      200,
-      await service.httpProbe(z.string().uuid().parse(segments[2])),
+    const probe = await context.requireHttpProbe(
+      z.string().uuid().parse(segments[2]),
     );
+    context.respond(response, 200, probe);
     return true;
   }
   return false;

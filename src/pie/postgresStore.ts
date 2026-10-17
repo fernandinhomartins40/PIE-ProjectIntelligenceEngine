@@ -292,6 +292,12 @@ export class PostgresPieStore implements PiePersistence {
     };
   }
 
+  async project(id: string) {
+    const row = await this.#client.project.findUnique({ where: { id } });
+    if (!row) throw new PieError("NOT_FOUND", "Projeto nÃ£o encontrado.");
+    return { id: row.id, root: row.root, name: row.name };
+  }
+
   async saveSnapshot(input: unknown): Promise<Snapshot> {
     const snapshot = validateSnapshot(input);
     await this.#client.$transaction(
@@ -365,6 +371,15 @@ export class PostgresPieStore implements PiePersistence {
     const row = await this.#client.evidence.findUnique({ where: { id } });
     if (!row) throw new PieError("NOT_FOUND", "Evidência não encontrada.");
     return verifyEvidence(row.payload);
+  }
+
+  async evidenceSnapshotId(id: string) {
+    const row = await this.#client.evidence.findUnique({
+      where: { id },
+      select: { snapshotId: true },
+    });
+    if (!row) throw new PieError("NOT_FOUND", "EvidÃªncia nÃ£o encontrada.");
+    return row.snapshotId;
   }
 
   async history(projectId: string, input: unknown = {}) {
