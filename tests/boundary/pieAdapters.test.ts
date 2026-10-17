@@ -8,6 +8,7 @@ import { expect, it } from "vitest";
 import { discoverProject } from "../../src/pie/discovery.js";
 import { readDeclarations } from "../../src/pie/adapters/declarations.js";
 import { validateSnapshot } from "../../src/pie/snapshotIntegrity.js";
+import { declarationIdentity } from "../../src/pie/adapters/identity.js";
 import { openStore } from "../../src/pie/store.js";
 import { PieService } from "../../src/pie/service.js";
 import { DatabaseSync } from "node:sqlite";
@@ -360,7 +361,7 @@ it("Express AST compõe montagens literais e mantém prova da rota", async () =>
     await exec("git", ["init", root]);
     await writeFile(
       join(root, "api.ts"),
-      "import express, {Router as makeRouter} from 'express';\nconst app = express();\nconst router = makeRouter();\nconst nested = makeRouter();\napp.get('/health', handler);\nrouter.post('/orders/:id', auth, handler);\nnested.get('/items', handler);\nrouter.use('/v2', nested);\napp.use('/api', router);\nfunction shadow(app){app.delete('/fake', handler)}\nconst other = {get(){}};other.get('/fake', handler);\n",
+      "import express, {Router as makeRouter} from 'express';\nconst app = express();\nconst router = makeRouter();\nconst nested = makeRouter();\napp.get('/health', handler);\nrouter.post('/orders/:id', auth, handler);\nnested.get('/items', handler);\nrouter.use('/v2', nested);\napp.use('/api', router);\napp.use('/api', router);\nfunction shadow(app){app.delete('/fake', handler)}\nconst other = {get(){}};other.get('/fake', handler);\n",
     );
     await exec("git", ["-C", root, "add", "."]);
     const observed = await service.discover({
@@ -393,22 +394,81 @@ it("Express AST compõe montagens literais e mantém prova da rota", async () =>
       ]),
     );
     const fact = snapshot.declarations[1]!;
+    expect(fact).toMatchObject({
+      provenanceVersion: 2,
+      derivations: [
+        {
+          line: 9,
+          operation: "express_router_mount",
+          prefix: "/api",
+        },
+        {
+          line: 10,
+          operation: "express_router_mount",
+          prefix: "/api",
+        },
+      ],
+    });
     expect(await service.evidence(fact.evidenceId)).toMatchObject({
       method: "static",
       state: "unverified",
       source: { path: "api.ts", line: 6 },
+      observation: expect.stringContaining('"POST /api/orders/:id"'),
     });
+    const mountEvidenceId = fact.derivations[0]!.evidenceId;
+    const repeatedMountEvidenceId = fact.derivations[1]!.evidenceId;
+    expect(await service.evidence(mountEvidenceId)).toMatchObject({
+      source: { path: "api.ts", line: 9 },
+      observation: expect.stringContaining('"/api"'),
+    });
+    expect(await service.evidence(repeatedMountEvidenceId)).toMatchObject({
+      source: { path: "api.ts", line: 10 },
+      observation: expect.stringContaining('"/api"'),
+    });
+    const analysis = await service.functional({ snapshotId: snapshot.id });
+    const finding = analysis.findings.items.find(
+      (item) => item.declaration.id === fact.id,
+    )!;
+    expect(finding.evidenceIds).toEqual([
+      fact.evidenceId,
+      mountEvidenceId,
+      repeatedMountEvidenceId,
+    ]);
+    const retained = await service.retainFunctional({
+      snapshotId: snapshot.id,
+    });
+    expect(await service.functionalRecord(retained.id)).toEqual(retained);
     const traced = await service.trace({
       snapshotId: snapshot.id,
       nodeId: fact.id,
     });
     expect(traced.edges.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: "declared_in" }),
+        expect.objectContaining({
+          kind: "declared_in",
+          evidenceIds: expect.arrayContaining([
+            fact.evidenceId,
+            mountEvidenceId,
+            repeatedMountEvidenceId,
+          ]),
+        }),
       ]),
     );
     expect(snapshot.coverage.limitations.join(" ")).toContain("prefixos");
     expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    const alteredDerivation = structuredClone(snapshot);
+    alteredDerivation.declarations[1]!.derivations[0]!.prefix = "/changed";
+    expect(() => validateSnapshot(alteredDerivation)).toThrow(
+      "Derivação declarativa sem Evidence",
+    );
+    const alteredFact = structuredClone(snapshot);
+    alteredFact.declarations[1]!.name = "POST /tampered";
+    alteredFact.declarations[1]!.id = declarationIdentity(
+      alteredFact.declarations[1]!,
+    );
+    expect(() => validateSnapshot(alteredFact)).toThrow(
+      "Declaração sem proveniência",
+    );
   } finally {
     await service.close();
     await rm(root, { recursive: true, force: true });

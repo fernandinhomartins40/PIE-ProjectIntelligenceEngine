@@ -103,8 +103,11 @@ export function validateFunctional(
     if (
       !fact ||
       canonicalize(fact) !== canonicalize(finding.declaration) ||
-      finding.evidenceIds.length !== 1 ||
-      finding.evidenceIds[0] !== fact.evidenceId
+      canonicalize(finding.evidenceIds) !==
+        canonicalize([
+          fact.evidenceId,
+          ...fact.derivations.map((item) => item.evidenceId),
+        ])
     )
       throw new PieError(
         "INTEGRITY_ERROR",

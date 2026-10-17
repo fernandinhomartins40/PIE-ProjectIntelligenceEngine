@@ -33,6 +33,15 @@ function Observations({
           <button onClick={() => onEvidence(fact.evidenceId)}>
             Prova {version} · {fact.id.slice(0, 8)}
           </button>
+          {fact.derivations.map((item) => (
+            <button
+              key={item.evidenceId}
+              onClick={() => onEvidence(item.evidenceId)}
+            >
+              Montagem {version} · linha {item.line} · prefixo{" "}
+              {item.prefix || "/"}
+            </button>
+          ))}
         </li>
       ))}
       {facts.length === 0 && <li>Não observada nesta versão.</li>}

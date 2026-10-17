@@ -21,9 +21,13 @@ export function Finding({
         <dt>Responsável</dt>
         <dd>Não definido</dd>
       </dl>
-      <button onClick={() => onEvidence(finding.evidenceIds[0]!)}>
-        Abrir prova da declaração
-      </button>
+      {finding.evidenceIds.map((evidenceId, index) => (
+        <button key={evidenceId} onClick={() => onEvidence(evidenceId)}>
+          {index === 0
+            ? "Abrir prova da declaração"
+            : `Abrir prova derivada ${index}`}
+        </button>
+      ))}
       <details>
         <summary>Incertezas e validação proposta</summary>
         <h4>Incertezas</h4>

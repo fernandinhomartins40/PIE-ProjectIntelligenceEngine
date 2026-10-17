@@ -108,7 +108,10 @@ export function assessFunctional(
     severity: "info" as const,
     category: "runtime_verification_gap" as const,
     declaration,
-    evidenceIds: [declaration.evidenceId],
+    evidenceIds: [
+      declaration.evidenceId,
+      ...declaration.derivations.map((item) => item.evidenceId),
+    ],
     owner: null,
     observation:
       "Declaração estática encontrada; comportamento funcional não examinado nesta análise.",

@@ -123,12 +123,19 @@ export function buildKnowledgeGraph(snapshot: Snapshot) {
       label: fact.name,
       path: fact.source.path,
       line: fact.source.line,
-      evidenceIds: [fact.evidenceId],
+      evidenceIds: [
+        fact.evidenceId,
+        ...fact.derivations.map((item) => item.evidenceId),
+      ],
       confidence: "derived",
       state: "unverified",
     });
     const file = files.get(fact.source.path);
-    if (file) link(fact.id, file.id, "declared_in", [fact.evidenceId]);
+    if (file)
+      link(fact.id, file.id, "declared_in", [
+        fact.evidenceId,
+        ...fact.derivations.map((item) => item.evidenceId),
+      ]);
     else unresolvedRelations++;
     if (fact.kind === "field") {
       const model = unique(fact, "model", fact.parent);

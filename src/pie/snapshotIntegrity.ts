@@ -5,6 +5,10 @@ import {
   type Evidence,
 } from "./contracts.js";
 import { verifyEvidence, sha256 } from "./evidence.js";
+import {
+  declarationEvidenceObservation,
+  derivationEvidenceObservation,
+} from "./adapters/contracts.js";
 import { declarationIdentity } from "./adapters/identity.js";
 import { snapshotFiles } from "./snapshotFiles.js";
 
@@ -15,6 +19,7 @@ function validateDeclarations(
   const ids = new Set<string>();
   for (const declaration of snapshot.declarations) {
     const proof = evidenceById.get(declaration.evidenceId);
+    const derivationIds = new Set<string>();
     if (
       declarationIdentity(declaration) !== declaration.id ||
       ids.has(declaration.id) ||
@@ -23,13 +28,38 @@ function validateDeclarations(
       proof.confidence !== "derived" ||
       proof.source.path !== declaration.source.path ||
       proof.source.line !== declaration.source.line ||
-      proof.source.sha256 !== declaration.source.sha256
+      proof.source.sha256 !== declaration.source.sha256 ||
+      (declaration.provenanceVersion === 2 &&
+        proof.observation !== declarationEvidenceObservation(declaration)) ||
+      (declaration.provenanceVersion === 1 &&
+        declaration.derivations.length > 0)
     )
       throw new PieError(
         "INTEGRITY_ERROR",
         "Declaração sem proveniência consistente.",
       );
     ids.add(declaration.id);
+    for (const derivation of declaration.derivations) {
+      const derivationProof = evidenceById.get(derivation.evidenceId);
+      if (
+        declaration.provenanceVersion !== 2 ||
+        derivationIds.has(derivation.evidenceId) ||
+        derivation.evidenceId === declaration.evidenceId ||
+        !derivationProof ||
+        derivationProof.method !== "static" ||
+        derivationProof.confidence !== "derived" ||
+        derivationProof.source.path !== declaration.source.path ||
+        derivationProof.source.line !== derivation.line ||
+        derivationProof.source.sha256 !== declaration.source.sha256 ||
+        derivationProof.observation !==
+          derivationEvidenceObservation(derivation)
+      )
+        throw new PieError(
+          "INTEGRITY_ERROR",
+          "Derivação declarativa sem Evidence da origem correspondente.",
+        );
+      derivationIds.add(derivation.evidenceId);
+    }
   }
 }
 

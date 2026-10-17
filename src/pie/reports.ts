@@ -73,7 +73,10 @@ function tables(snapshot: Snapshot): ReportTable[] {
         fact.source.path,
         fact.source.line === null ? "Não informada" : String(fact.source.line),
         fact.state,
-        fact.evidenceId,
+        [
+          fact.evidenceId,
+          ...fact.derivations.map((item) => item.evidenceId),
+        ].join(", "),
       ]),
     },
     {

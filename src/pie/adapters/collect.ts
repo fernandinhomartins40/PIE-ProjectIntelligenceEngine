@@ -1,55 +1,97 @@
 import { randomUUID } from "node:crypto";
 import type { Evidence } from "../contracts.js";
 import { sealEvidence } from "../evidence.js";
-import type { AdapterFact, AdapterRead } from "./contracts.js";
+import {
+  declarationEvidenceObservation,
+  derivationEvidenceObservation,
+  type AdapterFact,
+  type AdapterRead,
+} from "./contracts.js";
 import { declarationIdentity } from "./identity.js";
 
-/** Owns conversion from parser declarations into immutable evidence-linked facts. */
+/** Owns conversion from parsed facts and their derivations to immutable Evidence. */
 export function collectDeclarations(
   file: Evidence,
   parsed: AdapterRead | null,
 ) {
   const evidence: Evidence[] = [];
   const declarations: AdapterFact[] = [];
-  const identities = new Set<string>();
+  const byId = new Map<string, AdapterFact>();
   let repeated = 0;
   try {
     if (!parsed) return { evidence, declarations, limitations: [] };
     const { sha256: previousDigest, ...fields } = file;
     void previousDigest;
-    for (const declaration of parsed.declarations) {
-      const proof = sealEvidence({
+    const makeProof = (
+      line: number,
+      observation: string,
+      redactions: string[] = [],
+    ) =>
+      sealEvidence({
         ...fields,
         id: randomUUID(),
-        source: { ...file.source, line: declaration.line },
+        source: { ...file.source, line },
         confidence: "derived",
-        redactionStatus: declaration.redactions?.length
+        redactionStatus: redactions.length
           ? "redacted"
           : fields.redactionStatus,
-        limitations: [...fields.limitations, ...(declaration.redactions ?? [])],
-        observation: `Declaração estática ${declaration.kind} identificada por ${declaration.adapter}; não verificada em execução.`,
+        limitations: [...fields.limitations, ...redactions],
+        observation,
       });
+    for (const declaration of parsed.declarations) {
       const value = {
         adapter: declaration.adapter,
         kind: declaration.kind,
         name: declaration.name,
         parent: declaration.parent,
-        source: proof.source,
       };
-      const id = declarationIdentity(value);
-      if (identities.has(id)) {
+      const source = { ...file.source, line: declaration.line };
+      const id = declarationIdentity({ ...value, source });
+      const existing = byId.get(id);
+      const existingDerivations = new Set(
+        existing?.derivations.map((item) =>
+          JSON.stringify([item.line, item.operation, item.prefix]),
+        ) ?? [],
+      );
+      const derivations = (declaration.derivedFrom ?? []).filter((item) => {
+        const key = JSON.stringify([item.line, item.operation, item.prefix]);
+        if (existingDerivations.has(key)) return false;
+        existingDerivations.add(key);
+        return true;
+      });
+      const derivationProofs = derivations.map((derivation) => {
+        const proof = makeProof(
+          derivation.line,
+          derivationEvidenceObservation(derivation),
+        );
+        return { ...derivation, evidenceId: proof.id, proof };
+      });
+      if (existing) {
+        existing.derivations.push(
+          ...derivationProofs.map(({ proof: _proof, ...item }) => item),
+        );
+        evidence.push(...derivationProofs.map((item) => item.proof));
         repeated++;
         continue;
       }
-      identities.add(id);
-      declarations.push({
+      const proof = makeProof(
+        declaration.line,
+        declarationEvidenceObservation(value),
+        declaration.redactions ?? [],
+      );
+      const fact: AdapterFact = {
         ...value,
+        source: proof.source,
         id,
+        provenanceVersion: 2,
         evidenceId: proof.id,
+        derivations: derivationProofs.map(({ proof: _proof, ...item }) => item),
         method: "static",
         state: "unverified",
-      });
-      evidence.push(proof);
+      };
+      byId.set(id, fact);
+      declarations.push(fact);
+      evidence.push(proof, ...derivationProofs.map((item) => item.proof));
     }
     return {
       evidence,
@@ -58,7 +100,7 @@ export function collectDeclarations(
         ...parsed.limitations.map((value) => `${file.source.path}: ${value}`),
         ...(repeated
           ? [
-              `${file.source.path}: ${repeated} declarações idênticas na mesma linha foram consolidadas; ocorrências não distinguíveis por coluna.`,
+              `${file.source.path}: ${repeated} declarações idênticas na mesma linha foram consolidadas; derivações distintas preservaram suas próprias evidências.`,
             ]
           : []),
       ],
@@ -68,7 +110,7 @@ export function collectDeclarations(
       evidence: [],
       declarations: [],
       limitations: [
-        `${file.source.path}: formato declarativo não analisado; nenhuma declaração inferida a partir da falha.`,
+        `${file.source.path}: formato declarativo não analisado; nenhum fato foi inferido a partir da falha.`,
       ],
     };
   }

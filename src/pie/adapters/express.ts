@@ -9,7 +9,18 @@ import { getBindingIdentifiers } from "@babel/types";
 import type { AdapterRead, Declaration } from "./contracts.js";
 
 type Binding = "factory" | "router-factory" | "app" | "router";
-type RouterMount = { receiver: string; prefix: string; router: string };
+type RouterMount = {
+  receiver: string;
+  prefix: string;
+  router: string;
+  line: number;
+};
+type RouterDerivation = {
+  line: number;
+  operation: "express_router_mount";
+  prefix: string;
+};
+type RouterPrefix = { path: string; derivations: RouterDerivation[] };
 const methods = new Set([
   "get",
   "head",
@@ -172,7 +183,14 @@ function mountedRouter(
       bindings.get(argument.name) !== "router"
     )
       return [];
-    return [{ receiver, prefix, router: argument.name }];
+    return [
+      {
+        receiver,
+        prefix,
+        router: argument.name,
+        line: call.loc?.start.line ?? 1,
+      },
+    ];
   });
 }
 
@@ -184,7 +202,7 @@ function joinRoute(prefix: string, route: string): string | null {
 }
 
 function routerPrefixes(mounts: readonly RouterMount[]) {
-  type Resolution = { prefixes: string[]; cyclic: boolean };
+  type Resolution = { prefixes: RouterPrefix[]; cyclic: boolean };
   const parents = new Map<string, RouterMount[]>();
   for (const mount of mounts) {
     const items = parents.get(mount.router) ?? [];
@@ -200,21 +218,58 @@ function routerPrefixes(mounts: readonly RouterMount[]) {
     if (known) return known;
     if (visiting.has(router)) return { prefixes: [], cyclic: true };
     const nextVisiting = new Set(visiting).add(router);
-    const prefixes: string[] = [];
+    const prefixes: RouterPrefix[] = [];
     let cyclic = false;
     for (const mount of parents.get(router) ?? []) {
-      if (mount.receiver === "app") prefixes.push(mount.prefix);
+      const derivation: RouterDerivation = {
+        line: mount.line,
+        operation: "express_router_mount",
+        prefix: mount.prefix,
+      };
+      if (mount.receiver === "app")
+        prefixes.push({ path: mount.prefix, derivations: [derivation] });
       else {
         const ancestor = resolve(mount.receiver, nextVisiting);
         cyclic ||= ancestor.cyclic;
         for (const prefix of ancestor.prefixes) {
-          const joined = joinRoute(prefix, mount.prefix);
+          const joined = joinRoute(prefix.path, mount.prefix);
           if (joined === null) cyclic = true;
-          else prefixes.push(joined);
+          else
+            prefixes.push({
+              path: joined,
+              derivations: [...prefix.derivations, derivation],
+            });
         }
       }
     }
-    const result = { prefixes: [...new Set(prefixes)], cyclic };
+    const byPath = new Map<string, RouterPrefix>();
+    for (const item of prefixes) {
+      const known = byPath.get(item.path);
+      if (!known) {
+        byPath.set(item.path, {
+          path: item.path,
+          derivations: [...item.derivations],
+        });
+        continue;
+      }
+      const knownDerivations = new Set(
+        known.derivations.map((entry) =>
+          JSON.stringify([entry.line, entry.operation, entry.prefix]),
+        ),
+      );
+      for (const derivation of item.derivations) {
+        const key = JSON.stringify([
+          derivation.line,
+          derivation.operation,
+          derivation.prefix,
+        ]);
+        if (!knownDerivations.has(key)) {
+          known.derivations.push(derivation);
+          knownDerivations.add(key);
+        }
+      }
+    }
+    const result = { prefixes: [...byPath.values()], cyclic };
     cache.set(router, result);
     return result;
   };
@@ -263,19 +318,24 @@ export function readExpressDeclarations(
   for (const route of routes) {
     const resolved =
       route.parent === "app"
-        ? { prefixes: [""], cyclic: false }
+        ? {
+            prefixes: [{ path: "", derivations: [] as RouterDerivation[] }],
+            cyclic: false,
+          }
         : resolvePrefixes(route.parent!, new Set());
     const separator = route.name.indexOf(" ");
     const method = route.name.slice(0, separator);
     const localPath = route.name.slice(separator + 1);
     const resolvedPaths =
       route.parent === "app"
-        ? [localPath]
+        ? [{ path: localPath, derivations: [] as RouterDerivation[] }]
         : resolved.cyclic
           ? []
           : resolved.prefixes.flatMap((prefix) => {
-              const path = joinRoute(prefix, localPath);
-              return path === null ? [] : [path];
+              const path = joinRoute(prefix.path, localPath);
+              return path === null
+                ? []
+                : [{ path, derivations: prefix.derivations }];
             });
     if (
       route.parent !== "app" &&
@@ -284,9 +344,15 @@ export function readExpressDeclarations(
         resolvedPaths.length < resolved.prefixes.length)
     )
       unresolvedMounts++;
-    const paths = resolvedPaths.length ? resolvedPaths : [localPath];
+    const paths = resolvedPaths.length
+      ? resolvedPaths
+      : [{ path: localPath, derivations: [] as RouterDerivation[] }];
     for (const path of paths) {
-      const fact = { ...route, name: `${method} ${path}` };
+      const fact = {
+        ...route,
+        name: `${method} ${path.path}`,
+        ...(path.derivations.length ? { derivedFrom: path.derivations } : {}),
+      };
       if (
         declarations.length >= limit ||
         fact.name.length > 1000 ||
