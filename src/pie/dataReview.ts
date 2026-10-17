@@ -63,7 +63,8 @@ function schemaFileIncomplete(snapshot: Snapshot, path: string): boolean {
     return (
       limitation.includes(path) &&
       (normalized.includes("omitidas por") ||
-        normalized.includes("formato declarativo nao analisado"))
+        normalized.includes("formato declarativo nao analisado") ||
+        normalized.includes("acima do limite"))
     );
   });
 }
@@ -132,8 +133,21 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
     limit: input.limit,
   });
   const migrationFindings = models.map((model) => {
+    const mapping = declarations.find(
+      (fact) =>
+        fact.kind === "config_directive" &&
+        fact.name === "@@map" &&
+        fact.source.path === model.source.path &&
+        (fact.parent === model.name ||
+          fact.parent?.startsWith(`${model.name}.`)),
+    );
+    const mappedTable = mapping?.parent?.startsWith(`${model.name}.`)
+      ? mapping.parent.slice(model.name.length + 1)
+      : null;
+    const unresolvedMapping = mapping !== undefined && mappedTable === null;
+    const tableName = mappedTable ?? model.name;
     const tables = migrationFacts.filter(
-      (fact) => fact.kind === "model" && fact.name === model.name,
+      (fact) => fact.kind === "model" && fact.name === tableName,
     );
     const constraints = tables.flatMap((table) =>
       migrationFacts.filter(
@@ -146,7 +160,8 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
     );
     const incomplete =
       snapshot.coverage.status === "partial" ||
-      incompleteMigrationPaths.size > 0;
+      incompleteMigrationPaths.size > 0 ||
+      unresolvedMapping;
     const state = incomplete
       ? "migration_inventory_incomplete"
       : migrationFiles.length === 0
@@ -158,6 +173,7 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
             : "table_observed_without_unique_constraint";
     const evidenceIds = [
       model.evidenceId,
+      ...(mapping ? [mapping.evidenceId] : []),
       ...tables.map((table) => table.evidenceId),
       ...constraints.map((fact) => fact.evidenceId),
     ];
@@ -168,7 +184,7 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
       evidenceIds: [...new Set(evidenceIds)],
       observation:
         state === "unique_constraint_observed"
-          ? "Uma declaracao de PRIMARY KEY, UNIQUE ou CREATE UNIQUE INDEX foi observada em migration para uma tabela com nome igual ao modelo Prisma."
+          ? "Uma declaracao de PRIMARY KEY, UNIQUE ou CREATE UNIQUE INDEX foi observada em migration para a tabela associada ao modelo Prisma, considerando @@map quando declarado."
           : state === "table_observed_without_unique_constraint"
             ? "A tabela foi observada em CREATE TABLE, sem constraint unica reconhecida nas formas SQL suportadas."
             : state === "table_not_observed"
@@ -177,7 +193,7 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
                 ? "Nenhum arquivo de migration Prisma foi observado no snapshot."
                 : "A cobertura de migrations esta incompleta para determinar as observacoes estaticas deste modelo.",
       uncertainty: [
-        "A comparacao usa nomes exatos de modelo/tabela e SQL estatico suportado; renames, mapeamentos Prisma, schemas SQL e migrations posteriores podem alterar o significado.",
+        "A comparacao usa nomes exatos, aplicando @@map de modelo quando observado; @map de coluna, schemas SQL e renames entre migrations nao sao resolvidos.",
         "A analise nao calcula o estado final, nao executa migrations e nao comprova constraints aplicadas ao banco.",
       ],
     };
@@ -208,7 +224,7 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
       limitations: [
         "A analise consome fatos estaticos do snapshot; nao conecta nem consulta banco.",
         "Diretivas reconhecidas: @id, @@id, @unique e @@unique. Ausencia observada gera item informativo unverified, nunca defeito confirmado.",
-        "Migrations: reconhece um subconjunto de PostgreSQL e compara nomes exatos; nao calcula estado final, renames, mapeamentos, SQL dinamico ou aplicacao no banco.",
+        "Migrations: reconhece um subconjunto de PostgreSQL e aplica @@map de modelo; nao calcula estado final, renames, @map de coluna, schemas SQL, SQL dinamico ou aplicacao no banco.",
         ...snapshot.coverage.limitations,
       ],
     },

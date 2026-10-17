@@ -46,6 +46,18 @@ function expectPrismaSelectors(
         name: "@@unique",
         parent: "CompoundUnique",
       }),
+      expect.objectContaining({
+        adapter: "prisma-schema",
+        kind: "config_directive",
+        name: "@@map",
+        parent: "NaturalKey.natural_key",
+      }),
+      expect.objectContaining({
+        adapter: "prisma-schema",
+        kind: "config_directive",
+        name: "@@map",
+        parent: "UnresolvedMap",
+      }),
     ]),
   );
   expect(snapshot.declarations.some((fact) => fact.name === "Commented")).toBe(
@@ -62,6 +74,9 @@ async function writeDataReviewFixture(repo: string) {
       "}",
       "model NaturalKey {",
       "  code String @unique",
+      "  @@map(",
+      '    "natural_key"',
+      "  )",
       "}",
       "model Membership {",
       "  organizationId String",
@@ -79,6 +94,10 @@ async function writeDataReviewFixture(repo: string) {
       "  right String",
       "  @@unique([left, right])",
       "}",
+      "model UnresolvedMap {",
+      "  id String @id",
+      "  @@map(TABLE_NAME)",
+      "}",
       "// model Commented { id String @id }",
     ].join("\n"),
   );
@@ -90,8 +109,8 @@ async function writeDataReviewFixture(repo: string) {
     [
       "-- SELECT 'CREATE TABLE \"Membership\" (id text PRIMARY KEY)';",
       'CREATE TABLE "Product" ("id" TEXT NOT NULL, PRIMARY KEY ("id"));',
-      'CREATE TABLE "NaturalKey" ("code" TEXT NOT NULL);',
-      'CREATE UNIQUE INDEX "NaturalKey_code_key" ON "NaturalKey" ("code");',
+      'CREATE TABLE "natural_key" ("code" TEXT NOT NULL);',
+      'CREATE UNIQUE INDEX "NaturalKey_code_key" ON "natural_key" ("code");',
       'CREATE TABLE "Membership" ("id" TEXT, "unique" text, note text DEFAULT $tag$UNIQUE fake$tag$);',
       'CREATE TABLE "Pair" ("left" TEXT, "right" TEXT);',
       'ALTER TABLE "Pair" ADD CONSTRAINT "Pair_pkey" PRIMARY KEY ("left", "right");',
@@ -144,7 +163,7 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
       coverage: {
         runtime: false,
         schemaFiles: 1,
-        examinedModels: 5,
+        examinedModels: 6,
         unexaminedSchemaFiles: 0,
         migrationFiles: 1,
         unexaminedMigrationFiles: 0,
@@ -168,17 +187,24 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
           model: expect.objectContaining({ name: "Pair" }),
           state: "unique_constraint_observed",
         }),
+        expect.objectContaining({
+          model: expect.objectContaining({ name: "UnresolvedMap" }),
+          state: "migration_inventory_incomplete",
+        }),
       ]),
     );
     const migrationEvidence = expected.migrations.items.find(
       (finding) => finding.model.name === "NaturalKey",
     )!.evidenceIds;
-    expect(
-      (await service.evidence(migrationEvidence[2]!)).source,
-    ).toMatchObject({
-      path: "prisma/migrations/001_init/migration.sql",
-      line: 4,
-    });
+    const migrationSources = await Promise.all(
+      migrationEvidence.map(async (id) => (await service.evidence(id)).source),
+    );
+    expect(migrationSources).toContainEqual(
+      expect.objectContaining({
+        path: "prisma/migrations/001_init/migration.sql",
+        line: 4,
+      }),
+    );
     expect(expected.models.items[0]!.evidenceIds).toEqual([
       expected.models.items[0]!.model.evidenceId,
     ]);

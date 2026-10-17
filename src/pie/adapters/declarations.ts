@@ -162,7 +162,7 @@ function structured(path: string, source: string): AdapterRead {
 
 /** Lexer recognizes declarations while ignoring quoted literals and comments. */
 function prismaTokens(source: string) {
-  const tokens: Array<{ value: string; line: number }> = [];
+  const tokens: Array<{ value: string; line: number; literal?: boolean }> = [];
   let line = 1;
   const pattern =
     /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|[A-Za-z_][A-Za-z0-9_]*|[{}\n]|[^\s]/g;
@@ -173,12 +173,20 @@ function prismaTokens(source: string) {
       (source.startsWith("/*", match.index) && !value.startsWith("/*"))
     )
       throw new AdapterParseFailure("invalid_syntax");
-    if (
-      !value.startsWith("//") &&
-      !value.startsWith("/*") &&
-      !value.startsWith('"')
-    )
-      tokens.push({ value, line });
+    if (!value.startsWith("//") && !value.startsWith("/*")) {
+      if (value.startsWith('"')) {
+        let decoded: unknown;
+        try {
+          decoded = JSON.parse(value);
+        } catch {
+          throw new AdapterParseFailure("invalid_syntax");
+        }
+        if (typeof decoded === "string")
+          tokens.push({ value: decoded, line, literal: true });
+      } else {
+        tokens.push({ value, line });
+      }
+    }
     line += (value.match(/\n/g) ?? []).length;
   }
   return tokens;
@@ -188,12 +196,14 @@ function prisma(source: string): AdapterRead {
   const tokens = prismaTokens(source);
   const declarations: Declaration[] = [];
   const fieldAttributes = new Set(["@id", "@unique", "@relation", "@default"]);
-  const modelAttributes = new Set(["@@id", "@@unique"]);
+  const modelAttributes = new Set(["@@id", "@@unique", "@@map"]);
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
     if (
+      token.literal ||
       token.value !== "model" ||
       !tokens[i + 1] ||
+      tokens[i + 1]?.literal ||
       tokens[i + 2]?.value !== "{"
     )
       continue;
@@ -220,8 +230,10 @@ function prisma(source: string): AdapterRead {
       }
       if (
         depth === 1 &&
+        !field.literal &&
         field.line !== previousLine &&
         /^[A-Za-z_]\w*$/.test(field.value) &&
+        !tokens[i + 1]?.literal &&
         /^[A-Za-z_]\w*$/.test(tokens[i + 1]?.value ?? "") &&
         tokens[i + 1]?.line === field.line
       ) {
@@ -238,10 +250,11 @@ function prisma(source: string): AdapterRead {
     }
     for (let tokenIndex = 0; tokenIndex < modelTokens.length; tokenIndex++) {
       const attribute = modelTokens[tokenIndex]!;
-      if (attribute.value !== "@") continue;
+      if (attribute.literal || attribute.value !== "@") continue;
       const next = modelTokens[tokenIndex + 1];
       if (
         !next ||
+        next.literal ||
         next.line !== attribute.line ||
         !/^[A-Za-z_]\w*$/.test(next.value)
       )
@@ -264,15 +277,42 @@ function prisma(source: string): AdapterRead {
     for (let tokenIndex = 0; tokenIndex < modelTokens.length; tokenIndex++) {
       const attribute = modelTokens[tokenIndex]!;
       if (
+        attribute.literal ||
         attribute.value !== "@" ||
+        modelTokens[tokenIndex + 1]?.literal ||
         modelTokens[tokenIndex + 1]?.value !== "@" ||
         modelTokens[tokenIndex + 1]?.line !== attribute.line
       )
         continue;
       const nameToken = modelTokens[tokenIndex + 2];
-      if (!nameToken || nameToken.line !== attribute.line) continue;
+      if (!nameToken || nameToken.literal || nameToken.line !== attribute.line)
+        continue;
       const name = `@@${nameToken.value}`;
       if (!modelAttributes.has(name)) continue;
+      if (name === "@@map") {
+        const open = modelTokens[tokenIndex + 3];
+        let targetIndex = tokenIndex + 4;
+        while (modelTokens[targetIndex]?.value === "\n") targetIndex++;
+        const target = modelTokens[targetIndex];
+        let closeIndex = targetIndex + 1;
+        while (modelTokens[closeIndex]?.value === "\n") closeIndex++;
+        const close = modelTokens[closeIndex];
+        const mappedTable =
+          open?.value === "(" &&
+          target?.literal &&
+          target.value.length > 0 &&
+          close?.value === ")"
+            ? `${model}.${target.value}`
+            : model;
+        declarations.push({
+          adapter: "prisma-schema",
+          kind: "config_directive",
+          name,
+          parent: mappedTable.length <= 1000 ? mappedTable : model,
+          line: attribute.line,
+        });
+        continue;
+      }
       declarations.push({
         adapter: "prisma-schema",
         kind: "config_directive",
@@ -286,7 +326,7 @@ function prisma(source: string): AdapterRead {
   return {
     declarations,
     limitations: [
-      "Lexer Prisma registra modelos, campos e diretivas id/unique/relation/default; nao valida semantica, migrations, constraints efetivas ou banco. Strings e comentarios nao geram declaracoes. Campos devem estar em linhas proprias.",
+      "Lexer Prisma registra modelos, campos, seletores e @@map; outras strings nao geram declaracoes. Nao valida semantica, migrations, constraints efetivas ou banco. Campos devem estar em linhas proprias.",
     ],
   };
 }
@@ -297,7 +337,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v4", path, sha256(source), limit],
+    ["pie-declarations-v5", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }
