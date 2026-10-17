@@ -4,7 +4,7 @@
 
 Comparação compartilhada (`verification-diff`, `pie_verification_compare`, POST `/v1/verification-comparison`) implementada e validada localmente. `check:fast`, typecheck, build PIE, docs:check:built, Git/SQLite com API/CLI/MCP e Ajv passaram; testes VERIFY dependentes de Docker foram skipped no Windows. A próxima ação autorizada é revisar diff, commit e push em `main`; depois acompanhar CI e registrar seu resultado. Não alegar CI antes da execução nem encerrar o goal; findings vinculados, métricas, comparison UI e motores integrais seguem no plano.
 
-Extensão do histórico VERIFY concluída localmente: serviço, API/CLI/MCP/Ajv, SQLite, painel e comparação paginada passaram. `check:fast`, `pie:build`, `docs:check:built`, `format:check` e sete testes boundary passaram; dois casos foram skipped, incluindo PostgreSQL local sem `PIE_TEST_DATABASE_URL`. A validação PostgreSQL e CI desta extensão ficam pendentes do workflow após o push.
+Extensão do histórico VERIFY concluída: serviço, API/CLI/MCP/Ajv, SQLite, painel e comparação paginada passaram. `check:fast`, `pie:build`, `docs:check:built`, `format:check` e sete testes boundary passaram; dois casos foram skipped, incluindo PostgreSQL local sem `PIE_TEST_DATABASE_URL`. O workflow PIE 39006977560 passou no SHA `a5e0b64cc55c8d5b59e460e1c68edafdcfe35263`, incluindo PostgreSQL real. O CI geral 39006977567 está pendente na fila do GitHub.
 
 ## Estado atual — 17/10/2026
 
