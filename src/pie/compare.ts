@@ -2,6 +2,10 @@ import { snapshotFiles } from "./snapshotFiles.js";
 import { z } from "zod";
 import { PieError, type Snapshot } from "./contracts.js";
 import { impactedNodes, page, pageSchema } from "./graph.js";
+import {
+  compareDeclarations,
+  declarationChangesSchema,
+} from "./declarationChanges.js";
 
 export const comparisonInput = pageSchema.extend({
   beforeId: z.string().uuid(),
@@ -56,6 +60,7 @@ export const comparisonOutput = z.strictObject({
     unchanged: z.number().int(),
   }),
   runtimeVerified: z.literal(false),
+  declarationChanges: declarationChangesSchema,
   limitations: z.array(z.string()),
 });
 
@@ -142,13 +147,15 @@ export function compareSnapshots(
   const partial =
     before.coverage.status !== "complete" ||
     after.coverage.status !== "complete";
+  const declarationChanges = compareDeclarations(before, after, paging);
   return comparisonOutput.parse({
     schemaVersion: 1,
     projectId: before.projectId,
     beforeId: before.id,
     afterId: after.id,
     status:
-      counts.added + counts.removed + counts.modified > 0
+      counts.added + counts.removed + counts.modified > 0 ||
+      declarationChanges.total > 0
         ? "changed"
         : partial || counts.unknown > 0
           ? "inconclusive"
@@ -160,9 +167,11 @@ export function compareSnapshots(
     ),
     counts,
     runtimeVerified: false,
+    declarationChanges,
     limitations: [
       "Comparação dos bytes observados em snapshots; não comprova regressão nem funcionamento em runtime.",
       "Impacto considera ambos os grafos e somente relações registradas; dependências dinâmicas e não resolvidas permanecem desconhecidas.",
+      "Declarações somente observadas de um lado não comprovam adição/remoção de comportamento: versões de parser, limites e cobertura podem divergir. source_changed indica bytes do arquivo alterados, não alteração comprovada do handler. Ocorrências repetidas não são alinhadas por suposição.",
       ...(partial
         ? [
             "Uma ou ambas as descobertas são parciais; ausência de observação não significa arquivo adicionado ou removido.",

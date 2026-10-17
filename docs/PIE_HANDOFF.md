@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Comparação de declarações — 17/10/2026
+
+Comparação compartilhada CLI/API/MCP agora inclui declarationChanges paginado, preservando declarações e evidências dos dois snapshots. Identidade lógica usa arquivo, adapter, tipo, nome e contexto; linha/hash são observações comparadas. Estados observed_only_before/after não afirmam remoção/adição de comportamento, pois versões de parser e cobertura podem diferir. source_changed significa bytes do arquivo alterados, não handler alterado comprovadamente. Ocorrências repetidas com observações diferentes ficam ambiguous, sem alinhamento inventado. Diferença de declarações também impede status global unchanged.
+
+Testes Git/SQLite cobrem endpoints Next, deslocamento de linha, métodos observados apenas de um lado, múltiplas ocorrências Express ambíguas, paginação e prova de ambos os snapshots; descoberta parcial não confirma remoção. Três testes focados de comparação/MCP passaram em dois arquivos (16,46s). Compilação PIE, typecheck web e lint focado passaram; typecheck completo desta retomada não executado. Interface específica do diff de declarações, seleção/reexecução de testes e motor completo de regressão permanecem pendentes. Goal integral ativo, sem alegação de conclusão ou ganho de desempenho. CI anterior não reconfirmada nesta retomada.
+
 ## Retenção e histórico funcional no painel — 16/10/2026
 
 CI 38992307065 (dc540da8e) terminou com sucesso, incluindo paginação PostgreSQL real. Após limite público da API GitHub, conclusão foi lida usando credencial Git existente somente em memória, sem expor/persistir segredo. Painel agora salva explicitamente a página funcional analisada, lista histórico paginado e abre registro preservado por ID/hash sem recalcular achados. Mostra módulo, offset/quantidade/total e estado não verificado. Cada salvamento deliberado cria novo registro; não há retry automático de mutação incerta. Consulta e salvamento permanecem ações distintas.

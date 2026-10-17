@@ -250,3 +250,5 @@ functional-records <snapshot-id> --limit 50 --offset 0 lista o histórico pelo s
 Depois de analisar, Salvar página analisada preserva a página corrente no serviço. Análises funcionais preservadas lista registros por snapshot com paginação, módulo e cobertura da página. Abrir análise recupera o registro original e seu SHA-256, inclusive após reload. Achados e prova da declaração continuam disponíveis; o histórico não recalcula o texto com o motor atual.
 
 Cada salvamento explícito cria um novo registro. Se houver resposta incerta, consulte/atualize o histórico antes de decidir salvar novamente; o painel não repete gravações automaticamente. Registros persistidos não aprovam funcionalidade e não autorizam execução. Contestação e reteste vinculado ainda estão pendentes.
+
+A comparação de snapshots inclui declarationChanges com paginação independente: observações antes/depois e provas preservadas. source_changed indica alteração de bytes da fonte; observed_only_before/after não comprovam remoção/adição de comportamento; ambiguous preserva ocorrências sem inventar alinhamento. Não comprova regressão runtime.

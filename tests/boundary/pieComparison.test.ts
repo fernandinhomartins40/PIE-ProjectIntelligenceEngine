@@ -12,6 +12,89 @@ import { renderSnapshot } from "../../src/pie/reports.js";
 
 const exec = promisify(execFile);
 
+it("regressão compara declarações com provas dos dois snapshots sem afirmar endpoint removido", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-declaration-diff-"));
+  const repo = join(root, "repo");
+  await mkdir(join(repo, "app", "api"), { recursive: true });
+  await exec("git", ["init", repo]);
+  const file = join(repo, "app", "api", "route.ts");
+  await writeFile(file, "export function GET(){}\nexport function POST(){}");
+  const repeated =
+    "const express=require('express');const app=express();\napp.get('/same',a);\napp.get('/same',b);";
+  await writeFile(join(repo, "api.ts"), repeated);
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "history.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const policy = {
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    };
+    const first = await service.discover(policy);
+    await writeFile(
+      file,
+      "// shifted\nexport function GET(){throw new Error('não executar')}\nexport function PUT(){}",
+    );
+    await writeFile(join(repo, "api.ts"), `// shifted\n${repeated}`);
+    const second = await service.discover(policy);
+    const result = await service.compare({
+      beforeId: first.snapshot.id,
+      afterId: second.snapshot.id,
+      limit: 1,
+    });
+    expect(result.declarationChanges).toMatchObject({
+      total: 4,
+      nextOffset: 1,
+      items: [expect.any(Object)],
+    });
+    const all = await service.compare({
+      beforeId: first.snapshot.id,
+      afterId: second.snapshot.id,
+    });
+    const changes = all.declarationChanges.items;
+    expect(
+      changes.find((item) => item.before[0]?.name === "GET /same"),
+    ).toMatchObject({
+      state: "ambiguous",
+      before: [expect.any(Object), expect.any(Object)],
+      after: [expect.any(Object), expect.any(Object)],
+    });
+    expect(
+      changes.find((item) => item.before[0]?.name === "GET /api"),
+    ).toMatchObject({
+      state: "source_changed",
+      before: [{ source: { line: 1 } }],
+      after: [{ source: { line: 2 } }],
+    });
+    expect(
+      changes.find((item) => item.before[0]?.name === "POST /api"),
+    ).toMatchObject({ state: "observed_only_before", after: [] });
+    expect(
+      changes.find((item) => item.after[0]?.name === "PUT /api"),
+    ).toMatchObject({ state: "observed_only_after", before: [] });
+    for (const item of changes)
+      for (const fact of [...item.before, ...item.after])
+        expect((await service.evidence(fact.evidenceId)).source).toEqual(
+          fact.source,
+        );
+    const partial = await service.discover({ ...policy, maxFileBytes: 1 });
+    const incomplete = await service.compare({
+      beforeId: second.snapshot.id,
+      afterId: partial.snapshot.id,
+    });
+    expect(
+      incomplete.declarationChanges.items.every(
+        (item) => item.state === "observed_only_before",
+      ),
+    ).toBe(true);
+    expect(incomplete.runtimeVerified).toBe(false);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("compara versões reais, preserva arestas removidas e não confirma exclusão em leitura parcial", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-comparison-"));
   const repo = join(root, "repo");
