@@ -10,6 +10,7 @@ import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import { planTriageStatus } from "./planStates.js";
 import { priorityAssessmentSchema } from "./planPriority.js";
+import { reviewInfrastructure } from "./infrastructure.js";
 
 export const planningInput = pageSchema.extend({
   snapshotId: z.string().uuid(),
@@ -116,6 +117,7 @@ export async function generateUnifiedPlanData(
   const product = assessProduct(snapshot, request);
   const security = await reviewSecurity(snapshot, pageRequest);
   const data = reviewData(snapshot, pageRequest);
+  const infrastructure = reviewInfrastructure(snapshot, pageRequest);
   const items: PlanItem[] = [
     ...functional.findings.items.map((finding) =>
       makeItem({
@@ -199,6 +201,33 @@ export async function generateUnifiedPlanData(
         uncertainty: finding.uncertainty,
       }),
     ),
+    ...infrastructure.components.items.map((component) =>
+      makeItem({
+        engine: "infrastructure",
+        sourceId: component.id,
+        sourceState: component.state,
+        title:
+          component.kind === "compose_service"
+            ? `Confirmar operação do serviço Compose ${component.name}`
+            : `Verificar diretiva Nginx em ${component.path}:${component.line ?? "linha desconhecida"}`,
+        evidenceIds: [
+          component.evidenceId,
+          ...component.dependencies.map((dependency) => dependency.evidenceId),
+        ],
+        acceptance:
+          component.kind === "compose_service"
+            ? [
+                "Confirmar no ambiente autorizado se o serviço está ativo, quem o consome e quais dependências, volumes, portas e healthchecks são efetivos.",
+                "Registrar baseline de CPU, RAM, disco, I/O, rede e latência sob carga comparável; marcar NOT_MEASURED quando não houver acesso aprovado.",
+                "Documentar persistência e plano de rollback antes de qualquer mudança operacional.",
+              ]
+            : [
+                "Validar a configuração Nginx efetiva, destino, TLS e disponibilidade somente no ambiente autorizado.",
+                "Registrar baseline e pós-mudança com carga comparável e plano de rollback; sem métricas suficientes, manter NOT_MEASURED.",
+              ],
+        uncertainty: infrastructure.coverage.limitations,
+      }),
+    ),
   ].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const rows = [
     {
@@ -228,6 +257,12 @@ export async function generateUnifiedPlanData(
         data.relations.items.length,
       limitations: data.coverage.limitations,
     },
+    {
+      engine: "infrastructure" as const,
+      total: infrastructure.components.total,
+      included: infrastructure.components.items.length,
+      limitations: infrastructure.coverage.limitations,
+    },
   ];
   const engines = [
     ...rows.map((row) => ({
@@ -239,8 +274,8 @@ export async function generateUnifiedPlanData(
       runtimeVerified: false as const,
       limitations: row.limitations,
     })),
-    ...(["infrastructure", "regression"] as const).map((name) => ({
-      engine: name,
+    {
+      engine: "regression" as const,
       status: "not_implemented" as const,
       sourceCount: 0,
       includedCount: 0,
@@ -249,7 +284,7 @@ export async function generateUnifiedPlanData(
       limitations: [
         "Este motor ainda não fornece itens a este plano unificado.",
       ],
-    })),
+    },
   ];
   const planDigest = sha256(
     canonicalize({

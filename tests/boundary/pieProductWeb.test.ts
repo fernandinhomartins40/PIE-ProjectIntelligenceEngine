@@ -51,6 +51,20 @@ it.skipIf(!existsSync(executablePath))(
       await page.goto(api.url);
       await page.getByLabel("Credencial do serviço local").fill(token);
       await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      const infrastructure = page.getByRole("region", {
+        name: "Infraestrutura e performance",
+      });
+      await infrastructure
+        .getByText(
+          /CPU, memória, disco, I\/O, rede, p95, p99 e reinícios: NOT_MEASURED/,
+        )
+        .waitFor();
+      await infrastructure
+        .getByRole("status")
+        .filter({
+          hasText: /Nenhum fato Compose\/Nginx suportado foi observado/,
+        })
+        .waitFor();
       const section = page.getByRole("region", {
         name: "Análise de produto e UX",
       });

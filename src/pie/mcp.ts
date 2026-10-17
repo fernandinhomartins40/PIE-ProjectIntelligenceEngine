@@ -14,6 +14,7 @@ import {
 } from "./functional.js";
 import { dataReviewInput, dataReviewOutput } from "./dataReview.js";
 import { securityInput, securityOutput } from "./security.js";
+import { infrastructureInput, infrastructureOutput } from "./infrastructure.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
 import { planningInput, unifiedPlanOutput } from "./planning.js";
@@ -149,6 +150,17 @@ export function createPieMcp(
     (input) => guarded(() => service.security(input)),
   );
   server.registerTool(
+    "pie_infrastructure_review",
+    {
+      description:
+        "Inventaria serviços/dependências Compose e diretivas Nginx já parseados com Evidence. Métricas CPU/RAM/disco/I/O/rede/p95/p99/reinícios são NOT_MEASURED; não executa Docker, carga ou comandos do projeto.",
+      inputSchema: infrastructureInput,
+      outputSchema: withError(infrastructureOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.infrastructure(input)),
+  );
+  server.registerTool(
     "pie_product_review",
     {
       description:
@@ -230,7 +242,7 @@ export function createPieMcp(
     "pie_plan_generate",
     {
       description:
-        "Agrega itens estáticos existentes dos motores funcional, produto, segurança e dados em um plano paginado ligado a Evidence, incluindo triagem humana atual de responsável, estado e notas manuais de impacto/risco/esforço quando houver. Prioridade ordena impacto e risco decrescentes, esforço crescente, notas avaliadas antes das ausentes e ID estável como desempate. Use pie_plan_triage_set e pie_plan_contest para registrar decisões justificadas com Evidence. Não autoriza execução e não cobre os motores de infraestrutura/regressão.",
+        "Agrega itens estáticos dos motores funcional, produto, segurança, infraestrutura Compose/Nginx e dados em um plano paginado ligado a Evidence, incluindo triagem humana atual. Prioridade ordena impacto e risco decrescentes, esforço crescente e ID estável como desempate; notas nunca são inferidas. Runtime, métricas de infraestrutura e regressão não são comprovados. Não autoriza execução.",
       inputSchema: planningInput,
       outputSchema: withError(unifiedPlanOutput),
       annotations: read,

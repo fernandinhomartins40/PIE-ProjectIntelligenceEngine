@@ -10,6 +10,9 @@ export type RetestPlan = Awaited<ReturnType<PieService["retestPlan"]>>;
 export type Evidence = Awaited<ReturnType<PieService["evidence"]>>;
 export type FunctionalReview = Awaited<ReturnType<PieService["functional"]>>;
 export type ProductReview = Awaited<ReturnType<PieService["product"]>>;
+export type InfrastructureReview = Awaited<
+  ReturnType<PieService["infrastructure"]>
+>;
 export type FunctionalRecord = Awaited<
   ReturnType<PieService["functionalRecord"]>
 >;

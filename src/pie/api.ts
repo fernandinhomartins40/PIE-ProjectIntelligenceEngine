@@ -18,6 +18,7 @@ import { scopedJob } from "./jobs/access.js";
 import { functionalInput } from "./functional.js";
 import { dataReviewInput } from "./dataReview.js";
 import { securityInput } from "./security.js";
+import { infrastructureInput } from "./infrastructure.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
 import { functionalRecordExportInput } from "./functionalRecord.js";
 import { verificationExportInput } from "./execution/runContracts.js";
@@ -534,6 +535,15 @@ export async function startPieApi(
         const input = securityInput.parse(await body(request));
         await requireSnapshot(input.snapshotId);
         respond(response, 200, await service.security(input));
+        return;
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/infrastructure-review"
+      ) {
+        const input = infrastructureInput.parse(await body(request));
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.infrastructure(input));
         return;
       }
       if (

@@ -316,3 +316,7 @@ Resultado passed se refere apenas à asserção status/digest de resposta comple
 `plan-export <snapshot-id> --format json|md|html` exporta o plano atual, incluindo a triagem humana aplicada, owner/status e notas de prioridade. A API autenticada aceita `GET /v1/plan/export?snapshotId=<uuid>&format=json&offset=0&limitBytes=65536`; o MCP fornece `pie_plan_export` com os mesmos formatos e paginação UTF-8. Cada resposta inclui `planDigest`, SHA-256 e offsets do artefato completo. Prioridade continua sendo avaliação humana; a exportação não muda o digest, estado `unverified` ou autorização de execução.
 
 `plan-item-history-export <snapshot-id> <plan-digest> <item-id> --format json|md|html` exporta a cadeia de triagem e as contestações do item, revalidando revisão, hashes e Evidence. A API usa `GET /v1/plan/item-history/export` com `snapshotId`, `planDigest` e `itemId`; MCP `pie_plan_item_history_export`. Também pagina o artefato completo por bytes UTF-8 e mantém os digests de snapshot/árvore/plano.
+
+## Revisão estática de infraestrutura
+
+`infrastructure-review <snapshot-id> --limit 50 --offset 0`, `POST /v1/infrastructure-review` e MCP `pie_infrastructure_review` consultam serviços/dependências Compose e diretivas Nginx que já foram parseados com Evidence. O painel mostra a origem e permite abrir cada Evidence. A análise informa CPU/RAM/disco/I/O/rede/p95/p99/reinícios como `NOT_MEASURED`; não executa Docker, carga ou comandos do projeto. O plano pode propor validações para os fatos encontrados, mas permanece `unverified`.

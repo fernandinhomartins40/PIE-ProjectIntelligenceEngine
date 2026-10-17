@@ -102,7 +102,7 @@ export async function runPie(args: string[]): Promise<void> {
       "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova e http-probes <snapshot-id> lista o histórico. Não inicia o servidor do projeto.",
     );
     console.log(
-      "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id> | data-review <snapshot-id> | security-review <snapshot-id>; aceitam --limit <1–200> --offset <n>. Código estático não comprova comportamento, fricção ou segurança.",
+      "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id> | data-review <snapshot-id> | security-review <snapshot-id> | infrastructure-review <snapshot-id>; aceitam --limit <1–200> --offset <n>. Código estático não comprova runtime; métricas não medidas permanecem NOT_MEASURED.",
     );
     console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
@@ -173,6 +173,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional-records",
       "data-review",
       "security-review",
+      "infrastructure-review",
       "http-probe",
       "http-probes",
       "trace",
@@ -320,6 +321,12 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "security-review":
         result = await service.security({ snapshotId: target!, ...paging });
+        break;
+      case "infrastructure-review":
+        result = await service.infrastructure({
+          snapshotId: target!,
+          ...paging,
+        });
         break;
       case "functional":
         result = await service.functional({

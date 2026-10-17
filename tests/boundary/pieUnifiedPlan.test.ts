@@ -821,7 +821,7 @@ it("agrega propostas de motores com Evidence e sem promover verificação", asyn
       engines: expect.arrayContaining([
         expect.objectContaining({
           engine: "infrastructure",
-          status: "not_implemented",
+          status: "partial_static",
         }),
         expect.objectContaining({
           engine: "regression",

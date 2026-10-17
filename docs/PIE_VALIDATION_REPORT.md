@@ -693,3 +693,10 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - `npm.cmd exec -- vitest run --project boundary tests/boundary/pieUnifiedPlan.test.ts`: 2/2 passou. Com SQLite/Git reais, verifica cadeia de triagem com prioridade humana, contestação, JSON dividido em páginas de 241 bytes, hash/concatenação, paridade API/MCP/CLI e schema Ajv.
 - `npm.cmd run check:fast`: typecheck e lint passaram (2 tarefas; 1m25s). `npm.cmd run mcp-catalog:check`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
 - PostgreSQL não executado: `PIE_TEST_DATABASE_URL` indisponível. Exports restantes e CI geral mantêm T6.1 parcial.
+
+## Inventário estático inicial de infraestrutura — 17/10/2026
+
+- `npm.cmd run pie:build` e `npm.cmd run pie:web:typecheck`: passaram.
+- `npm.cmd exec -- vitest run --project boundary tests/boundary/pieInfrastructure.test.ts tests/boundary/pieUnifiedPlan.test.ts tests/boundary/pieProductWeb.test.ts`: 4/4 passaram. Git/SQLite reais validam Compose/Nginx, Evidence e dependências, paginação, plano, API autenticada, CLI/MCP e schemas Ajv; Chrome real valida estado `NOT_MEASURED`, inventário vazio sem alegar ausência e o fluxo responsivo existente em 360/1440 px.
+- `npm.cmd run mcp-catalog:generate`, `npm.cmd run mcp-catalog:check`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check`: passaram.
+- PostgreSQL/VPS/Docker do projeto-alvo não foram acessados nem medidos. CPU, memória, disco, I/O, rede, p95/p99 e reinícios permanecem `NOT_MEASURED`; T4.4 continua parcial.

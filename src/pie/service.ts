@@ -60,6 +60,7 @@ import {
   planItemHistoryExportInput,
   renderPlanItemHistoryExport,
 } from "./planItemHistoryExport.js";
+import { infrastructureInput, reviewInfrastructure } from "./infrastructure.js";
 
 function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
   if (result.ok) return result.value;
@@ -349,6 +350,14 @@ export class PieService {
         declarations: page(snapshot.declarations, input),
         coverage: snapshot.coverage,
       };
+    });
+  }
+
+  infrastructure(input: unknown) {
+    return this.#read(async () => {
+      const request = infrastructureInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      return reviewInfrastructure(snapshot, request);
     });
   }
 
