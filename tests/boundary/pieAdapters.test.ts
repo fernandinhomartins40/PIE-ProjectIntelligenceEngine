@@ -12,6 +12,7 @@ import { openStore } from "../../src/pie/store.js";
 import { PieService } from "../../src/pie/service.js";
 import { DatabaseSync } from "node:sqlite";
 import { readCodeFacts } from "../../src/pie/codeFacts.js";
+import { nginxDirectives } from "../../src/pie/adapters/nginxSyntax.js";
 
 it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-next-"));
@@ -123,6 +124,123 @@ it("Next não confunde comentários, strings, tipos e nomes parecidos com rotas"
 });
 
 const exec = promisify(execFile);
+
+it("Nginx mantém limites de tokens, aspas, comentários, variáveis e blocos", () => {
+  const source =
+    '# listen 9999;\nhttp { server {\n listen 443 ssl;\n location ~ "^/a{2}#b$" { proxy_pass http://${backend}/path; }\n include "conf with space/*.conf";\n server_name example.test;\n} }';
+  const parsed = readDeclarations("deploy/nginx/site.conf", source, 20)!;
+  expect(
+    parsed.declarations.map((item) => [item.kind, JSON.parse(item.name)]),
+  ).toEqual([
+    ["config_directive", ["listen", "443", "ssl"]],
+    ["location", ["location", "~", "^/a{2}#b$"]],
+    ["config_directive", ["proxy_pass", "http://${backend}/path"]],
+    ["config_directive", ["include", "conf with space/*.conf"]],
+    ["config_directive", ["server_name", "example.test"]],
+  ]);
+  expect(parsed.declarations[2]).toMatchObject({
+    line: 4,
+    parent: JSON.stringify([
+      { directive: "http", line: 2 },
+      { directive: "server", line: 2 },
+      { directive: "location", line: 4 },
+    ]),
+  });
+  expect(parsed.limitations.join(" ")).toContain("include não expandidas");
+  expect(readDeclarations("nginx.conf", source, 1)).toMatchObject({
+    declarations: [expect.objectContaining({ name: '["listen","443","ssl"]' })],
+    limitations: expect.arrayContaining([expect.stringContaining("omitidas")]),
+  });
+  expect(
+    [
+      ...nginxDirectives('server { location / { proxy_pass "http://a;#b"; } }'),
+    ].at(-1)?.words,
+  ).toEqual(["proxy_pass", "http://a;#b"]);
+  for (const malformed of [
+    "server { listen 80;",
+    'server { listen "80; }',
+    "listen 80",
+    "}",
+    "server { ; }",
+    "proxy_pass http://${unfinished;",
+  ])
+    expect(() => readDeclarations("nginx.conf", malformed, 10)).toThrow();
+  expect(() =>
+    readDeclarations("nginx.conf", "a {".repeat(129) + "}".repeat(129), 10),
+  ).toThrow();
+  expect(readDeclarations("unrelated.conf", source, 10)).toBeNull();
+  expect(
+    readDeclarations(
+      "nginx.conf",
+      "proxy_pass http://user:password@backend:3000/path?choice=1;",
+      10,
+    )?.declarations[0]?.name,
+  ).toBe('["proxy_pass","http://[REDACTED]@backend:3000/path?choice=1"]');
+  expect(
+    [
+      ...nginxDirectives(
+        String.raw`proxy_pass http://backend/path#fragment; location ~ "\.php$" { fastcgi_pass unix:/run/php.sock; }`,
+      ),
+    ].map((item) => item.words),
+  ).toEqual([
+    ["proxy_pass", "http://backend/path#fragment"],
+    ["location", "~", String.raw`\.php$`],
+    ["fastcgi_pass", "unix:/run/php.sock"],
+  ]);
+  expect(() => [...nginxDirectives('server_name "example"suffix;')]).toThrow(
+    "separator",
+  );
+});
+
+it("Nginx integra inventário Git, evidência e trace sem ler include externo", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-nginx-"));
+  const external = await mkdtemp(join(tmpdir(), "pie-nginx-history-"));
+  const store = await openStore(join(external, "pie.sqlite"), root);
+  const service = new PieService(store);
+  try {
+    await exec("git", ["init", root]);
+    await writeFile(
+      join(root, "nginx.conf"),
+      "http { server {\nlisten 8080;\nlocation /api { proxy_pass http://backend:3000; }\ninclude /outside/not-available.conf;\n} }",
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const observed = await service.discover({
+      repositoryRoot: root,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = store.snapshot(observed.snapshot.id);
+    const proxy = snapshot.declarations.find((item) =>
+      item.name.includes("proxy_pass"),
+    )!;
+    expect(proxy).toMatchObject({
+      adapter: "nginx-config",
+      kind: "config_directive",
+      name: '["proxy_pass","http://backend:3000"]',
+      source: { path: "nginx.conf", line: 3 },
+    });
+    expect(await service.evidence(proxy.evidenceId)).toMatchObject({
+      method: "static",
+      state: "unverified",
+    });
+    const trace = await service.trace({
+      snapshotId: snapshot.id,
+      nodeId: proxy.id,
+    });
+    expect(trace.edges.items.some((item) => item.kind === "declared_in")).toBe(
+      true,
+    );
+    expect(trace.coverage.runtime).toBe(false);
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    expect(snapshot.coverage.limitations.join(" ")).toContain(
+      "include não expandidas",
+    );
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+    await rm(external, { recursive: true, force: true });
+  }
+});
 
 it("Express AST mantém receptor local, linha e prova sem fabricar prefixo público", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-express-"));

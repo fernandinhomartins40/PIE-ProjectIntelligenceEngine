@@ -1,5 +1,13 @@
 # PIE — Plano mestre de implementação integral
 
+## Configuração Nginx com proveniência — 16/10/2026
+
+CI 38987902054 (94d0c77ea) passou, incluindo Express, PostgreSQL, Docker e navegador nas trilhas existentes. Novo adapter nginx-config reconhece nginx.conf, nginx.*.conf e arquivos .conf sob diretório nginx. Lexer iterativo próprio respeita comentários, aspas, escapes e variáveis ${...}; blocos têm limite de profundidade 128. location e diretivas listen/server_name/proxy_pass/fastcgi_pass/grpc_pass/include são preservadas com argumentos em array JSON, sem colapsar limites entre tokens, e contexto ancestral por diretiva/linha. Fatos persistidos usam location/config_directive e prova selada do arquivo; declared_in já integra trace/CLI/MCP/API/painel.
+
+Nenhum include é expandido, nenhum caminho/URL/socket é acessado nem configuração executada. Configuração efetiva, precedência/herança, módulos, certificados/TLS, permissões, escuta, proxy funcionando e HTTP continuam não comprovados. Não chamar inventário de auditoria completa de infraestrutura. Lexer consultado contra fonte oficial ngx_conf_file.c: # no meio do token é literal, escapes desconhecidos preservam barra. Bloco/aspas incompletos não geram fatos. Testes cobrem casos hostis, limites, linha, evidência, persistência e trace real Git/SQLite.
+
+Rodada adapters/trace/MCP: 11 testes passaram (10,78s). Build PIE e typecheck web passaram. Lint sem erros, com avisos de complexidade/tamanho no lexer; refatoração do estado permanece como dívida explícita. Não executado nginx -t nem servidor Nginx real; sem medições comparativas de tokens/CPU/memória. Runners HTTP/Playwright, PHP/Laravel, motores e aceite integral continuam pendentes; goal ativo.
+
 ## Endpoints Express derivados da AST — 16/10/2026
 
 CI 38987552370 (428180d4a) passou, comprovando correção NDJSON da CLI contínua com SIGTERM e rotas Next. readExpressDeclarations agora consome a mesma árvore Babel de readCodeFacts, sem nova dependência/parser ou execução. Produz endpoint express-ast com método, padrão literal, receptor local em parent, linha e evidência selada. Reconhece imports de valor/default/Router e const require express, construtores app/Router; chamadas diretas no escopo superior somente. require sombreado por declaração/import/desestruturação é recusado; atribuições diretas invalidam o receptor. Métodos em objetos estranhos ou em escopos aninhados não viram endpoints.

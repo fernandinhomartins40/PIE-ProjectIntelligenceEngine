@@ -2,6 +2,7 @@ import { parseDocument, LineCounter, isMap, isScalar } from "yaml";
 import { posix } from "node:path";
 import { parseTree, findNodeAtLocation } from "jsonc-parser";
 import type { AdapterRead, Declaration } from "./contracts.js";
+import { readNginx } from "./nginx.js";
 
 const object = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -227,6 +228,8 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   let parsed: AdapterRead;
+  if (/(?:^|\/)nginx(?:\.[^/]*)?\.conf$|(?:^|\/)nginx\/.*\.conf$/.test(path))
+    return readNginx(source, limit);
   if (/(?:^|\/)(package|composer)\.json$/.test(path))
     parsed = manifest(path, source);
   else if (
