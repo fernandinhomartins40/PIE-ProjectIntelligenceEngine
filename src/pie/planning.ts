@@ -9,6 +9,7 @@ import { reviewSecurity } from "./security.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import { planTriageStatus } from "./planStates.js";
+import { priorityAssessmentSchema } from "./planPriority.js";
 
 export const planningInput = pageSchema.extend({
   snapshotId: z.string().uuid(),
@@ -23,20 +24,31 @@ const engine = z.enum([
   "regression",
 ]);
 
-export const planItemSchema = z.strictObject({
-  id: z.string(),
-  engine,
-  sourceId: z.string(),
-  sourceState: z.string(),
-  status: planTriageStatus,
-  priority: z.literal("unassessed"),
-  owner: z.string().max(160).nullable(),
-  triageRevision: z.number().int().nonnegative().optional(),
-  title: z.string(),
-  evidenceIds: z.array(z.string().uuid()).min(1),
-  acceptance: z.array(z.string()).min(1),
-  uncertainty: z.array(z.string()),
-});
+export const planItemSchema = z
+  .strictObject({
+    id: z.string(),
+    engine,
+    sourceId: z.string(),
+    sourceState: z.string(),
+    status: planTriageStatus,
+    priority: z.enum(["unassessed", "assessed"]),
+    priorityAssessment: priorityAssessmentSchema.nullable().optional(),
+    owner: z.string().max(160).nullable(),
+    triageRevision: z.number().int().nonnegative().optional(),
+    title: z.string(),
+    evidenceIds: z.array(z.string().uuid()).min(1),
+    acceptance: z.array(z.string()).min(1),
+    uncertainty: z.array(z.string()),
+  })
+  .superRefine((item, context) => {
+    const assessed = item.priority === "assessed";
+    if (assessed !== (item.priorityAssessment != null))
+      context.addIssue({
+        code: "custom",
+        message: "Estado de prioridade diverge da avaliação preservada.",
+        path: ["priorityAssessment"],
+      });
+  });
 
 const engineCoverageSchema = z.strictObject({
   engine,
@@ -80,7 +92,7 @@ function makeItem(
 }
 
 /** Build one evidence-linked triage plan from existing engine outputs only. */
-export async function generateUnifiedPlan(
+export async function generateUnifiedPlanData(
   snapshotInput: Snapshot,
   rawInput: unknown,
 ) {
@@ -247,7 +259,7 @@ export async function generateUnifiedPlan(
       engines,
     })!,
   );
-  return unifiedPlanOutput.parse({
+  const output = unifiedPlanOutput.parse({
     schemaVersion: 1,
     engine: "planning",
     snapshotId: snapshot.id,
@@ -269,4 +281,12 @@ export async function generateUnifiedPlan(
       ],
     },
   });
+  return { output, allItems: items };
+}
+
+export async function generateUnifiedPlan(
+  snapshotInput: Snapshot,
+  rawInput: unknown,
+) {
+  return (await generateUnifiedPlanData(snapshotInput, rawInput)).output;
 }

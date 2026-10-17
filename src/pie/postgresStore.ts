@@ -399,7 +399,11 @@ export class PostgresPieStore implements PiePersistence {
           );
         const event = sealPlanTriageEvent(
           input,
-          { owner: history.owner, status: history.status },
+          {
+            owner: history.owner,
+            status: history.status,
+            priority: history.priorityAssessment,
+          },
           history.revision + 1,
         );
         await tx.$executeRaw`INSERT INTO pie_plan_triage_events(id,snapshot_id,plan_digest,item_id,revision,created_at,payload) VALUES(${event.id}::uuid,${event.snapshotId}::uuid,${event.planDigest},${event.itemId},${event.revision},${new Date(event.createdAt)},${JSON.stringify(event)}::jsonb)`;

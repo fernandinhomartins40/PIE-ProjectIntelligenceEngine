@@ -79,6 +79,13 @@ function PlanHistory({
                   {event.owner !== event.previousOwner &&
                     ` · responsável: ${event.previousOwner ?? "não atribuído"} → ${event.owner ?? "não atribuído"}`}
                 </p>
+                {event.schemaVersion === 2 && event.priority && (
+                  <p>
+                    Impacto {event.priority.impact}, risco {event.priority.risk}
+                    , esforço {event.priority.effort};{" "}
+                    {event.priority.evidenceIds.length} Evidence vinculadas.
+                  </p>
+                )}
                 <p>{event.justification}</p>
                 <small>Hash do evento: {event.eventHash}</small>
               </li>
@@ -99,6 +106,7 @@ function PlanHistory({
 
 function PlanItem({
   item,
+  position,
   plan,
   snapshotId,
   onEvidence,
@@ -106,6 +114,7 @@ function PlanItem({
   onContested,
 }: {
   item: UnifiedPlan["items"]["items"][number];
+  position: number;
   plan: UnifiedPlan;
   snapshotId: string;
   onEvidence: (id: string) => void;
@@ -156,8 +165,11 @@ function PlanItem({
         <span className="badge">{statusLabel(item.status)}</span>
       </header>
       <p>
-        Prioridade: não avaliada. Estado técnico: não verificado. Revisão de
-        triagem {item.triageRevision ?? 0}.
+        {item.priorityAssessment
+          ? `Prioridade manual ${position} · impacto ${item.priorityAssessment.impact}, risco ${item.priorityAssessment.risk}, esforço ${item.priorityAssessment.effort}.`
+          : "Prioridade não avaliada."}{" "}
+        Estado técnico: não verificado. Revisão de triagem{" "}
+        {item.triageRevision ?? 0}.
       </p>
       <h4>Critérios de aceitação propostos</h4>
       <ul>
@@ -187,6 +199,13 @@ function PlanItem({
         plan={plan}
         snapshotId={snapshotId}
         onContested={onContested}
+      />
+      <PlanPriorityForm
+        key={`${plan.planDigest}:${item.id}:${item.triageRevision ?? 0}`}
+        item={item}
+        plan={plan}
+        snapshotId={snapshotId}
+        onSaved={onSaved}
       />
       <form className="plan-triage-form" onSubmit={(event) => void save(event)}>
         <div>
@@ -226,7 +245,14 @@ function PlanItem({
             onChange={(event) => setJustification(event.target.value)}
           />
         </div>
-        {error && <Notice error>{error}</Notice>}
+        {error && (
+          <>
+            <Notice error>{error}</Notice>
+            <button type="button" onClick={onSaved}>
+              Recarregar estado atual
+            </button>
+          </>
+        )}
         <button
           className="primary"
           disabled={busy || justification.trim().length < 10}
@@ -245,6 +271,189 @@ function PlanItem({
         <p>Sem alterações de triagem registradas.</p>
       )}
     </article>
+  );
+}
+
+function PlanPriorityForm({
+  item,
+  plan,
+  snapshotId,
+  onSaved,
+}: {
+  item: UnifiedPlan["items"]["items"][number];
+  plan: UnifiedPlan;
+  snapshotId: string;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [impact, setImpact] = useState(
+    String(item.priorityAssessment?.impact ?? ""),
+  );
+  const [risk, setRisk] = useState(String(item.priorityAssessment?.risk ?? ""));
+  const [effort, setEffort] = useState(
+    String(item.priorityAssessment?.effort ?? ""),
+  );
+  const [evidenceIds, setEvidenceIds] = useState(
+    item.priorityAssessment?.evidenceIds ?? [],
+  );
+  const [clear, setClear] = useState(false);
+  const [justification, setJustification] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const ratings = [impact, risk, effort];
+  const partialRating = ratings.some(Boolean) && !ratings.every(Boolean);
+  const invalid =
+    partialRating ||
+    (ratings.every(Boolean) && evidenceIds.length === 0) ||
+    evidenceIds.length > 10;
+  async function save(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api("plan/triage", {
+        method: "POST",
+        body: {
+          id: crypto.randomUUID(),
+          snapshotId,
+          planDigest: plan.planDigest,
+          itemId: item.id,
+          expectedRevision: item.triageRevision ?? 0,
+          ...(clear
+            ? { priority: null }
+            : ratings.every(Boolean)
+              ? {
+                  priority: {
+                    impact: Number(impact),
+                    risk: Number(risk),
+                    effort: Number(effort),
+                    evidenceIds,
+                  },
+                }
+              : {}),
+          justification,
+        },
+      });
+      setJustification("");
+      setClear(false);
+      setOpen(false);
+      onSaved();
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="plan-priority">
+      <button aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        {open
+          ? "Fechar priorização"
+          : item.priorityAssessment
+            ? "Reavaliar prioridade"
+            : "Avaliar prioridade"}
+      </button>
+      {open && (
+        <form
+          className="plan-triage-form"
+          onSubmit={(event) => void save(event)}
+        >
+          <p className="plan-priority-rule">
+            Notas humanas com Evidence. Ordenação: impacto decrescente, risco
+            decrescente, esforço crescente; empates pelo ID estável. Itens sem
+            avaliação ficam após os avaliados. A escala não afirma probabilidade
+            nem comprovação técnica.
+          </p>
+          {(["impacto", "risco", "esforço"] as const).map((label, index) => {
+            const values = [impact, risk, effort];
+            const setters = [setImpact, setRisk, setEffort];
+            const id = `priority-${index}-${encodeURIComponent(item.id)}`;
+            return (
+              <div key={id}>
+                <label htmlFor={id}>{label} · 1 baixo, 5 alto</label>
+                <select
+                  id={id}
+                  value={values[index]}
+                  onChange={(event) => {
+                    setters[index]!(event.target.value);
+                    setClear(false);
+                  }}
+                >
+                  <option value="">Não avaliado</option>
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <option key={score} value={score}>
+                      {score}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          })}
+          <fieldset className="plan-evidence-select">
+            <legend>Evidence que sustenta a avaliação (1 a 10)</legend>
+            {item.evidenceIds.map((id) => (
+              <label key={id}>
+                <input
+                  type="checkbox"
+                  checked={evidenceIds.includes(id)}
+                  onChange={(event) =>
+                    setEvidenceIds((current) =>
+                      event.target.checked
+                        ? [...current, id]
+                        : current.filter((value) => value !== id),
+                    )
+                  }
+                />
+                {id}
+              </label>
+            ))}
+          </fieldset>
+          {item.priorityAssessment && (
+            <button
+              type="button"
+              onClick={() => {
+                setClear(true);
+                setImpact("");
+                setRisk("");
+                setEffort("");
+                setEvidenceIds([]);
+              }}
+            >
+              Limpar avaliação e deixar não avaliada
+            </button>
+          )}
+          <div className="plan-justification">
+            <label
+              htmlFor={`priority-justification-${encodeURIComponent(item.id)}`}
+            >
+              Justificativa (obrigatória)
+            </label>
+            <textarea
+              id={`priority-justification-${encodeURIComponent(item.id)}`}
+              value={justification}
+              minLength={10}
+              maxLength={4_000}
+              required
+              onChange={(event) => setJustification(event.target.value)}
+            />
+          </div>
+          {error && (
+            <>
+              <Notice error>{error}</Notice>
+              <button type="button" onClick={onSaved}>
+                Recarregar estado atual
+              </button>
+            </>
+          )}
+          <button
+            className="primary"
+            disabled={busy || invalid || justification.trim().length < 10}
+          >
+            {busy ? "Registrando avaliação…" : "Salvar avaliação"}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
 
@@ -484,18 +693,21 @@ export function PlanTriage({
         )}
       </div>
       <Notice>
-        A prioridade ainda não foi avaliada. Estados e responsáveis são
-        registros de triagem: “Concluído” não significa verificado, e este plano
-        não autoriza execução.
+        Prioridade é uma avaliação humana justificada e ligada a Evidence,
+        ordenada por impacto desc., risco desc. e esforço asc.; notas ausentes
+        ficam por último. Estados e responsáveis são registros de triagem:
+        “Concluído” não significa verificado, e este plano não autoriza
+        execução.
       </Notice>
       {error && <Notice error>{error}</Notice>}
       {loading && <Notice>Carregando plano preservado…</Notice>}
       {plan && (
         <>
-          {plan.items.items.map((item) => (
+          {plan.items.items.map((item, index) => (
             <PlanItem
-              key={`${plan.planDigest}:${item.id}`}
+              key={`${plan.planDigest}:${item.id}:${item.triageRevision ?? 0}`}
               item={item}
+              position={offset + index + 1}
               plan={plan}
               snapshotId={snapshotId}
               onEvidence={onEvidence}

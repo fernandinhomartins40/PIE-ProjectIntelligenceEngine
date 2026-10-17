@@ -225,7 +225,7 @@ export function createPieMcp(
     "pie_plan_generate",
     {
       description:
-        "Agrega itens estáticos existentes dos motores funcional, produto, segurança e dados em um plano paginado ligado a Evidence, incluindo triagem humana atual de responsável e estado quando houver. Prioridade continua não avaliada; use pie_plan_triage_set para registrar alterações e pie_plan_contest para contestar com justificativa e Evidence. Não autoriza execução e não cobre os motores de infraestrutura/regressão.",
+        "Agrega itens estáticos existentes dos motores funcional, produto, segurança e dados em um plano paginado ligado a Evidence, incluindo triagem humana atual de responsável, estado e notas manuais de impacto/risco/esforço quando houver. Prioridade ordena impacto e risco decrescentes, esforço crescente, notas avaliadas antes das ausentes e ID estável como desempate. Use pie_plan_triage_set e pie_plan_contest para registrar decisões justificadas com Evidence. Não autoriza execução e não cobre os motores de infraestrutura/regressão.",
       inputSchema: planningInput,
       outputSchema: withError(unifiedPlanOutput),
       annotations: read,
@@ -270,7 +270,7 @@ export function createPieMcp(
     "pie_plan_triage_set",
     {
       description:
-        "Registra mudança explícita de owner e/ou status da triagem com justificativa e revisão esperada; completed continua sem verificação técnica e não autoriza execução.",
+        "Registra mudança explícita de owner/status ou notas humanas de prioridade (impacto/risco/esforço de 1 a 5) com justificativa, Evidence do snapshot e revisão esperada. A ordenação é lexicográfica e as notas não são inferidas. completed continua sem verificação técnica e não autoriza execução.",
       inputSchema: planTriageInput,
       outputSchema: withError(planTriageEventSchema),
       annotations: { ...write, idempotentHint: true },

@@ -31,6 +31,7 @@ import {
 import { planRetests, retestInput } from "./retestPlan.js";
 import {
   generateUnifiedPlan,
+  generateUnifiedPlanData,
   planningInput,
   unifiedPlanOutput,
 } from "./planning.js";
@@ -44,7 +45,9 @@ import {
   planTriageHistoryInput,
   planTriageInput,
   validatePlanTriageHistory,
+  type PlanTriageEvent,
 } from "./planTriage.js";
+import { comparePlanPriority } from "./planPriority.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 import {
   compareVerificationRuns,
@@ -88,6 +91,20 @@ function discoveryValue(
   } as const;
   const [code, message] = failures[result.error.kind];
   throw new PieError(code, message);
+}
+
+function validatePriorityEvidence(
+  evidenceIds: ReadonlySet<string>,
+  event: PlanTriageEvent,
+) {
+  if (
+    event.schemaVersion === 2 &&
+    event.priority?.evidenceIds.some((id) => !evidenceIds.has(id))
+  )
+    throw new PieError(
+      "INTEGRITY_ERROR",
+      "Evidence da prioridade não pertence ao snapshot preservado.",
+    );
 }
 
 function policyValue(input: unknown): Policy {
@@ -391,6 +408,11 @@ export class PieService {
           planDigest,
           [item.id],
         );
+        if (events[0])
+          validatePriorityEvidence(
+            new Set(snapshot.evidence.map((entry) => entry.id)),
+            events[0],
+          );
         return applyLatestPlanTriage(item, events[0]);
       }
       if (plan.items.nextOffset === null) break;
@@ -401,19 +423,27 @@ export class PieService {
     return this.#read(async () => {
       const request = planningInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
-      const plan = await generateUnifiedPlan(snapshot, request);
+      const { output: plan, allItems } = await generateUnifiedPlanData(
+        snapshot,
+        { snapshotId: snapshot.id, limit: 200, offset: 0 },
+      );
       const events = await this.store.latestPlanTriageEvents(
         snapshot.id,
         plan.planDigest,
-        plan.items.items.map((item) => item.id),
+        allItems.map((item) => item.id),
       );
       const byItem = new Map(events.map((event) => [event.itemId, event]));
+      const knownEvidence = new Set(snapshot.evidence.map((item) => item.id));
+      for (const event of events)
+        validatePriorityEvidence(knownEvidence, event);
       return unifiedPlanOutput.parse({
         ...plan,
         items: {
-          ...plan.items,
-          items: plan.items.items.map((item) =>
-            applyLatestPlanTriage(item, byItem.get(item.id)),
+          ...page(
+            allItems
+              .map((item) => applyLatestPlanTriage(item, byItem.get(item.id)))
+              .sort(comparePlanPriority),
+            { offset: request.offset, limit: request.limit },
           ),
         },
       });
@@ -457,6 +487,15 @@ export class PieService {
       const request = planTriageInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
       await this.#findPlanItem(snapshot, request.planDigest, request.itemId);
+      const knownEvidence = new Set(snapshot.evidence.map((item) => item.id));
+      if (
+        request.priority &&
+        request.priority.evidenceIds.some((id) => !knownEvidence.has(id))
+      )
+        throw new PieError(
+          "INVALID_INPUT",
+          "Evidence da avaliação de prioridade deve pertencer ao snapshot.",
+        );
       return this.store.savePlanTriage(request);
     });
   }

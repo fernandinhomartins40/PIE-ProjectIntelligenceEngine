@@ -17,7 +17,7 @@ const executablePath =
     : "/usr/bin/google-chrome");
 
 it.skipIf(!existsSync(executablePath))(
-  "painel registra triagem e contestação append-only ligadas a Evidence",
+  "painel registra prioridade, triagem e contestação append-only com Evidence",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "pie-plan-web-"));
     const repo = join(root, "repo");
@@ -65,20 +65,45 @@ it.skipIf(!existsSync(executablePath))(
         .filter({ hasText: item.title })
         .first();
       await card.waitFor();
+      await card.getByRole("button", { name: "Avaliar prioridade" }).click();
+      await card.getByLabel("impacto · 1 baixo, 5 alto").selectOption("5");
+      await card.getByLabel("risco · 1 baixo, 5 alto").selectOption("4");
+      await card.getByLabel("esforço · 1 baixo, 5 alto").selectOption("2");
+      await card.getByRole("checkbox").first().check();
+      await card
+        .getByLabel("Justificativa (obrigatória)")
+        .fill("Notas humanas sustentadas pela Evidence selecionada.");
+      await card.getByRole("button", { name: "Salvar avaliação" }).click();
+      await card.getByText(/Prioridade manual 1/).waitFor();
+      const ratedPlan = await service.plan({ snapshotId, limit: 20 });
+      expect(ratedPlan.planDigest).toBe(plan.planDigest);
+      expect(ratedPlan.items.items[0]?.id).toBe(item.id);
+      expect(ratedPlan.items.items[0]?.priorityAssessment).toMatchObject({
+        impact: 5,
+        risk: 4,
+        effort: 2,
+      });
+
       await card.getByLabel("Responsável (opcional)").fill("equipe-integracao");
       await card.getByLabel("Estado de triagem").selectOption("in_progress");
       await card
         .getByLabel("Justificativa da alteração")
         .fill("Atribuída à equipe para análise técnica.");
       await card.getByRole("button", { name: "Registrar alteração" }).click();
-      await card.getByText("Revisão de triagem 1.").waitFor();
+      await card.getByText("Revisão de triagem 2.").waitFor();
       const triage = await service.planTriageHistory(snapshotId, {
         planDigest: plan.planDigest,
         itemId: item.id,
         limit: 20,
       });
-      expect(triage.items.items[0]?.owner).toBe("equipe-integracao");
-      expect(triage.items.items[0]?.status).toBe("in_progress");
+      expect(triage.schemaVersion).toBe(2);
+      expect(triage.items.items.at(-1)?.owner).toBe("equipe-integracao");
+      expect(triage.items.items.at(-1)?.status).toBe("in_progress");
+      expect(triage.priorityAssessment).toMatchObject({
+        impact: 5,
+        risk: 4,
+        effort: 2,
+      });
 
       await card
         .getByRole("button", { name: "Contestar recomendação" })
@@ -103,6 +128,11 @@ it.skipIf(!existsSync(executablePath))(
       expect(contests.items.total).toBe(1);
       expect(contests.items.items[0]?.item.id).toBe(item.id);
       expect(contests.items.items[0]?.evidenceIds).toHaveLength(1);
+      expect(contests.items.items[0]?.item.priorityAssessment).toMatchObject({
+        impact: 5,
+        risk: 4,
+        effort: 2,
+      });
 
       for (const width of [360, 1440]) {
         await page.setViewportSize({ width, height: 900 });

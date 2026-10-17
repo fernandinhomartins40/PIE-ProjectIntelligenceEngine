@@ -303,7 +303,11 @@ export class PieStore implements PiePersistence {
         );
       const event = sealPlanTriageEvent(
         parsed,
-        { owner: history.owner, status: history.status },
+        {
+          owner: history.owner,
+          status: history.status,
+          priority: history.priorityAssessment,
+        },
         history.revision + 1,
       );
       this.#db

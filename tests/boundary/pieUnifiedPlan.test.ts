@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
+import canonicalize from "canonicalize";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
@@ -14,8 +15,37 @@ import { runPie } from "../../src/pie/cli.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { sha256 } from "../../src/pie/evidence.js";
+import { validatePlanTriageEvent } from "../../src/pie/planTriage.js";
 
 const exec = promisify(execFile);
+
+it("preserva leitura e hash de eventos de triagem v1", () => {
+  const body = {
+    schemaVersion: 1 as const,
+    id: randomUUID(),
+    snapshotId: randomUUID(),
+    planDigest: "a".repeat(64),
+    itemId: "plan:functional:legacy",
+    revision: 1,
+    previousOwner: null,
+    owner: "team-legacy",
+    previousStatus: "open" as const,
+    status: "accepted" as const,
+    justification: "Registro preservado antes da revisão dois.",
+    actor: null,
+    createdAt: "2026-10-17T00:00:00.000Z",
+  };
+  const event = validatePlanTriageEvent({
+    ...body,
+    eventHash: sha256(canonicalize(body)!),
+  });
+  expect(event).toMatchObject({
+    schemaVersion: 1,
+    owner: "team-legacy",
+    status: "accepted",
+  });
+});
 
 async function verifyPlanAdapters(input: {
   expected: unknown;
@@ -416,6 +446,77 @@ async function verifyTriageAdapters(input: {
   expect(completed.revision).toBe(3);
 }
 
+async function verifyPriorityOrdering(
+  service: PieService,
+  snapshotId: string,
+  planDigest: string,
+  items: Awaited<ReturnType<PieService["plan"]>>["items"]["items"],
+) {
+  const rankedItems = items.slice(0, 4);
+  expect(rankedItems).toHaveLength(4);
+  const scores = [
+    { impact: 1, risk: 1, effort: 5 },
+    { impact: 5, risk: 4, effort: 3 },
+    { impact: 5, risk: 5, effort: 5 },
+    { impact: 5, risk: 5, effort: 1 },
+  ];
+  for (const [index, item] of rankedItems.entries())
+    await service.updatePlanTriage({
+      id: randomUUID(),
+      snapshotId,
+      planDigest,
+      itemId: item.id,
+      expectedRevision: index === 0 ? 3 : 0,
+      priority: { ...scores[index]!, evidenceIds: [item.evidenceIds[0]!] },
+      justification: "Notas humanas registradas com Evidence do snapshot.",
+    });
+  const ranked = await service.plan({ snapshotId, limit: 20 });
+  expect(ranked.planDigest).toBe(planDigest);
+  expect(ranked.items.items.slice(0, 4).map((item) => item.id)).toEqual([
+    rankedItems[3]!.id,
+    rankedItems[2]!.id,
+    rankedItems[1]!.id,
+    rankedItems[0]!.id,
+  ]);
+  const cleared = await service.updatePlanTriage({
+    id: randomUUID(),
+    snapshotId,
+    planDigest,
+    itemId: rankedItems[3]!.id,
+    expectedRevision: 1,
+    priority: null,
+    justification: "Prioridade removida até obter nova avaliação sustentada.",
+  });
+  expect(cleared).toMatchObject({ schemaVersion: 2, priority: null });
+  const afterClear = await service.plan({ snapshotId, limit: 20 });
+  expect(afterClear.items.items[0]?.id).toBe(rankedItems[2]!.id);
+  expect(afterClear.planDigest).toBe(planDigest);
+  const rankedPage = await service.plan({
+    snapshotId,
+    limit: 2,
+    offset: 1,
+  });
+  expect(rankedPage.items.items).toEqual(afterClear.items.items.slice(1, 3));
+  expect(rankedPage.items.total).toBe(afterClear.items.total);
+  await expect(
+    service.updatePlanTriage({
+      id: randomUUID(),
+      snapshotId,
+      planDigest,
+      itemId: rankedItems[0]!.id,
+      expectedRevision: 4,
+      priority: {
+        impact: 5,
+        risk: 5,
+        effort: 1,
+        evidenceIds: [randomUUID()],
+      },
+      justification: "Evidence pertence a outro snapshot para este teste.",
+    }),
+  ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  return afterClear;
+}
+
 it("agrega propostas de motores com Evidence e sem promover verificação", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-unified-plan-"));
   const repo = join(root, "repo");
@@ -528,6 +629,31 @@ it("agrega propostas de motores com Evidence e sem promover verificação", asyn
       token,
       client,
     });
+    const prioritized = await verifyPriorityOrdering(
+      service,
+      discovered.snapshot.id,
+      result.planDigest,
+      result.items.items,
+    );
+    const rankedMcp = createPieMcp(service, repo);
+    const rankedClient = new Client({
+      name: "pie-ranked-plan-test",
+      version: "1",
+    });
+    try {
+      await verifyPlanAdapters({
+        expected: prioritized,
+        snapshotId: discovered.snapshot.id,
+        database: storePath,
+        apiUrl: api.url,
+        token,
+        client: rankedClient,
+        mcp: rankedMcp,
+      });
+    } finally {
+      await rankedClient.close();
+      await rankedMcp.close();
+    }
   } finally {
     await client.close();
     await mcp.close();
