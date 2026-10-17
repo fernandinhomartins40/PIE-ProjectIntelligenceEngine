@@ -255,6 +255,33 @@ pre.path {
 .plan-history {
   margin-top: 0.85rem;
 }
+.plan-contest,
+.plan-contestation-history {
+  margin-top: 0.85rem;
+}
+.plan-evidence-select {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  border: 1px solid #d7e1e4;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+.plan-evidence-select legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+}
+.plan-evidence-select label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+.plan-evidence-select input {
+  width: auto;
+  min-height: 0;
+}
 .plan-events {
   padding-left: 1.5rem;
 }

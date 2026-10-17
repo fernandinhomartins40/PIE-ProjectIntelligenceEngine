@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, type PlanTriageHistory, type UnifiedPlan } from "./api.js";
+import {
+  api,
+  type PlanContestations,
+  type PlanTriageHistory,
+  type UnifiedPlan,
+} from "./api.js";
 import { date, message, Notice, Pager } from "./components.js";
 
 const LIMIT = 20;
@@ -97,12 +102,14 @@ function PlanItem({
   snapshotId,
   onEvidence,
   onSaved,
+  onContested,
 }: {
   item: UnifiedPlan["items"]["items"][number];
   plan: UnifiedPlan;
   snapshotId: string;
   onEvidence: (id: string) => void;
   onSaved: () => void;
+  onContested: () => void;
 }) {
   const [owner, setOwner] = useState(item.owner ?? "");
   const [status, setStatus] = useState(item.status);
@@ -174,6 +181,12 @@ function PlanItem({
           </button>
         ))}
       </div>
+      <PlanContestForm
+        item={item}
+        plan={plan}
+        snapshotId={snapshotId}
+        onContested={onContested}
+      />
       <form className="plan-triage-form" onSubmit={(event) => void save(event)}>
         <div>
           <label htmlFor={`owner-${itemKey}`}>Responsável (opcional)</label>
@@ -234,6 +247,196 @@ function PlanItem({
   );
 }
 
+function PlanContestForm({
+  item,
+  plan,
+  snapshotId,
+  onContested,
+}: {
+  item: UnifiedPlan["items"]["items"][number];
+  plan: UnifiedPlan;
+  snapshotId: string;
+  onContested: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
+  const [justification, setJustification] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api("plan/contest", {
+        method: "POST",
+        body: {
+          id: crypto.randomUUID(),
+          snapshotId,
+          planDigest: plan.planDigest,
+          itemId: item.id,
+          justification,
+          evidenceIds,
+        },
+      });
+      setJustification("");
+      setEvidenceIds([]);
+      setOpen(false);
+      onContested();
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="plan-contest">
+      <button aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        {open ? "Cancelar contestação" : "Contestar recomendação"}
+      </button>
+      {open && (
+        <form
+          className="plan-triage-form"
+          onSubmit={(event) => void submit(event)}
+        >
+          <fieldset className="plan-evidence-select">
+            <legend>Evidence de apoio (selecione de 1 a 10)</legend>
+            {item.evidenceIds.map((id) => (
+              <label key={id}>
+                <input
+                  type="checkbox"
+                  checked={evidenceIds.includes(id)}
+                  onChange={(event) =>
+                    setEvidenceIds((current) =>
+                      event.target.checked
+                        ? [...current, id]
+                        : current.filter((value) => value !== id),
+                    )
+                  }
+                />
+                {id}
+              </label>
+            ))}
+          </fieldset>
+          <div className="plan-justification">
+            <label htmlFor={`contest-${encodeURIComponent(item.id)}`}>
+              Por que a recomendação deve ser revista?
+            </label>
+            <textarea
+              id={`contest-${encodeURIComponent(item.id)}`}
+              value={justification}
+              minLength={10}
+              maxLength={4_000}
+              required
+              onChange={(event) => setJustification(event.target.value)}
+            />
+          </div>
+          {error && <Notice error>{error}</Notice>}
+          <button
+            className="primary"
+            disabled={
+              busy ||
+              evidenceIds.length < 1 ||
+              evidenceIds.length > 10 ||
+              justification.trim().length < 10
+            }
+          >
+            {busy ? "Preservando contestação…" : "Registrar contestação"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function PlanContestHistory({
+  snapshotId,
+  planDigest,
+  onEvidence,
+  refresh,
+}: {
+  snapshotId: string;
+  planDigest: string;
+  onEvidence: (id: string) => void;
+  refresh: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [history, setHistory] = useState<PlanContestations>();
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    const query = new URLSearchParams({
+      snapshotId,
+      planDigest,
+      limit: String(LIMIT),
+      offset: String(offset),
+    });
+    setError("");
+    void api<PlanContestations>(`plan/contestations?${query}`, {
+      signal: controller.signal,
+    })
+      .then(setHistory)
+      .catch((cause) => {
+        if (!controller.signal.aborted) setError(message(cause));
+      });
+    return () => controller.abort();
+  }, [offset, open, planDigest, refresh, snapshotId]);
+  return (
+    <section
+      className="plan-contestation-history"
+      aria-label="Histórico de contestações"
+    >
+      <button
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((value) => !value);
+          setOffset(0);
+        }}
+      >
+        {open ? "Ocultar contestações" : "Histórico de contestações"}
+      </button>
+      {error && <Notice error>{error}</Notice>}
+      {open && history && (
+        <>
+          {!history.items.total && (
+            <Notice>Nenhuma recomendação contestada.</Notice>
+          )}
+          <ol className="plan-events">
+            {history.items.items.map((record) => (
+              <li key={record.id}>
+                <strong>
+                  {record.item.title} · {date(record.createdAt)}
+                </strong>
+                <p>{record.justification}</p>
+                <div
+                  className="row-actions"
+                  aria-label="Evidence da contestação"
+                >
+                  {record.evidenceIds.map((id) => (
+                    <button key={id} onClick={() => onEvidence(id)}>
+                      Ver Evidence {id.slice(0, 8)}
+                    </button>
+                  ))}
+                </div>
+                <small>Hash do evento: {record.eventHash}</small>
+              </li>
+            ))}
+          </ol>
+          <Pager
+            offset={offset}
+            total={history.items.total}
+            limit={LIMIT}
+            onChange={setOffset}
+          />
+        </>
+      )}
+      {open && !history && !error && <Notice>Carregando contestações…</Notice>}
+    </section>
+  );
+}
+
 export function PlanTriage({
   snapshotId,
   onEvidence,
@@ -246,6 +449,7 @@ export function PlanTriage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [contestRefresh, setContestRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -294,6 +498,7 @@ export function PlanTriage({
               snapshotId={snapshotId}
               onEvidence={onEvidence}
               onSaved={() => setRefresh((value) => value + 1)}
+              onContested={() => setContestRefresh((value) => value + 1)}
             />
           ))}
           {!plan.items.total && (
@@ -304,6 +509,13 @@ export function PlanTriage({
             total={plan.items.total}
             limit={LIMIT}
             onChange={setOffset}
+          />
+          <PlanContestHistory
+            key={`${snapshotId}:${plan.planDigest}`}
+            snapshotId={snapshotId}
+            planDigest={plan.planDigest}
+            onEvidence={onEvidence}
+            refresh={contestRefresh}
           />
           {plan.engines.map((engine) => (
             <p key={engine.engine} className="plan-coverage">

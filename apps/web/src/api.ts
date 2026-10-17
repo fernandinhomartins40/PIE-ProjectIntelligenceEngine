@@ -28,6 +28,9 @@ export type UnifiedPlan = Awaited<ReturnType<PieService["plan"]>>;
 export type PlanTriageHistory = Awaited<
   ReturnType<PieService["planTriageHistory"]>
 >;
+export type PlanContestations = Awaited<
+  ReturnType<PieService["planContestations"]>
+>;
 export type Session = {
   authenticated: boolean;
   csrfToken: string | null;
