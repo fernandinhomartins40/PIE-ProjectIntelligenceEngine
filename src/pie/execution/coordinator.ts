@@ -14,6 +14,30 @@ export interface CoordinatorOptions {
   executable: string;
   endpoint: string;
 }
+export type VerificationSelection = {
+  stateDirectory?: string | undefined;
+  executable?: string | undefined;
+  endpoint?: string | undefined;
+};
+export async function openConfiguredVerifier(
+  store: PiePersistence,
+  root: string,
+  selection?: VerificationSelection,
+): Promise<VerificationCoordinator | undefined> {
+  if (!selection) return undefined;
+  const { stateDirectory, executable, endpoint } = selection;
+  if (!stateDirectory || !executable || !endpoint)
+    throw new PieError(
+      "INVALID_INPUT",
+      "Informe state-dir, docker-bin e docker-host para habilitar VERIFY.",
+    );
+  return VerificationCoordinator.open(store, {
+    root,
+    stateDirectory,
+    executable,
+    endpoint,
+  });
+}
 
 /** One bounded execution at a time; the application, not an adapter, owns pending cleanup. */
 export class VerificationCoordinator {

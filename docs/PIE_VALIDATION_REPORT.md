@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## MCP VERIFY opt-in — 16/10/2026
+
+MCP stdio compartilha VerificationCoordinator com CLI/API. pie_test_run só é anunciado com state-dir/docker-bin/docker-host explícitos. Grant estrito, raiz fixa, cancelamento, persistência v2 e cleanup seguem o coordenador; openConfiguredVerifier interpreta a seleção também para API. Encerramento aguarda o verificador antes de liberar armazenamento.
+
+Rodada local: três testes passaram, três ignorados em quatro arquivos (14,67s), incluindo MCP padrão real por stdio e API autenticada. Compilação PIE e typecheck completo passaram. Limites de módulos validados em 2043 arquivos; 1463 arquivos de teste descobertos exatamente uma vez. Lint sem erros; avisos de tamanho/complexidade em createPieMcp/runPie permanecem e exigem refatoração posterior. Novo teste Linux MCP valida schemas Ajv, raiz recusada sem gravação, autorização preservada, evidência íntegra, leitura compartilhada e BUSY com Docker real. Ignorado neste Windows, incluído na CI; execução positiva ainda não comprovada. CI anterior 4bc84e2fc sem confirmação por limite público da API GitHub. Fila VERIFY, UI de execução e outros runners permanecem pendentes.
+
 ## Coordenador compartilhado e API VERIFY — 16/10/2026
 
 CI 38983218888 do commit 5af61014badf5c8b4fca62cf5352cf94664b05b8 terminou com sucesso: CLI verify/resources/recover reais, journal vivo concluído, estado externo, pass persistido e snapshot alterado blocked.

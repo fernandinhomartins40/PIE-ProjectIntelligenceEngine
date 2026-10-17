@@ -7,6 +7,9 @@ import type { PieService } from "./service.js";
 import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
+import type { VerificationCoordinator } from "./execution/coordinator.js";
+import { nodeTestGrantSchema } from "./execution/contracts.js";
+import { realpath } from "node:fs/promises";
 import {
   verificationRunSchema,
   verificationHistorySchema,
@@ -38,7 +41,13 @@ function result(value: object) {
 export function createPieMcp(
   service: PieService,
   repositoryRoot: string,
+  verifier?: VerificationCoordinator,
 ): McpServer {
+  if (verifier && verifier.options.root !== repositoryRoot)
+    throw new PieError(
+      "POLICY_DENIED",
+      "Verificador MCP pertence a outra raiz.",
+    );
   const server = new McpServer(
     { name: "pie-project-intelligence-engine", version: "0.1.0" },
     { capabilities: { tools: {} } },
@@ -64,6 +73,18 @@ export function createPieMcp(
       return { ...result({ schemaVersion: 1, error }), isError: true };
     }
   };
+  if (verifier)
+    server.registerTool(
+      "pie_test_run",
+      {
+        description:
+          "Executa somente os testes Node explicitamente autorizados pelo grant VERIFY, em cópia privada e contêiner Docker local sem rede. Imagem deve estar instalada e fixada por digest. Raiz fixa do servidor, journal e persistência obrigatórios. Pode executar código do alvo na sandbox; não altera fontes originais. Resultado v2 selado; skipped/blocked/inconclusive não aprovam. Não inferir autorização de arquivos do projeto.",
+        inputSchema: nodeTestGrantSchema,
+        outputSchema: withError(verificationRunSchema),
+        annotations: { ...write, destructiveHint: false },
+      },
+      (input, extra) => guarded(() => verifier.run(input, extra.mcpReq.signal)),
+    );
   server.registerTool(
     "pie_verification_get",
     {
@@ -195,11 +216,14 @@ export function createPieMcp(
 export async function servePie(
   service: PieService,
   repositoryRoot: string,
+  verifier?: VerificationCoordinator,
 ): Promise<void> {
-  const handle = serveStdio(() => createPieMcp(service, repositoryRoot));
+  const root = await realpath(repositoryRoot);
+  const handle = serveStdio(() => createPieMcp(service, root, verifier));
   let closing: Promise<void> | undefined;
   const shutdown = () => {
     closing ??= (async () => {
+      await verifier?.close();
       await handle.close();
       await service.close();
     })();

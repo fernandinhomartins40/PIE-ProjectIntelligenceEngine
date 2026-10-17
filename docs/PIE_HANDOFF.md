@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Estado prioritário — MCP VERIFY opt-in
+
+pie_test_run só é registrado com state-dir/docker-bin/docker-host explícitos no comando mcp. CLI/API/MCP reutilizam VerificationCoordinator; openConfiguredVerifier rejeita seleção parcial. servePie canonicaliza raiz e encerra verificador antes do armazenamento. Novo teste tests/boundary/mcp/pieVerifyMcp.test.ts usa stdio real, Ajv e Docker na CI Linux; ignorado no Windows. Rodada local MCP/API: três passaram, três skipped. CI anterior 4bc84e2fc ainda sem confirmação por limite GitHub. Próximo: confirmar CI/corrigir, integrar fila VERIFY sem retry cego após crash, acompanhamento UI, runners HTTP/Playwright e motores. Goal integral ativo na main; produto continua incompleto.
+
 ## Estado prioritário — coordenador e API opt-in
 
 CI 5af61014b passou: run 38983218888 (CLI Node real, recursos/recover, persistência). Nova execution/coordinator.ts centraliza NodeVerification, gravação e cleanup; CLI já usa. API POST /v1/verify opt-in somente se serve recebe state-dir/docker-bin/docker-host; coordinator bound à raiz selecionada. Capacidade por coordenador 1, 429/BUSY; root/grant conflitante nega. API close guarda encerramento de rede separado e pode retry sem liberar store antes do verificador. Sem execução por padrão/MCP/UI. Testes HTTP Linux/Docker e fechamento durante execução estão na próxima CI; Windows só validou default/controle de sessão/close retry.

@@ -156,7 +156,7 @@ node scripts/pie.mjs resources --state-dir /dados-pie/privado --limit 50 --offse
 node scripts/pie.mjs recover UUID_DO_RUN --state-dir /dados-pie/privado --docker-bin /usr/bin/docker --docker-host unix:///var/run/docker.sock
 ```
 
-VERIFY persiste resultado e evidência antes de retornar. Código de saída 0 exige passed; failed/skipped/blocked/inconclusive saem com código 1. Skips misturados com testes aprovados mantêm resultado inconclusivo. Uma mudança desde a descoberta bloqueia a cópia; não há execução direta no host como fallback. O banco SQLite é pré-lido sem migrações antes de validar a autoridade do snapshot. MCP e painel ainda não iniciam VERIFY.
+VERIFY persiste resultado e evidência antes de retornar. Código de saída 0 exige passed; failed/skipped/blocked/inconclusive saem com código 1. Skips misturados com testes aprovados mantêm resultado inconclusivo. Uma mudança desde a descoberta bloqueia a cópia; não há execução direta no host como fallback. O banco SQLite é pré-lido sem migrações antes de validar a autoridade do snapshot. O painel ainda não inicia VERIFY.
 
 ## Execução VERIFY pela API local
 
@@ -171,3 +171,13 @@ POST /v1/verify recebe o mesmo grant completo em JSON, exige autenticação e ma
 Resposta 201 significa registro persistido, não aprovação: examine result.state e evidence. Desconexão do cliente ou fechamento do servidor cancela a operação; o coordenador aguarda execução/persistência e retém cleanup pendente. Fechamento incompleto pode ser repetido, mantendo o armazenamento aberto até o verificador encerrar. Não há retry automático de auditoria nem fila VERIFY nesta entrega. Registros v2 incluem authorization e authorizedRoot, selados com o registro; leitura v1 mantém os fatos originais e não fabrica autorização ausente.
 
 resources lista registros do journal sem tokens de controle e informa ownerStatus=not_checked: são fatos persistidos, não estado vivo consultado. recover verifica identidade do dono no momento da ação, nunca toma recurso de dono vivo/unverified, limpa contêiner antes da raiz e preserva recursos diante de incerteza. Não repete auditoria interrompida. Journal é obrigatório nesta CLI, com registro antes de create e conclusão depois de a raiz ser removida. Uma criação incerta ainda ausente pode exigir nova consulta; não descarte o diretório de estado enquanto houver limpeza pendente. Recuperação de clientes Docker órfãos e retomada automática de auditorias ainda não estão completas.
+
+## Execução VERIFY pelo MCP
+
+Em Linux, habilite explicitamente com as mesmas três opções da API:
+
+```bash
+node scripts/pie.mjs mcp /projeto --db /dados-pie/pie.sqlite --state-dir /dados-pie/privado --docker-bin /usr/bin/docker --docker-host unix:///var/run/docker.sock
+```
+
+O catálogo passa a anunciar pie_test_run. A entrada é o grant completo descrito acima, preso à raiz do servidor. Sem as opções a ferramenta não existe; seleção parcial é recusada. A chamada persiste o registro v2 antes da resposta; examine result.state e evidence. BUSY indica operação ativa ou limpeza pendente. Cancelamento da requisição é encaminhado ao coordenador. Encerramento aguarda execução, persistência e limpeza antes de fechar o banco. Não há fila VERIFY ou retry automático.

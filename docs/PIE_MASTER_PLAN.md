@@ -2,6 +2,8 @@
 
 Atualizado em 16/10/2026. Produto em desenvolvimento; nenhuma entrega equivale ao aceite integral.
 
+Entrega atual: MCP VERIFY opt-in integrado ao coordenador CLI/API, ferramenta ausente no catálogo padrão. API e MCP padrão testados localmente; teste positivo MCP Linux/Docker adicionado à CI e ainda sem resultado comprovado. CI anterior 4bc84e2fc sem confirmação por limite GitHub. T1.4 permanece parcial: fila VERIFY, UI de execução e motores pendentes.
+
 ## Autoridade e referência
 
 Os 12 documentos de `blueprint/` são a especificação integral, lida nesta sessão e preservada sem edições. A autorização é desenvolver o fork PIE nesta pasta; não publicar como REA oficial nem modificar aplicações auditadas. As regras de contribuição ao upstream não exigem autorização do mantenedor REA para este fork independente.
@@ -16,7 +18,7 @@ Os 12 documentos de `blueprint/` são a especificação integral, lida nesta ses
 | T1.1 | P0 | Contratos versionados, estados, identidade, escopo e políticas OBSERVE/VERIFY/CHANGE | parcial | Schemas explícitos CLI/MCP, validação Ajv e controles OBSERVE testados; Result e runner pendentes |
 | T1.2 | P0 | PostgreSQL, migrations, evidência imutável, redação e histórico | parcial | PostgreSQL real comprovado na CI; resultados VERIFY e evidências agora persistidos atomicamente nos dois adaptadores, aguardando nova CI PostgreSQL; retenção/redação completa e demais entidades pendentes |
 | T1.3 | P0 | Fila persistente, workers, cancelamento, recuperação e limites | parcial | Fila SQLite e teste concorrente PostgreSQL real passaram; worker OBSERVE testado; daemon, runners isolados e demais tipos de jobs pendentes |
-| T1.4 | P1 | API local autenticada; CLI e MCP sobre os mesmos serviços | parcial | CLI e API VERIFY compartilham coordenador persistente, API opt-in com grant/raiz fixa e 429/BUSY; nova execução HTTP aguarda CI; MCP de execução e jobs completos pendentes |
+| T1.4 | P1 | API local autenticada; CLI e MCP sobre os mesmos serviços | parcial | CLI/API/MCP VERIFY compartilham coordenador persistente; API/MCP opt-in com grant/raiz fixa e BUSY; novas execuções HTTP/MCP aguardam CI; jobs completos pendentes |
 | T1.5 | P1 | Painel pt-BR conectar → investigar → resolver/validar | parcial | React local com sessão/CSRF, descoberta, evidências, trace, comparação e páginas completas de projetos/histórico; Chrome Windows e telas 360–1440px testados; resolução/reteste e auditoria acessível completa pendentes |
 | T2.1 | P1 | Inventário Git limitado, snapshots e proveniência por hash | parcial | Implementado e testado em Windows; snapshot atômico hostil não garantido |
 | T2.2 | P1 | AST TS/JS/Node/React/Next e imports/rotas/serviços/testes | parcial | Imports/reexports relativos AST; rotas/frameworks e aliases pendentes |

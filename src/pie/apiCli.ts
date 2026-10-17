@@ -3,9 +3,11 @@ import { startPieApi } from "./api.js";
 import { openQueue } from "./jobs/openQueue.js";
 import type { PieService } from "./service.js";
 import { resolve } from "node:path";
-import { VerificationCoordinator } from "./execution/coordinator.js";
+import {
+  openConfiguredVerifier,
+  type VerificationCoordinator,
+} from "./execution/coordinator.js";
 import type { ExecutionCliOptions } from "./execution/cli.js";
-import { PieError } from "./contracts.js";
 
 interface ServeOptions {
   port?: string | undefined;
@@ -30,20 +32,11 @@ export async function serveApiCommand(
   const queue = await openQueue(dbPath);
   let verifier: VerificationCoordinator | undefined;
   try {
-    if (options.verification) {
-      const { stateDirectory, executable, endpoint } = options.verification;
-      if (!stateDirectory || !executable || !endpoint)
-        throw new PieError(
-          "INVALID_INPUT",
-          "Informe state-dir, docker-bin e docker-host para habilitar VERIFY.",
-        );
-      verifier = await VerificationCoordinator.open(service.store, {
-        root,
-        stateDirectory,
-        executable,
-        endpoint,
-      });
-    }
+    verifier = await openConfiguredVerifier(
+      service.store,
+      root,
+      options.verification,
+    );
     const api = await startPieApi(service, {
       root,
       queue,

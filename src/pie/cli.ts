@@ -6,6 +6,7 @@ import { openPersistence } from "./openPersistence.js";
 import { PieService } from "./service.js";
 import { renderSnapshot } from "./reports.js";
 import { z } from "zod";
+import type { VerificationCoordinator } from "./execution/coordinator.js";
 
 export async function runPie(args: string[]): Promise<void> {
   const parsed = parseArgs({
@@ -150,9 +151,33 @@ export async function runPie(args: string[]): Promise<void> {
       ? target
       : undefined,
   );
+  const verification = [
+    parsed.values["state-dir"],
+    parsed.values["docker-bin"],
+    parsed.values["docker-host"],
+  ].some((value) => value !== undefined)
+    ? {
+        stateDirectory: parsed.values["state-dir"],
+        executable: parsed.values["docker-bin"],
+        endpoint: parsed.values["docker-host"],
+      }
+    : undefined;
   if (command === "mcp") {
     const { servePie } = await import("./mcp.js");
-    await servePie(new PieService(store), target!);
+    const { openConfiguredVerifier } =
+      await import("./execution/coordinator.js");
+    let verifier: VerificationCoordinator | undefined;
+    try {
+      verifier = await openConfiguredVerifier(store, target!, verification);
+      await servePie(new PieService(store), target!, verifier);
+    } catch (cause) {
+      try {
+        await verifier?.close();
+      } finally {
+        await store.close();
+      }
+      throw cause;
+    }
     return;
   }
   if (command === "serve") {
@@ -161,19 +186,7 @@ export async function runPie(args: string[]): Promise<void> {
       await serveApiCommand(new PieService(store), target!, dbPath, {
         port: parsed.values.port,
         apiOnly: parsed.values["api-only"] ?? false,
-        ...([
-          parsed.values["state-dir"],
-          parsed.values["docker-bin"],
-          parsed.values["docker-host"],
-        ].some((value) => value !== undefined)
-          ? {
-              verification: {
-                stateDirectory: parsed.values["state-dir"],
-                executable: parsed.values["docker-bin"],
-                endpoint: parsed.values["docker-host"],
-              },
-            }
-          : {}),
+        verification,
       });
     } catch (cause) {
       await store.close();
