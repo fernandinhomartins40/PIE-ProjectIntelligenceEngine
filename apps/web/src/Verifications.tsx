@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { api, type VerificationHistory, type VerificationRun } from "./api.js";
+import {
+  api,
+  type VerificationComparison,
+  type VerificationHistory,
+  type VerificationRun,
+} from "./api.js";
 import { date, message, Notice, Pager } from "./components.js";
 
 const states = {
@@ -9,7 +14,99 @@ const states = {
   blocked: "Bloqueado",
   inconclusive: "Inconclusivo",
 };
-const LIMIT = 10;
+const LIMIT = 50;
+
+const comparisonStates = {
+  regression_observed: "Regressão observada nos casos comparáveis",
+  no_regression_observed: "Nenhuma regressão observada nos casos comparáveis",
+  inconclusive: "Comparação inconclusiva",
+};
+
+const caseClassifications = {
+  regression_observed: "Falhou depois de passar antes",
+  recovery_observed: "Passou depois de falhar antes",
+  unchanged: "Resultado igual",
+  different_outcome: "Resultado diferente",
+  environment_changed: "Ambiente de execução diferente",
+};
+
+function ComparisonDetails({
+  comparison,
+  onPage,
+}: {
+  comparison: VerificationComparison;
+  onPage: (offset: number) => void;
+}) {
+  return (
+    <article aria-label="Comparação de execuções VERIFY">
+      <h3>{comparisonStates[comparison.state]}</h3>
+      <dl>
+        <dt>Execução anterior / Evidence</dt>
+        <dd className="path">
+          {comparison.before.runId} / {comparison.before.evidenceId}
+        </dd>
+        <dt>Execução posterior / Evidence</dt>
+        <dd className="path">
+          {comparison.after.runId} / {comparison.after.evidenceId}
+        </dd>
+        <dt>Casos alinhados</dt>
+        <dd>{comparison.coverage.matchedCases}</dd>
+        <dt>Regressões / recuperações</dt>
+        <dd>
+          {comparison.coverage.regressions} / {comparison.coverage.recoveries}
+        </dd>
+        <dt>Imagem igual</dt>
+        <dd>{comparison.coverage.sameImage ? "Sim" : "Não"}</dd>
+      </dl>
+      <ul>
+        {comparison.coverage.limitations.map((value, index) => (
+          <li key={index}>{value}</li>
+        ))}
+      </ul>
+      {comparison.cases.total > 0 ? (
+        <>
+          <div className="table-wrap">
+            <table>
+              <caption>Casos correspondentes por identidade exata</caption>
+              <thead>
+                <tr>
+                  <th>Arquivo</th>
+                  <th>Caso</th>
+                  <th>Antes</th>
+                  <th>Depois</th>
+                  <th>Leitura</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.cases.items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="path">{item.file}</td>
+                    <td>{item.name}</td>
+                    <td>{item.before}</td>
+                    <td>{item.after}</td>
+                    <td>{caseClassifications[item.classification]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager
+            offset={comparison.cases.offset}
+            total={comparison.cases.total}
+            limit={25}
+            onChange={onPage}
+          />
+        </>
+      ) : (
+        <Notice>Nenhum caso pôde ser alinhado com segurança.</Notice>
+      )}
+      <Notice>
+        Esta comparação cobre somente os casos e arquivos indicados. Ela não
+        aprova o produto nem comprova cobertura funcional completa.
+      </Notice>
+    </article>
+  );
+}
 
 function RunDetails({ run }: { run: VerificationRun }) {
   const [caseOffset, setCaseOffset] = useState(0);
@@ -97,12 +194,17 @@ function RunDetails({ run }: { run: VerificationRun }) {
   );
 }
 
-export function Verifications({ snapshotId }: { snapshotId: string }) {
+export function Verifications({ projectId }: { projectId: string }) {
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
   const [history, setHistory] = useState<VerificationHistory>();
   const [selected, setSelected] = useState("");
   const [run, setRun] = useState<VerificationRun>();
+  const [beforeRunId, setBeforeRunId] = useState("");
+  const [afterRunId, setAfterRunId] = useState("");
+  const [comparison, setComparison] = useState<VerificationComparison>();
+  const [comparisonError, setComparisonError] = useState("");
+  const [comparing, setComparing] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -110,7 +212,7 @@ export function Verifications({ snapshotId }: { snapshotId: string }) {
     setLoading(true);
     setError("");
     void api<VerificationHistory>(
-      `verifications/${snapshotId}?limit=${LIMIT}&offset=${offset}`,
+      `projects/${projectId}/verifications?limit=${LIMIT}&offset=${offset}`,
       { signal: controller.signal },
     )
       .then((value) => {
@@ -123,7 +225,7 @@ export function Verifications({ snapshotId }: { snapshotId: string }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [snapshotId, offset, revision]);
+  }, [projectId, offset, revision]);
   useEffect(() => {
     setRun(undefined);
     if (!selected) return;
@@ -139,10 +241,28 @@ export function Verifications({ snapshotId }: { snapshotId: string }) {
       });
     return () => controller.abort();
   }, [selected]);
+  async function compareRuns(offset = 0) {
+    setComparing(true);
+    setComparisonError("");
+    try {
+      const result = await api<VerificationComparison>(
+        "verification-comparison",
+        {
+          method: "POST",
+          body: { beforeRunId, afterRunId, offset, limit: 25 },
+        },
+      );
+      setComparison(result);
+    } catch (cause) {
+      setComparisonError(message(cause));
+    } finally {
+      setComparing(false);
+    }
+  }
   return (
     <section
       className="card investigation"
-      aria-label="Verificações do snapshot"
+      aria-label="Verificações do projeto"
     >
       <div className="section-heading">
         <h2>Verificações executadas</h2>
@@ -154,9 +274,9 @@ export function Verifications({ snapshotId }: { snapshotId: string }) {
         </button>
       </div>
       <p>
-        Resultados do escopo autorizado deste snapshot. Uma aprovação não
-        comprova o funcionamento de todo o projeto. Ignorados, bloqueados e
-        inconclusivos não representam aprovação.
+        Histórico de execuções autorizadas nos snapshots deste projeto. Uma
+        aprovação não comprova o funcionamento de todo o projeto. Ignorados,
+        bloqueados e inconclusivos não representam aprovação.
       </p>
       {error && <Notice error>{error}</Notice>}
       {loading && <Notice>Consultando verificações…</Notice>}
@@ -168,6 +288,7 @@ export function Verifications({ snapshotId }: { snapshotId: string }) {
               <thead>
                 <tr>
                   <th>Concluída em</th>
+                  <th>Snapshot</th>
                   <th>Resultado</th>
                   <th>Limpeza</th>
                   <th>Ação</th>
@@ -177,6 +298,7 @@ export function Verifications({ snapshotId }: { snapshotId: string }) {
                 {history.items.map((item) => (
                   <tr key={item.id}>
                     <td>{date(item.completedAt)}</td>
+                    <td className="path">{item.snapshotId.slice(0, 8)}</td>
                     <td>{states[item.state]}</td>
                     <td>
                       {item.cleanup === "complete" ? "Concluída" : "Pendente"}
@@ -203,9 +325,91 @@ export function Verifications({ snapshotId }: { snapshotId: string }) {
             onChange={setOffset}
           />
           {history.total === 0 && (
-            <Notice>Nenhuma verificação executada para este snapshot.</Notice>
+            <Notice>
+              Nenhuma execução VERIFY foi registrada para este projeto.
+            </Notice>
           )}
         </>
+      )}
+      {history && history.total > 0 && (
+        <section aria-label="Comparar execuções VERIFY">
+          <h3>Comparar execuções entre snapshots</h3>
+          <p>
+            Selecione duas execuções persistidas do projeto. A ausência de
+            regressão observada não significa aprovação do produto.
+          </p>
+          <div className="inline-form">
+            <div>
+              <label htmlFor="verification-before">Execução anterior</label>
+              <select
+                id="verification-before"
+                value={beforeRunId}
+                onChange={(event) => {
+                  setBeforeRunId(event.target.value);
+                  setComparison(undefined);
+                }}
+              >
+                <option value="">Selecione uma execução</option>
+                {beforeRunId &&
+                  !history.items.some((item) => item.id === beforeRunId) && (
+                    <option value={beforeRunId}>
+                      Execução selecionada {beforeRunId.slice(0, 8)}
+                    </option>
+                  )}
+                {history.items.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {date(item.completedAt)} · {item.state} · snapshot{" "}
+                    {item.snapshotId.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="verification-after">Execução posterior</label>
+              <select
+                id="verification-after"
+                value={afterRunId}
+                onChange={(event) => {
+                  setAfterRunId(event.target.value);
+                  setComparison(undefined);
+                }}
+              >
+                <option value="">Selecione uma execução</option>
+                {afterRunId &&
+                  !history.items.some((item) => item.id === afterRunId) && (
+                    <option value={afterRunId}>
+                      Execução selecionada {afterRunId.slice(0, 8)}
+                    </option>
+                  )}
+                {history.items.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {date(item.completedAt)} · {item.state} · snapshot{" "}
+                    {item.snapshotId.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={() => void compareRuns()}
+              disabled={
+                comparing ||
+                !beforeRunId ||
+                !afterRunId ||
+                beforeRunId === afterRunId
+              }
+            >
+              {comparing ? "Comparando…" : "Comparar execuções"}
+            </button>
+          </div>
+          {comparisonError && <Notice error>{comparisonError}</Notice>}
+          {comparison && (
+            <ComparisonDetails
+              key={`${comparison.before.runId}-${comparison.after.runId}`}
+              comparison={comparison}
+              onPage={(nextOffset) => void compareRuns(nextOffset)}
+            />
+          )}
+        </section>
       )}
       {selected && !run && !error && (
         <Notice>Carregando resultado e evidência…</Notice>

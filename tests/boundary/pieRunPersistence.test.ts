@@ -155,6 +155,12 @@ async function exercise(store: PiePersistence, root: string, repo: string) {
   expect(await service.verifications(snapshot.id, { offset: 1 })).toMatchObject(
     { total: 1, items: [] },
   );
+  expect(
+    await service.projectVerifications(snapshot.projectId, { limit: 1 }),
+  ).toMatchObject({
+    total: 1,
+    items: [{ id: run.id, snapshotId: snapshot.id, state: "blocked" }],
+  });
   for (const change of [
     { projectId: randomUUID() },
     { image: `node@sha256:${"2".repeat(64)}` },

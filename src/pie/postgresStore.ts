@@ -497,4 +497,47 @@ export class PostgresPieStore implements PiePersistence {
       nextOffset: offset + limit < total ? offset + limit : null,
     });
   }
+
+  async projectVerifications(projectId: string, input: unknown = {}) {
+    const { offset, limit } = pageSchema.parse(input);
+    const [total, rows] = await this.#client.$transaction(
+      [
+        this.#client.verificationRun.count({
+          where: { snapshot: { projectId } },
+        }),
+        this.#client.verificationRun.findMany({
+          where: { snapshot: { projectId } },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          skip: offset,
+          take: limit,
+          include: { evidence: true, snapshot: true },
+        }),
+      ],
+      { isolationLevel: "RepeatableRead" },
+    );
+    return verificationHistorySchema.parse({
+      items: rows.map((row) => {
+        const run = validateStoredVerification(
+          {
+            ...row,
+            createdAt: row.createdAt.toISOString(),
+            evidence: row.evidence.payload,
+          },
+          validateSnapshot(row.snapshot.payload),
+        );
+        return {
+          id: run.id,
+          snapshotId: run.snapshotId,
+          createdAt: run.createdAt,
+          completedAt: run.completedAt,
+          state: run.result.state,
+          cleanup: run.cleanup,
+          evidenceId: run.evidence.id,
+        };
+      }),
+      total,
+      offset,
+      nextOffset: offset + limit < total ? offset + limit : null,
+    });
+  }
 }

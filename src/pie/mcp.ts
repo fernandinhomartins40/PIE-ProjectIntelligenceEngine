@@ -286,6 +286,18 @@ export function createPieMcp(
       guarded(() => service.verifications(snapshotId, paging)),
   );
   server.registerTool(
+    "pie_project_verifications_list",
+    {
+      description:
+        "Lista execuções VERIFY persistidas em todos os snapshots do projeto, em ordem cronológica e com estado, Evidence e paginação; resultados não aprovam o projeto.",
+      inputSchema: historyInput,
+      outputSchema: withError(verificationHistorySchema),
+      annotations: read,
+    },
+    ({ projectId, ...paging }) =>
+      guarded(() => service.projectVerifications(projectId, paging)),
+  );
+  server.registerTool(
     "pie_declarations_list",
     {
       description:

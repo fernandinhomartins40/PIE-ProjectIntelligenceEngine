@@ -168,6 +168,11 @@ export class PieService {
   verifications(snapshotId: string, input: unknown = {}) {
     return this.#read(async () => this.store.verifications(snapshotId, input));
   }
+  projectVerifications(projectId: string, input: unknown = {}) {
+    return this.#read(async () =>
+      this.store.projectVerifications(projectId, input),
+    );
+  }
   verificationComparison(input: unknown) {
     return this.#read(async () => {
       const request = verificationComparisonInput.parse(input);

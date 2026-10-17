@@ -375,6 +375,47 @@ export class PieStore implements PiePersistence {
       nextOffset: offset + limit < total ? offset + limit : null,
     });
   }
+
+  projectVerifications(projectId: string, input: unknown = {}) {
+    const { offset, limit } = pageSchema.parse(input);
+    this.#db.exec("BEGIN");
+    try {
+      const total = Number(
+        this.#db
+          .prepare(
+            "SELECT count(*) AS total FROM pie_verification_runs r JOIN pie_snapshots s ON s.id=r.snapshot_id WHERE s.project_id=?",
+          )
+          .get(projectId)!.total,
+      );
+      const rows = this.#db
+        .prepare(
+          "SELECT r.id FROM pie_verification_runs r JOIN pie_snapshots s ON s.id=r.snapshot_id WHERE s.project_id=? ORDER BY r.created_at,r.id LIMIT ? OFFSET ?",
+        )
+        .all(projectId, limit, offset);
+      const result = verificationHistorySchema.parse({
+        items: rows.map((row) => {
+          const run = this.verification(String(row.id));
+          return {
+            id: run.id,
+            snapshotId: run.snapshotId,
+            createdAt: run.createdAt,
+            completedAt: run.completedAt,
+            state: run.result.state,
+            cleanup: run.cleanup,
+            evidenceId: run.evidence.id,
+          };
+        }),
+        total,
+        offset,
+        nextOffset: offset + limit < total ? offset + limit : null,
+      });
+      this.#db.exec("COMMIT");
+      return result;
+    } catch (cause) {
+      this.#db.exec("ROLLBACK");
+      throw cause;
+    }
+  }
 }
 
 /** Preflight existing observations without creating tables or migrating the database. */

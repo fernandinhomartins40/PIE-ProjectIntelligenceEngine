@@ -166,6 +166,21 @@ export async function startPieApi(
         });
       const segments = url.pathname.split("/").filter(Boolean);
       if (
+        request.method === "GET" &&
+        segments.length === 4 &&
+        segments[0] === "v1" &&
+        segments[1] === "projects" &&
+        segments[3] === "verifications"
+      ) {
+        const projectId = z.string().uuid().parse(segments[2]);
+        respond(
+          response,
+          200,
+          await service.projectVerifications(projectId, paging()),
+        );
+        return;
+      }
+      if (
         await handleHttpProbeRoute({
           request,
           response,

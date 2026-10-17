@@ -117,6 +117,113 @@ async function persistRun(
   return store.saveVerification(run);
 }
 
+async function assertProjectHistoryAdapters(input: {
+  apiUrl: string;
+  client: Client;
+  db: string;
+  projectId: string;
+  service: PieService;
+  runCli: (args: string[]) => Promise<unknown>;
+  token: string;
+  latestRunId: string;
+  latestSnapshotId: string;
+  ajv: Ajv2020;
+}) {
+  const history = await input.service.projectVerifications(input.projectId, {
+    limit: 1,
+    offset: 1,
+  });
+  expect(history).toMatchObject({
+    total: 2,
+    offset: 1,
+    items: [{ id: input.latestRunId, snapshotId: input.latestSnapshotId }],
+  });
+  const headers = { Authorization: `Bearer ${input.token}` };
+  const response = await fetch(
+    `${input.apiUrl}/v1/projects/${input.projectId}/verifications?limit=1&offset=1`,
+    { headers },
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(history);
+  const cli = await input.runCli([
+    "project-verifications",
+    input.projectId,
+    "--limit",
+    "1",
+    "--offset",
+    "1",
+    "--db",
+    input.db,
+  ]);
+  expect(cli).toEqual(history);
+  const catalog = await input.client.listTools();
+  const tool = catalog.tools.find(
+    (candidate) => candidate.name === "pie_project_verifications_list",
+  )!;
+  const validate = input.ajv.compile(tool.outputSchema as AnySchema);
+  const mcp = await input.client.callTool({
+    name: "pie_project_verifications_list",
+    arguments: { projectId: input.projectId, limit: 1, offset: 1 },
+  });
+  expect(mcp.structuredContent).toEqual(history);
+  expect(validate(mcp.structuredContent)).toBe(true);
+}
+
+async function assertComparisonAdapters(input: {
+  apiUrl: string;
+  beforeRunId: string;
+  afterRunId: string;
+  client: Client;
+  db: string;
+  expected: Awaited<ReturnType<PieService["verificationComparison"]>>;
+  output: ReturnType<typeof vi.spyOn>;
+  token: string;
+  ajv: Ajv2020;
+}) {
+  const headers = {
+    Authorization: `Bearer ${input.token}`,
+    "Content-Type": "application/json",
+  };
+  const request = {
+    beforeRunId: input.beforeRunId,
+    afterRunId: input.afterRunId,
+    limit: 1,
+  };
+  const http = await fetch(`${input.apiUrl}/v1/verification-comparison`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(request),
+  });
+  expect(http.status).toBe(200);
+  expect(await http.json()).toEqual(input.expected);
+  await runPie([
+    "verification-diff",
+    input.beforeRunId,
+    input.afterRunId,
+    "--limit",
+    "1",
+    "--db",
+    input.db,
+  ]);
+  expect(JSON.parse(String(input.output.mock.calls.at(-1)?.[0]))).toEqual(
+    input.expected,
+  );
+  const catalog = await input.client.listTools();
+  const tool = catalog.tools.find(
+    (candidate) => candidate.name === "pie_verification_compare",
+  )!;
+  const validate = input.ajv.compile(tool.outputSchema as AnySchema);
+  const mcp = await input.client.callTool({
+    name: "pie_verification_compare",
+    arguments: request,
+  });
+  expect(mcp.isError).not.toBe(true);
+  expect(mcp.structuredContent).toEqual(input.expected);
+  expect(validate(mcp.structuredContent), JSON.stringify(validate.errors)).toBe(
+    true,
+  );
+}
+
 it("compara execuções persistidas por casos e compartilha API, CLI e MCP", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-regression-results-"));
   const repo = join(root, "repo");
@@ -192,55 +299,41 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
       },
     });
 
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    };
-    const http = await fetch(`${api.url}/v1/verification-comparison`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(input),
-    });
-    expect(http.status).toBe(200);
-    expect(await http.json()).toEqual(expected);
-
-    await runPie([
-      "verification-diff",
-      beforeRun.id,
-      afterRun.id,
-      "--limit",
-      "1",
-      "--db",
-      db,
-    ]);
-    expect(JSON.parse(String(cliOutput.mock.calls.at(-1)?.[0]))).toEqual(
-      expected,
-    );
-
     await Promise.all([
       client.connect(clientTransport),
       mcpServer.connect(serverTransport),
     ]);
-    const catalog = await client.listTools();
-    const tool = catalog.tools.find(
-      (candidate) => candidate.name === "pie_verification_compare",
-    )!;
     const ajv = new Ajv2020({
       allErrors: true,
       strict: false,
       validateFormats: false,
     });
-    const outputValid = ajv.compile(tool.outputSchema as AnySchema);
-    const mcp = await client.callTool({
-      name: "pie_verification_compare",
-      arguments: input,
+    await assertComparisonAdapters({
+      apiUrl: api.url,
+      beforeRunId: beforeRun.id,
+      afterRunId: afterRun.id,
+      client,
+      db,
+      expected,
+      output: cliOutput,
+      token,
+      ajv,
     });
-    expect(mcp.isError).not.toBe(true);
-    expect(mcp.structuredContent).toEqual(expected);
-    expect(
-      outputValid(mcp.structuredContent),
-      JSON.stringify(outputValid.errors),
-    ).toBe(true);
+    await assertProjectHistoryAdapters({
+      apiUrl: api.url,
+      client,
+      db,
+      projectId: before.project.id,
+      service,
+      token,
+      latestRunId: afterRun.id,
+      latestSnapshotId: after.snapshot.id,
+      ajv,
+      runCli: async (args) => {
+        await runPie(args);
+        return JSON.parse(String(cliOutput.mock.calls.at(-1)?.[0]));
+      },
+    });
 
     const stableRun = await persistRun(store, afterSnapshot, [
       { name: "save", outcome: "failed" },

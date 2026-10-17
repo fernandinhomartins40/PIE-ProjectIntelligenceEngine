@@ -4,6 +4,8 @@
 
 `verification-diff <run-antes-id> <run-depois-id> --limit 50 --offset 0` compara registros Node persistidos. A API autenticada usa `POST /v1/verification-comparison`; o MCP usa `pie_verification_compare`. O serviço compartilha a mesma operação e retorna IDs de execução, snapshots e evidências, cobertura e casos paginados.
 
+`project-verifications <project-id> --limit 50 --offset 0` lista execuções em todos os snapshots do projeto; a API autenticada usa `GET /v1/projects/<project-id>/verifications` e o MCP usa `pie_project_verifications_list`. O painel lista esse histórico paginado e permite escolher as duas execuções, inclusive de snapshots diferentes, antes de solicitar a comparação. Abrir um registro preserva acesso à execução original e sua Evidence.
+
 A identidade usa caminho relativo observado pelo reporter, nome e profundidade. Só compara a interseção dos arquivos registrados nos grants VERIFY v2; casos duplicados/ambíguos, sem contraparte ou fora do escopo não são alinhados por suposição. Imagem divergente torna a conclusão inconclusiva. `regression_observed` descreve um teste antes aprovado que falhou depois, sob a mesma imagem; `no_regression_observed` significa apenas que nenhum caso comparável regrediu quando imagem, seleção, relatórios e limpeza são compatíveis/completos. Nenhum estado aprova o produto. Esta versão não calcula desempenho, coverage de código, screenshot, journeys ou motor de cobertura funcional; cada comparação é derivada novamente dos registros e não fica persistida como artefato separado.
 
 ## Execução HTTP local autorizada

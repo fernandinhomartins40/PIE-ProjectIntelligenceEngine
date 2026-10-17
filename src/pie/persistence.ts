@@ -49,6 +49,10 @@ export interface PiePersistence {
     snapshotId: string,
     input?: unknown,
   ): Awaitable<z.infer<typeof verificationHistorySchema>>;
+  projectVerifications(
+    projectId: string,
+    input?: unknown,
+  ): Awaitable<z.infer<typeof verificationHistorySchema>>;
   history(
     projectId: string,
     input?: unknown,

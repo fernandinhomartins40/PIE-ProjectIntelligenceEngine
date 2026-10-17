@@ -19,9 +19,11 @@ import { date, message, Notice, Pager } from "./components.js";
 const LIMIT = 25;
 type Tab = "files" | "declarations" | "trace" | "compare";
 export function Investigation({
+  projectId,
   snapshotId,
   history,
 }: {
+  projectId: string;
   snapshotId: string;
   history: History["items"];
 }) {
@@ -524,7 +526,7 @@ export function Investigation({
           </ul>
         </aside>
       )}
-      <Verifications key={snapshotId} snapshotId={snapshotId} />
+      <Verifications key={projectId} projectId={projectId} />
       <FunctionalReview
         key={`functional-${snapshotId}`}
         snapshotId={snapshotId}

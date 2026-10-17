@@ -19,6 +19,9 @@ export type Discovery = Awaited<ReturnType<PieService["discover"]>>;
 export type VerificationHistory = Awaited<
   ReturnType<PieService["verifications"]>
 >;
+export type VerificationComparison = Awaited<
+  ReturnType<PieService["verificationComparison"]>
+>;
 export type VerificationRun = Awaited<ReturnType<PieService["verification"]>>;
 export type Session = {
   authenticated: boolean;

@@ -98,7 +98,7 @@ export async function runPie(args: string[]): Promise<void> {
       "Fila: enqueue <raiz-git> --key <chave> | job <id> | cancel-job <id> | work <raiz-git> (um job por execução). API: serve <raiz-git> --port <n>. PostgreSQL: configure PIE_DATABASE_URL e aplique pie:db:migrate antes de usar.",
     );
     console.log(
-      "Resultados persistidos: verification <run-id> | verification-diff <run-antes-id> <run-depois-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta e comparação não iniciam testes.",
+      "Resultados persistidos: verification <run-id> | verification-diff <run-antes-id> <run-depois-id> | verifications <snapshot-id> | project-verifications <project-id> --limit <1–200> --offset <n>. Consulta e comparação não iniciam testes.",
     );
     console.log(
       "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova e http-probes <snapshot-id> lista o histórico. Não inicia o servidor do projeto.",
@@ -213,6 +213,7 @@ export async function runPie(args: string[]): Promise<void> {
       "verification",
       "verification-diff",
       "verifications",
+      "project-verifications",
       "export",
       "mcp",
       "compare",
@@ -415,6 +416,9 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "verifications":
         result = await service.verifications(target!, paging);
+        break;
+      case "project-verifications":
+        result = await service.projectVerifications(target!, paging);
         break;
       case "export":
         console.log(

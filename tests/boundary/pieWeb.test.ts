@@ -346,6 +346,14 @@ it.skipIf(!existsSync(executablePath))(
     const run = await owner.execute(grant, snapshot);
     await store.saveVerification(run);
     await owner.close();
+    const laterOwner = new NodeVerification({
+      executable: join(root, "missing-docker"),
+      endpoint: "unix:///var/run/docker.sock",
+      temporaryParent: root,
+    });
+    const laterRun = await laterOwner.execute(grant, snapshot);
+    await store.saveVerification(laterRun);
+    await laterOwner.close();
     const token = "fixture-web-verify-32-characters-minimum";
     const server = await startPieApi(service, {
       root: repo,
@@ -360,7 +368,7 @@ it.skipIf(!existsSync(executablePath))(
       await page.getByLabel("Credencial do serviço local").fill(token);
       await page.getByRole("button", { name: "Conectar ao PIE" }).click();
       const section = page.getByRole("region", {
-        name: "Verificações do snapshot",
+        name: "Verificações do projeto",
       });
       await page
         .getByRole("region", { name: "Fila de verificação" })
@@ -370,6 +378,7 @@ it.skipIf(!existsSync(executablePath))(
         .waitFor();
       await section
         .getByRole("cell", { name: "Bloqueado", exact: true })
+        .first()
         .waitFor();
       await section
         .getByRole("button", {
@@ -383,6 +392,13 @@ it.skipIf(!existsSync(executablePath))(
         .getByRole("heading", { name: "Bloqueado", exact: true })
         .waitFor();
       await details.getByText(run.evidence.sha256, { exact: true }).waitFor();
+      await section.getByLabel("Execução anterior").selectOption(run.id);
+      await section.getByLabel("Execução posterior").selectOption(laterRun.id);
+      await section.getByRole("button", { name: "Comparar execuções" }).click();
+      await section
+        .getByRole("article", { name: "Comparação de execuções VERIFY" })
+        .getByRole("heading", { name: "Comparação inconclusiva" })
+        .waitFor();
       await details
         .getByText("Nenhum caso de teste comprovado nesta execução.")
         .waitFor();
@@ -400,6 +416,7 @@ it.skipIf(!existsSync(executablePath))(
         .click();
       await section
         .getByRole("cell", { name: "Bloqueado", exact: true })
+        .first()
         .waitFor();
       for (const width of [360, 1440]) {
         await page.setViewportSize({ width, height: 900 });

@@ -5,7 +5,7 @@ import { useProjectNavigation } from "./useProjectNavigation.js";
 
 export function Dashboard() {
   const navigation = useProjectNavigation();
-  const { context, snapshotId, history, busy, error } = navigation;
+  const { context, projectId, snapshotId, history, busy, error } = navigation;
   return (
     <>
       <section className="intro">
@@ -52,7 +52,8 @@ export function Dashboard() {
       )}
       {snapshotId && (
         <Investigation
-          key={snapshotId}
+          key={`${projectId}-${snapshotId}`}
+          projectId={projectId}
           snapshotId={snapshotId}
           history={history?.items ?? []}
         />
