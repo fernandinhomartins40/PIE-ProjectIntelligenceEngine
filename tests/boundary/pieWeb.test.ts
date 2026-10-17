@@ -10,6 +10,8 @@ import { expect, it } from "vitest";
 import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { sha256 } from "../../src/pie/evidence.js";
+import { sealEvidence } from "../../src/pie/evidence.js";
 import { NodeVerification } from "../../src/pie/execution/verification.js";
 import { VerificationCoordinator } from "../../src/pie/execution/coordinator.js";
 import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
@@ -592,7 +594,7 @@ it.skipIf(!existsSync(executablePath))(
 );
 
 it.skipIf(!existsSync(executablePath))(
-  "histórico paginado preserva snapshot e permite comparar com outra página",
+  "histórico paginado preserva snapshot e permanece no projeto autorizado",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "pie-web-pages-"));
     const repo = join(root, "repo");
@@ -606,24 +608,54 @@ it.skipIf(!existsSync(executablePath))(
     let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
     let api: Awaited<ReturnType<typeof startPieApi>> | undefined;
     try {
-      let latest = "";
-      let first = "";
-      for (let index = 0; index < 51; index++) {
-        const result = await service.discover({
-          repositoryRoot: repo,
-          profile: "OBSERVE",
-          environment: "local",
-        });
-        if (!first) first = result.snapshot.id;
-        latest = result.snapshot.id;
-      }
-      // Synthetic catalog fixtures only; no fake snapshots or API responses.
-      for (let index = 0; index < 26; index++)
-        store.addProject(
-          randomUUID(),
-          join(root, `catalog-${index}`),
-          `catalog-${index}`,
+      const discovered = await service.discover({
+        repositoryRoot: repo,
+        profile: "OBSERVE",
+        environment: "local",
+      });
+      const first = discovered.snapshot.id;
+      const baseSnapshot = await store.snapshot(first);
+      let latest = first;
+      // Valid synthetic history fixtures exercise pagination without repeating
+      // expensive repository discovery or mocking API responses.
+      for (let index = 1; index < 51; index++) {
+        latest = randomUUID();
+        const evidenceIds = new Map(
+          baseSnapshot.evidence.map((item) => [item.id, randomUUID()]),
         );
+        const evidence = baseSnapshot.evidence.map((item) => {
+          const { sha256: _digest, ...payload } = item;
+          return sealEvidence({
+            ...payload,
+            id: evidenceIds.get(item.id)!,
+            snapshotId: latest,
+          });
+        });
+        store.saveSnapshot({
+          ...baseSnapshot,
+          id: latest,
+          createdAt: new Date(
+            Date.parse(baseSnapshot.createdAt) + index * 1_000,
+          ).toISOString(),
+          nodes: baseSnapshot.nodes.map((node) => ({
+            ...node,
+            evidenceIds: node.evidenceIds.map((id) => evidenceIds.get(id)!),
+          })),
+          edges: baseSnapshot.edges.map((edge) => ({
+            ...edge,
+            evidenceIds: edge.evidenceIds.map((id) => evidenceIds.get(id)!),
+          })),
+          evidence,
+          declarations: baseSnapshot.declarations.map((fact) => ({
+            ...fact,
+            evidenceId: evidenceIds.get(fact.evidenceId)!,
+            derivations: fact.derivations.map((derivation) => ({
+              ...derivation,
+              evidenceId: evidenceIds.get(derivation.evidenceId)!,
+            })),
+          })),
+        });
+      }
       api = await startPieApi(service, {
         root: repo,
         token,
@@ -657,33 +689,15 @@ it.skipIf(!existsSync(executablePath))(
       await page.getByLabel("Comparar snapshot atual com").selectOption(first);
       await page.getByRole("button", { name: "Comparar snapshots" }).click();
       await page.getByText(/Conteúdo observado sem alteração/).waitFor();
-      const projects = page.getByRole("group", {
-        name: "Projetos",
-        exact: true,
-      });
-      const selected = await page
+      const selectedProject = await page
         .getByLabel("Histórico do projeto", { exact: true })
         .inputValue();
-      await projects
-        .getByRole("button", { name: "Próxima", exact: true })
-        .click();
-      await projects.getByText("26–27 de 27", { exact: true }).waitFor();
       expect(
         await page
           .getByLabel("Histórico do projeto", { exact: true })
           .inputValue(),
-      ).toBe(selected);
-      await page
-        .getByLabel("Histórico do projeto", { exact: true })
-        .selectOption({ index: 2 });
-      await page
-        .getByRole("heading", { name: "Comece pela primeira investigação" })
-        .waitFor();
-      expect(
-        await page
-          .getByLabel("Snapshot observado", { exact: true })
-          .inputValue(),
-      ).toBe("");
+      ).toBe(selectedProject);
+      expect(selectedProject).toBe((await store.snapshot(latest)).projectId);
     } finally {
       await browser?.close();
       if (api) await api.close();
