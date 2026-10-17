@@ -1,4 +1,10 @@
-# PIE — Registro de validação contínua## Leitura segura de grant HTTP pela CLI — 17/10/2026
+# PIE — Registro de validação contínua## Leitura limitada do grant HTTP pela CLI — 17/10/2026
+
+- Entrada de autorização limitada a 1 MB, UTF-8 fatal e schema estrito antes de abrir o banco. Rejeita arquivo acima do limite e diretório; o grant é fixture de teste.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/mcp/pieMcp.test.ts`: 2/2. Inclui caminho positivo CLI/MCP com persistência local real.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast` (2/2), `npm.cmd run format:check` (4.115 arquivos), `npm.cmd run docs:check:built` e `git diff --check` passaram. `PIE_TEST_DATABASE_URL` ausente; PostgreSQL não executado nesta rodada.
+
+## Leitura segura de grant HTTP pela CLI — 17/10/2026
 
 - Grant JSON limitado a 1 MB, UTF-8 fatal e schema estrito antes de abrir o banco; entrada inválida não chega ao runner.
 - `node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/mcp/pieMcp.test.ts`: 2/2. Inclui tamanho excessivo e caminho para diretório, além do fluxo positivo real CLI/MCP.
