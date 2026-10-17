@@ -22,6 +22,17 @@ Registro inicial baseado em evidências do código e dos testes locais/CI já do
 - **Correção/estado:** lacuna de evidência de instalação/update Windows resolvida pelo verifier específico, sem alterar o verifier genérico nem seus casos de symlink. Resultado publicado em `PIE_VALIDATION_REPORT.md`.
 - **Risco residual:** Linux/macOS, casos de symlink, rollback do update e outros cenários do verifier genérico continuam sem validação local neste finding; revisão legal permanece separada.
 
+## PIE-2026-003 — caminho 8.3 contornava a fronteira do workspace no Windows
+
+- **Severidade:** alta (isolamento do ambiente VERIFY).
+- **Origem:** regressão de admissão em `pieExecutionAdmission.test.ts`, 17/10/2026.
+- **Observado:** o snapshot preservava `C:\Users\Usuário\...`, enquanto o host resolvia `parent` como `C:\Users\USURIO~2\...`. `realpathSync` preservava as representações distintas; `relative()` interpretava o mesmo diretório como externo e permitia criar `pie-verify-*` dentro do repositório.
+- **Causa-raiz:** comparação de identidade de diretório dependia da forma textual devolvida por `realpathSync` no Windows, incluindo alias 8.3 versus nome Unicode longo.
+- **Correção:** `prepareWorkspace` compara `realpathSync.native` dos dois caminhos antes de criar qualquer recurso. O teste de boundary verifica que preparar a cópia usando a própria raiz do alvo é recusado e não deixa recursos.
+- **Reprodução/validação:** antes da correção, `pieExecutionAdmission.test.ts` observou `ok: true` e a pasta criada dentro do repositório. Depois, a boundary passou; também passaram as suítes de execução e comparação, `check:fast`, `pie:build`, catálogo MCP (15/15 schemas), `docs:check:built` e `format:check` nesta revisão local.
+- **Estado:** corrigido localmente; aguarda commit/push nesta revisão.
+- **Limite residual:** não há validação Linux/macOS deste caso nem execução real do container Docker nesta rodada.
+
 ## Findings de aplicações auditadas
 
 Nenhum finding sobre aplicação de usuário foi aberto nesta etapa: não houve alvo cliente autorizado e verificado. Os defeitos semeados exigidos pelo blueprint devem ser criados somente em fixtures isoladas de teste e registrados quando seus motores produzirem resultados reproduzíveis.

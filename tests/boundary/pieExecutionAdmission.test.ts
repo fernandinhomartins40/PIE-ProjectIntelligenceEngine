@@ -176,6 +176,63 @@ it("vincula autorização a conteúdo, raiz, validade, testes e limites exatos",
   }
 });
 
+it("admite bindings v2 somente para teste autorizado e declaração observada", async () => {
+  const { root, repo } = await fixture();
+  await writeFile(
+    join(repo, "package.json"),
+    JSON.stringify({ scripts: { "check-real": "node --test" } }),
+  );
+  await promisify(execFile)("git", ["-C", repo, "add", "."]);
+  const snapshot = await discoverProject(
+    { repositoryRoot: repo, profile: "OBSERVE", environment: "local" },
+    randomUUID(),
+  );
+  const declaration = snapshot.declarations.find(
+    (item) => item.kind === "script" && item.name === "check-real",
+  );
+  if (!declaration) throw new Error("fixture declaration missing");
+  const base = grant(snapshot);
+  const versionTwo = {
+    ...base,
+    schemaVersion: 2,
+    testBindings: [
+      { testFile: "sample.test.mjs", declarationId: declaration.id },
+    ],
+  };
+  try {
+    expect((await admitNodeTests(versionTwo, snapshot)).ok).toBe(true);
+    for (const change of [
+      {
+        testBindings: [
+          { testFile: "other.test.mjs", declarationId: declaration.id },
+        ],
+      },
+      {
+        testBindings: [
+          { testFile: "sample.test.mjs", declarationId: "missing" },
+        ],
+      },
+      {
+        testBindings: [
+          { testFile: "sample.test.mjs", declarationId: declaration.id },
+          { testFile: "sample.test.mjs", declarationId: declaration.id },
+        ],
+      },
+    ])
+      expect(
+        (await admitNodeTests({ ...versionTwo, ...change }, snapshot)).ok,
+      ).toBe(false);
+    expect(
+      (await admitNodeTests({ ...base, testBindings: [] }, snapshot)).ok,
+    ).toBe(false);
+    expect(
+      await readFile(join(root, "repo", "sample.test.mjs"), "utf8"),
+    ).toContain("test('real'");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("prepara cópia privada por hash, detecta conteúdo alterado e limpa após cancelamento", async () => {
   const { root, repo, snapshot } = await fixture();
   try {
@@ -205,6 +262,10 @@ it("prepara cópia privada por hash, detecta conteúdo alterado e limpa após ca
       await result.value.close();
       await result.value.close();
     }
+    expect(await prepareWorkspace(admitted.value, repo)).toMatchObject({
+      ok: false,
+      error: { cause: { _tag: "AnalysisOutputError" }, cleanupOwner: null },
+    });
     await writeFile(join(repo, "sample.test.mjs"), "changed");
     expect(await prepareWorkspace(admitted.value, root)).toMatchObject({
       ok: false,
@@ -217,10 +278,6 @@ it("prepara cópia privada por hash, detecta conteúdo alterado e limpa após ca
     expect(await prepareWorkspace(admitted.value, root, signal)).toMatchObject({
       ok: false,
       error: { cause: { _tag: "AnalysisCancelledError" }, cleanupOwner: null },
-    });
-    expect(await prepareWorkspace(admitted.value, repo)).toMatchObject({
-      ok: false,
-      error: { cause: { _tag: "AnalysisOutputError" }, cleanupOwner: null },
     });
     expect((await readdir(root)).sort()).toEqual(["repo"]);
   } finally {

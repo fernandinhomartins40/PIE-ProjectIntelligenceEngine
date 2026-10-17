@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { evidenceSchema } from "../contracts.js";
 import { nodeResultSchema } from "./nodeResults.js";
-import { nodeTestGrantSchema } from "./contracts.js";
+import { nodeImageSchema, nodeTestGrantSchema } from "./contracts.js";
 import { pagedOutput } from "../outputContracts.js";
 export const verificationRunV1Schema = z.strictObject({
   schemaVersion: z.literal(1),
@@ -9,7 +9,7 @@ export const verificationRunV1Schema = z.strictObject({
   projectId: z.string().uuid(),
   snapshotId: z.string().uuid(),
   authorizationDigest: z.string().regex(/^[a-f0-9]{64}$/),
-  image: nodeTestGrantSchema.shape.image,
+  image: nodeImageSchema,
   createdAt: z.iso.datetime({ precision: 3 }),
   completedAt: z.iso.datetime({ precision: 3 }),
   result: nodeResultSchema,

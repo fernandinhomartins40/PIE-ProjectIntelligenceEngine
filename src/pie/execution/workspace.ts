@@ -94,7 +94,12 @@ export async function prepareWorkspace(
         throw new AnalysisTimeoutError("pie.verify", grant.limits.timeoutMs);
       return remaining;
     };
-    const delta = relative(realpathSync(snapshot.root), realpathSync(parent));
+    // On Windows, realpathSync may preserve 8.3 paths for one input and long
+    // names for another. Native resolution returns the same filesystem identity.
+    const delta = relative(
+      realpathSync.native(snapshot.root),
+      realpathSync.native(parent),
+    );
     if (
       delta === "" ||
       (!isAbsolute(delta) && delta !== ".." && !delta.startsWith(`..${sep}`))

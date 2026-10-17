@@ -109,7 +109,7 @@ export async function admitNodeTests(
     grant.testFiles.some(
       (path) =>
         !paths.has(path) ||
-        /[*?\[\]{}]/.test(path) ||
+        /[*?[\]{}]/.test(path) ||
         !/\.(?:[cm]?js|[cm]?ts)$/.test(path),
     )
   )
@@ -119,5 +119,24 @@ export async function admitNodeTests(
           "Teste deve ser um arquivo JavaScript/TypeScript observado.",
       }),
     );
+  if (grant.schemaVersion === 2) {
+    const declarations = new Set(snapshot.declarations.map((item) => item.id));
+    const bindings = new Set<string>();
+    for (const binding of grant.testBindings) {
+      const key = JSON.stringify([binding.testFile, binding.declarationId]);
+      if (
+        !grant.testFiles.includes(binding.testFile) ||
+        !declarations.has(binding.declarationId) ||
+        bindings.has(key)
+      )
+        return err(
+          new AnalysisInputError("pie.verify", {
+            userMessage:
+              "Binding deve referenciar arquivo autorizado e declaração observada, sem duplicidade.",
+          }),
+        );
+      bindings.add(key);
+    }
+  }
   return ok({ grant, snapshot });
 }

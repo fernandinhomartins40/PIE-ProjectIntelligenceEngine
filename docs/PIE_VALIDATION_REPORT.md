@@ -1,5 +1,12 @@
 # PIE — Registro de validação contínua
 
+## Grant VERIFY v2 e isolamento do workspace no Windows — 17/10/2026
+
+- Grant v2 tem união JSON Schema discriminada: bindings teste→declaração são obrigatórios (podem estar vazios), v1 não os aceita. Admissão confere arquivo autorizado, ID observado e unicidade. Persistência/evidência usa o grant integral; os bindings são declarações do operador, não prova de cobertura executada.
+- A boundary Windows reproduziu raiz do alvo em formas Unicode longo/8.3 e antes permitia preparar o workspace dentro do próprio alvo. `realpathSync.native` corrige comparação de identidade; a nova asserção valida a recusa.
+- `npm.cmd run check:fast`: 2 tarefas passaram. `npm.cmd run pie:build` passou. `node scripts/run-exact-tests.mjs tests/boundary/pieExecutionAdmission.test.ts tests/boundary/pieVerification.test.ts tests/boundary/pieRegressionResults.test.ts`: 8 passaram, 3 skipped (Docker/plataforma). `NODE_NO_WARNINGS=1 node scripts/run-exact-tests.mjs tests/boundary/mcp/pieVerifyMcp.test.ts tests/boundary/pieVerifyCli.test.ts tests/boundary/pieExecutionAdmission.test.ts`: 6 passaram, 4 skipped (Docker/plataforma). `docs:check:built` e `format:check` passaram.
+- `docs:generate` e `mcp-catalog:generate` regeneraram artefatos ignorados. Depois da regeneração, `NODE_NO_WARNINGS=1 node scripts/run-exact-tests.mjs tests/boundary/mcp/toolSchemaValidity.test.ts` passou 15/15, incluindo schema efetivamente anunciado para todas as 207 ferramentas. Antes dela, o teste detectou corretamente catálogo `.cache` desatualizado. Não há prova de execução real Docker, PostgreSQL nem cobertura funcional automatizada nesta entrega.
+
 ## Instalação, setup e update do pacote no Windows — 17/10/2026
 
 - `npm.cmd run verify:package:windows`, sob Node 24.18.0/npm 11.16.0: passou. Instalou tarball local em prefixo temporário e verificou CLI help, catálogo MCP completo (207 ferramentas), setup de OpenCode/VS Code/Copilot CLI, idempotência, uninstall e update para a versão exata via registry fixture local.
