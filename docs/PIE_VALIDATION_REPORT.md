@@ -6,6 +6,7 @@
 - Comparação executada: `git rev-list --left-right --count upstream/main...HEAD` → `0 80`; `git diff --shortstat upstream/main...HEAD` → 173 arquivos, 51.949 inserções, 103 remoções. Base upstream `926e18b3f`; HEAD comparado `4451f1fc4`.
 - Os relatórios registram o achado corrigido sobre ref Git inválida e o bloqueio de validação do pacote (`EPERM` em symlink Windows) sem atribuir instalação/update funcional. Sete notice gaps existentes continuam explícitos; não se declara revisão legal completa.
 - `npm.cmd run docs:check:built` e `npm.cmd run format:check` passaram após formatação; `git diff --check` passou. Não houve execução de alvo cliente nem atualização de evidência de runtime.
+- Commit `1b31911d01e6a474853f7cb606d46a3c32d5a27d` publicado nos dois remotos. Fetch verificou igualdade de refs e `git rev-list --left-right --count upstream/main...HEAD` retornou `0 81` (um commit documental novo sobre o baseline de diff `4451f1fc4`). CI PIE `39040621001` pending/Release `39040621073` queued; CI fork `39040625929` e Release `39040626022` pending. Mudança documental não aciona a lane de integração PIE.
 
 ## Publicação e CI do upstream sincronizado — 17/10/2026
 

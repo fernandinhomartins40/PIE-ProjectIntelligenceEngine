@@ -6,7 +6,7 @@ Criados `PIE_PROJECT_MAP.md`, `PIE_AUDIT_PLAN.md`, `PIE_FINDINGS.md` e `PIE_UPST
 
 ## Estado atual — remotos sincronizados — 17/10/2026
 
-Atualizado após `998485ae4`: remotos sincronizados e somente `main` local; upstream `926e18b3f` é ancestral. Integração PIE `39040260781` está in_progress; CI `39040260802` e Release `39040260851` pending. No fork: integração `39040265372` queued, CI `39040265451` e Release `39040265445` pending. Refatoração de proveniência passou 17 testes em duas boundaries, além de build/checkfast/formato/docs. Próximo: acompanhar CI e seguir contratos/Result uniforme T1.1; T1.2 (retenção/redação) e T3 (Playwright/jobs) continuam lacunas grandes. Não declarar aceite integral.
+Após publicar os relatórios, o commit `1b31911d0` foi enviado por fast-forward aos dois remotos. Fetch confirmou `HEAD`, `origin/main` e `rea-fork/main` iguais; upstream `926e18b3f` ancestral; somente `main` local. Para `1b31911d0`, CI PIE `39040621001` pending, Release `39040621073` queued; CI fork `39040625929` e Release `39040626022` pending. A CI de integração não é acionada por esse conjunto de alterações somente documentais. Próximo: avançar T1.1/T1.2 ou execução Playwright; os motores e o aceite integral seguem por completar.
 
 `origin/main` e `rea-fork/main` estão ambos em `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `upstream/main` `926e18b3f` é ancestral e só existe a branch local `main`. Para esse SHA, CI do PIE `39038524038` e do fork `39038534862` estão pendentes; Release do PIE `39038524037` está `in_progress` e do fork `39038534901` está `queued`. Próximo: acompanhar conclusões e seguir trilhas T1.1/T1.2/T1.3/T1.4/T1.5 ainda parciais; não declarar aceite integral.
 
