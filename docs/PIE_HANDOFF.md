@@ -18,6 +18,8 @@ Na preparação inicial, a conta autenticada foi `fernandinhomartins40`; o fork 
 
 ## Continuidade atual — supervisão/cancelamento Git — 17/10/2026
 
+Correção adicional na mesma fronteira: revisão nula só para HEAD simbólica sem ref; ref malformada dá `IO_ERROR`. O prazo é consultado de novo em cada subprocesso Git aninhado. `pieFoundation` 10/10, `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram no Windows. Próximo: registrar/publicar na `main` e conferir CI. Linux/macOS e cobertura de todos os workers/processos ainda ausentes; T1.1/T1.3 parciais.
+
 Na descoberta, o wrapper Git convertia toda falha de `execFile` em `IO_ERROR`; abortar subprocesso ativo podia ser confundido com erro de inventário, e o timeout real Windows era `killed=true`, `signal=SIGTERM`, `code=null`. O produtor agora preserva `signal.reason` quando cancelado e representa timeout/capacidade do filho como `LIMIT_EXCEEDED`. `pieFoundation` passou 9/9 com repositório Git real, incluindo cancelamento assíncrono e timeout total de 1 ms. `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram. Próximo: publicar diretamente em `main` e conferir os workflows do novo SHA. Não ampliar a alegação para workers/jobs ou outros subprocessos; T1.1/T1.3 seguem parciais.
 
 ## Continuidade atual — caracterização do runtime upstream — 17/10/2026

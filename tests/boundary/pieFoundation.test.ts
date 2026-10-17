@@ -152,6 +152,17 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
     ).rejects.toMatchObject({ code: "LIMIT_EXCEEDED" });
   });
 
+  it("não confunde referência HEAD inválida com repositório sem commit", async () => {
+    const { repo, policy } = await fixture();
+    const headReference = "refs/heads/pie-test";
+    await exec("git", ["-C", repo, "symbolic-ref", "HEAD", headReference]);
+    const branchReference = join(repo, ".git", ...headReference.split("/"));
+    await writeFile(branchReference, "not-an-object-id");
+    await expect(discoverProject(policy, randomUUID())).rejects.toMatchObject({
+      code: "IO_ERROR",
+    });
+  });
+
   it("encerra aguardando descoberta cancelada e bloqueia nova admissão", async () => {
     const { root, repo, policy } = await fixture();
     const store = await openStore(join(root, "lifecycle.sqlite"), repo);

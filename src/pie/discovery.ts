@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { realpath } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
@@ -44,13 +44,33 @@ import {
 } from "./adapters/express.js";
 
 const runFile = promisify(execFile);
+function isUnbornHeadRevisionFailure(args: string[], cause: unknown): boolean {
+  if (
+    args.length !== 3 ||
+    args[0] !== "rev-parse" ||
+    args[1] !== "--verify" ||
+    args[2] !== "HEAD" ||
+    !(cause instanceof Error)
+  )
+    return false;
+  const code = Reflect.get(cause, "code");
+  const stderr = Reflect.get(cause, "stderr");
+  const message = Buffer.isBuffer(stderr)
+    ? stderr.toString("utf8").trim()
+    : typeof stderr === "string"
+      ? stderr.trim()
+      : "";
+  return code === 128 && message === "fatal: Needed a single revision";
+}
+
 // Git hooks, package scripts and project executables are never launched.
 async function git(
   root: string,
   args: string[],
-  timeout: number,
+  timeout: () => number,
   signal?: AbortSignal,
 ): Promise<Buffer> {
+  const timeoutMs = timeout();
   try {
     const environment = Object.fromEntries(
       Object.entries(process.env).filter(
@@ -71,7 +91,7 @@ async function git(
       ],
       {
         encoding: "buffer",
-        timeout,
+        timeout: timeoutMs,
         ...(signal ? { signal } : {}),
         maxBuffer: 16_000_000,
         windowsHide: true,
@@ -102,6 +122,55 @@ async function git(
           "LIMIT_EXCEEDED",
           "Comando Git excedeu o limite de tempo ou saída da descoberta.",
         );
+    }
+    if (isUnbornHeadRevisionFailure(args, cause)) {
+      try {
+        const headReference = await git(
+          root,
+          ["symbolic-ref", "--quiet", "HEAD"],
+          timeout,
+          signal,
+        );
+        const symbolicReference = headReference.toString("utf8").trim();
+        if (symbolicReference.startsWith("refs/heads/")) {
+          const gitDirectory = (
+            await git(
+              root,
+              ["rev-parse", "--absolute-git-dir"],
+              timeout,
+              signal,
+            )
+          )
+            .toString("utf8")
+            .trim();
+          const referencePath = resolve(
+            gitDirectory,
+            ...symbolicReference.split("/"),
+          );
+          try {
+            const reference = await lstat(referencePath);
+            if (reference.isFile()) {
+              const objectId = (await readFile(referencePath, "utf8")).trim();
+              const objectIdPattern = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/i;
+              if (!objectIdPattern.test(objectId)) return Buffer.alloc(0);
+            }
+          } catch (referenceFailure) {
+            if (
+              referenceFailure instanceof Error &&
+              Reflect.get(referenceFailure, "code") === "ENOENT"
+            )
+              return Buffer.alloc(0);
+            throw referenceFailure;
+          }
+        }
+      } catch (verificationFailure) {
+        if (signal?.aborted) throw signal.reason ?? verificationFailure;
+        if (
+          verificationFailure instanceof PieError &&
+          verificationFailure.code === "LIMIT_EXCEEDED"
+        )
+          throw verificationFailure;
+      }
     }
     throw new PieError(
       "IO_ERROR",
@@ -166,7 +235,7 @@ export async function discoverProject(
     return value;
   };
   const top = (
-    await git(root, ["rev-parse", "--show-toplevel"], remaining(), signal)
+    await git(root, ["rev-parse", "--show-toplevel"], remaining, signal)
   )
     .toString("utf8")
     .trim();
@@ -179,23 +248,19 @@ export async function discoverProject(
     await git(
       root,
       ["status", "--porcelain=v1", "-z", "--untracked-files=no"],
-      remaining(),
+      remaining,
       signal,
     )
   ).toString("utf8");
-  let revision: string | null = null;
-  try {
-    revision = (
-      await git(root, ["rev-parse", "--verify", "HEAD"], remaining(), signal)
-    )
-      .toString("utf8")
-      .trim();
-  } catch {
-    /* An unborn repository has no revision, not an invented SHA. */
-  }
+  const revisionValue = (
+    await git(root, ["rev-parse", "--verify", "HEAD"], remaining, signal)
+  )
+    .toString("utf8")
+    .trim();
+  const revision: string | null = revisionValue || null;
   const paths = [
     ...new Set(
-      (await git(root, ["ls-files", "-z", "--cached"], remaining(), signal))
+      (await git(root, ["ls-files", "-z", "--cached"], remaining, signal))
         .toString("utf8")
         .split("\0")
         .filter(Boolean),
@@ -351,7 +416,7 @@ export async function discoverProject(
     await git(
       root,
       ["status", "--porcelain=v1", "-z", "--untracked-files=no"],
-      remaining(),
+      remaining,
       signal,
     )
   ).toString("utf8");
