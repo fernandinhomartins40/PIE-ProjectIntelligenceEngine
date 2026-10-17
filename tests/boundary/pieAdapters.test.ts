@@ -50,6 +50,13 @@ function functionalResultFailures(snapshot: Snapshot) {
       policy,
     ),
   ).toEqual({ ok: false, error: { kind: "invalid_snapshot" } });
+  expect(
+    assessFunctionalResult(
+      { ...snapshot, treeDigest: "0".repeat(64) },
+      { snapshotId: snapshot.id },
+      policy,
+    ),
+  ).toEqual({ ok: false, error: { kind: "invalid_snapshot" } });
 }
 
 it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {

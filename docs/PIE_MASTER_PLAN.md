@@ -2,7 +2,7 @@
 
 ## Result esperado no motor funcional — 17/10/2026
 
-`assessFunctionalResult` agora retorna falhas tagged para schema inválido, caminho de módulo não canônico, policy fora do escopo e snapshot rejeitado pelo schema, sem capturar erros internos inesperados. O serviço compartilhado traduz essas falhas para `PieError` e usa o mesmo caminho tanto na leitura quanto na retenção histórica. Mantidos estados `unverified`, formato público e política OBSERVE. `pieAdapters` + `pieFunctionalPersistence`: 11/11; `pie:build` e `check:fast` passaram. Ainda não é Result uniforme em discovery, demais engines/adapters, persistência ou runners; T1.1 continua parcial.
+`assessFunctionalResult` agora retorna falhas tagged para schema inválido, caminho de módulo não canônico, policy fora do escopo e snapshot rejeitado pelo schema ou por integridade, sem capturar erros internos inesperados. O serviço compartilhado traduz essas falhas para `PieError` e usa o mesmo caminho tanto na leitura quanto na retenção histórica. Mantidos estados `unverified`, formato público e política OBSERVE. `pieAdapters` + `pieFunctionalPersistence`: 11/11; `pie:build` e `check:fast` passaram. Ainda não é Result uniforme em discovery, demais engines/adapters, persistência ou runners; T1.1 continua parcial.
 
 ## Paginação e cobertura do motor funcional — 17/10/2026
 

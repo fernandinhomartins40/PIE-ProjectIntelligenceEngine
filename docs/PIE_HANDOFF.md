@@ -2,7 +2,7 @@
 
 ## Erros esperados tagged no motor funcional — 17/10/2026
 
-`assessFunctionalResult` tipa input/schema inválido, module path inválido, escopo/política recusados e snapshot malformado; falhas inesperadas não são capturadas. `PieService` converte falhas esperadas ao erro compartilhado usado pelos adaptadores CLI/MCP/API, tanto em review quanto em retenção. Boundary funcional/persistência 11/11, `pie:build` e `check:fast` passaram. T1.1 permanece parcial; aplicar o padrão nas demais fronteiras é trabalho restante. Próximo eixo: T1.2 retenção/expiração e redação com ownership no produtor, preservando evidências históricas imutáveis.
+`assessFunctionalResult` tipa input/schema inválido, module path inválido, escopo/política recusados e snapshot inválido pelo schema/integridade; falhas inesperadas não são capturadas. `PieService` converte falhas esperadas ao erro compartilhado usado pelos adaptadores CLI/MCP/API, tanto em review quanto em retenção. Boundary funcional/persistência 11/11, `pie:build` e `check:fast` passaram. T1.1 permanece parcial; aplicar o padrão nas demais fronteiras é trabalho restante. Próximo eixo: T1.2 retenção/expiração e redação com ownership no produtor, preservando evidências históricas imutáveis.
 
 ## Continuação do motor funcional — 17/10/2026
 

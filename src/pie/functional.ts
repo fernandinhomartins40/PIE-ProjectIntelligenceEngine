@@ -182,7 +182,7 @@ export function assessFunctionalResult(
       reason: "schema",
     });
   if (!canonicalModulePath(request.data.modulePath))
-    return err({ kind: "invalid_input", reason: "module_path", issues: [] });
+    return err({ kind: "invalid_input", reason: "module_path" });
   const policy = policySchema.safeParse(policyInput);
   if (!policy.success)
     return err({
@@ -193,7 +193,11 @@ export function assessFunctionalResult(
   try {
     snapshot = validateSnapshot(snapshotInput);
   } catch (cause) {
-    if (cause instanceof z.ZodError) return err({ kind: "invalid_snapshot" });
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_snapshot" });
     throw cause;
   }
   if (request.data.snapshotId !== snapshot.id)
