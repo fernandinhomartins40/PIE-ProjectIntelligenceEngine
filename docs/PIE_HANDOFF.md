@@ -1,4 +1,4 @@
-# PIE — Continuidade
+﻿# PIE — Continuidade
 
 ## Estado atual — 17/10/2026
 
