@@ -269,6 +269,10 @@ export async function startPieApi(
         );
         return;
       }
+      if (request.method === "POST" && url.pathname === "/v1/retest-plan") {
+        respond(response, 200, await service.retestPlan(await body(request)));
+        return;
+      }
       if (request.method === "POST" && url.pathname === "/v1/functional") {
         respond(
           response,

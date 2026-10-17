@@ -9,6 +9,7 @@ import { compareSnapshots, comparisonInput } from "./compare.js";
 import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
 import { assessFunctional, functionalInput } from "./functional.js";
 import { sealFunctional } from "./functionalRecord.js";
+import { planRetests, retestInput } from "./retestPlan.js";
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
@@ -161,6 +162,16 @@ export class PieService {
         this.store.snapshot(afterId),
       ]);
       return compareSnapshots(before, after, paging);
+    });
+  }
+  retestPlan(input: unknown) {
+    return this.#read(async () => {
+      const request = retestInput.parse(input);
+      const [before, after] = await Promise.all([
+        this.store.snapshot(request.beforeId),
+        this.store.snapshot(request.afterId),
+      ]);
+      return planRetests(before, after, request);
     });
   }
   functional(input: unknown) {

@@ -12,6 +12,95 @@ import { renderSnapshot } from "../../src/pie/reports.js";
 
 const exec = promisify(execFile);
 
+it("planeja retestes pelo impacto dos dois grafos sem conceder execução ou inventar cobertura", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-retest-"));
+  const repo = join(root, "repo");
+  await mkdir(repo);
+  await exec("git", ["init", repo]);
+  await writeFile(join(repo, "service.ts"), "export const value=1;");
+  await writeFile(
+    join(repo, "linked.test.ts"),
+    "import {value} from './service'; export {value};",
+  );
+  await writeFile(
+    join(repo, "other.test.ts"),
+    "throw new Error('não executar');",
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "history.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const policy = {
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    };
+    const before = await service.discover(policy);
+    await writeFile(join(repo, "service.ts"), "export const value=2;");
+    const after = await service.discover(policy);
+    const request = {
+      beforeId: before.snapshot.id,
+      afterId: after.snapshot.id,
+    };
+    const affected = await service.retestPlan(request);
+    expect(affected).toMatchObject({
+      state: "unverified",
+      executionAuthorized: false,
+      runtimeVerified: false,
+      candidates: {
+        total: 1,
+        items: [
+          {
+            path: "linked.test.ts",
+            reason: "recorded_dependency_impact",
+            runnerCompatibility: "not_probed",
+          },
+        ],
+      },
+      coverage: { observedCurrentTests: 2, selectedTests: 1 },
+    });
+    const proof = await service.evidence(
+      affected.candidates.items[0]!.evidenceIds[0]!,
+    );
+    expect(proof.snapshotId).toBe(after.snapshot.id);
+    const full = await service.retestPlan({
+      ...request,
+      mode: "full",
+      limit: 1,
+    });
+    expect(full.candidates).toMatchObject({ total: 2, nextOffset: 1 });
+    expect(
+      (await service.retestPlan({ ...request, mode: "full", offset: 1 }))
+        .candidates.items[0]!.path,
+    ).toBe("other.test.ts");
+    expect(
+      (
+        await service.retestPlan({
+          beforeId: after.snapshot.id,
+          afterId: after.snapshot.id,
+        })
+      ).candidates.total,
+    ).toBe(0);
+    await exec("git", ["-C", repo, "add", "service.ts"]);
+    await exec("git", ["-C", repo, "rm", "--cached", "service.ts"]);
+    const removed = await service.discover(policy);
+    expect(
+      (
+        await service.retestPlan({
+          beforeId: after.snapshot.id,
+          afterId: removed.snapshot.id,
+        })
+      ).candidates.items.map((item) => item.path),
+    ).toEqual(["linked.test.ts"]);
+    await expect(
+      service.retestPlan({ ...request, mode: "automatic" }),
+    ).rejects.toThrow();
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("regressão compara declarações com provas dos dois snapshots sem afirmar endpoint removido", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-declaration-diff-"));
   const repo = join(root, "repo");

@@ -255,3 +255,9 @@ A comparação de snapshots inclui declarationChanges com paginação independen
 
 
 No painel, Comparar versões mostra declarações antes/depois e abre a prova de cada versão. A paginação alcança todos os arquivos e declarações da comparação. Texto traduzido mantém limitações: ausência de observação não comprova remoção, bytes alterados não comprovam mudança de comportamento e ocorrências ambíguas não são alinhadas por suposição.
+
+## Planejamento de retestes
+
+retest-plan <antes-id> <depois-id> --mode affected|full --limit 50 --offset 0 lista candidatos no snapshot posterior. MCP pie_retest_plan recebe beforeId/afterId/mode e paginação; API POST /v1/retest-plan usa o mesmo JSON autenticado. affected seleciona testes alcançados pelo impacto registrado nas duas versões; full lista todos os arquivos classificados como teste observados na versão posterior.
+
+Plano não autoriza execução. A classificação por nome e os imports não comprovam cobertura; compatibilidade do runner fica not_probed. Dependências não resolvidas/dinâmicas podem omitir candidatos. Nenhum candidato não equivale a aprovação. Testes removidos/não observados são contados, não executados como se ainda existissem. Para executar, operador precisa escolher grant VERIFY com snapshot/imagem/limites e arquivos explícitos; o plano não produz autorização automaticamente.

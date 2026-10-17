@@ -15,6 +15,15 @@ async function verifyFunctionalHistory(
   snapshotId: string,
   service: PieService,
 ) {
+  const retests = await fetch(`${url}/v1/retest-plan`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ beforeId: snapshotId, afterId: snapshotId }),
+  });
+  expect(retests.status).toBe(200);
+  expect(await retests.json()).toEqual(
+    await service.retestPlan({ beforeId: snapshotId, afterId: snapshotId }),
+  );
   const functional = await fetch(`${url}/v1/functional`, {
     method: "POST",
     headers,

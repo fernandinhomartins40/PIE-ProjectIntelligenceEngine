@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Candidatos a reteste por impacto — 17/10/2026
+
+CI 38998811119 (8ef69eed6) passou. Novo planRetests compara identidades de bytes e percorre impacto de ambos os grafos para selecionar arquivos de teste atuais. Import removido/arquivo não observado na versão posterior ainda pode afetar teste ligado no grafo anterior. Modo full inclui todos os testes observados na versão posterior, não apenas afetados. Seleção paginada preserva caminho/ID/prova atual, motivo e runnerCompatibility=not_probed. executionAuthorized/runtimeVerified permanecem false e estado unverified. Não gera grant nem inicia execução.
+
+PieService.retestPlan compartilha o fluxo com CLI retest-plan <antes-id> <depois-id> --mode affected|full, MCP pie_retest_plan (schemas Ajv) e POST /v1/retest-plan autenticado. Cobertura distingue testes observados/selecionados, arquivos no impacto e testes antigos removidos ou não observados. Classificação por nome e imports estáticos não comprovam cobertura funcional; ausência de candidato não aprova regressão. Modos full e affected não substituem auditoria funcional completa. Runner HTTP/Playwright e execução do reteste com vínculo a achados continuam pendentes.
+
+Git/SQLite reais testaram dependência alterada, teste desconectado incluído só em full, paginação, ausência de mudança, arquivo retirado do inventário e prova do snapshot posterior; código fixture não executado. Comparação/API: cinco testes passaram (7,77s); MCP/CLI validou contrato e igualdade durante rodada anterior, cujo teste de comparação falhou somente por setup Git da fixture (corrigido com stage antes de rm --cached). Build PIE, typecheck completo e web passaram; lint focado sem avisos/erros. Limites de módulos: 2057 fontes; descoberta: 1464 testes. Reteste é proposta, não execução comprovada. CPU/memória/tokens não medidos; goal integral ativo.
+
 ## Comparação de declarações no painel — 17/10/2026
 
 Painel apresenta declarationChanges com observações antes/depois, receptor/contexto, arquivo/linha e acesso à prova de cada versão. Estados traduzidos explicitam ausência de observação, mudança de bytes e ambiguidade, sem afirmar remoção de funcionalidade ou regressão runtime. Paginação compartilhada usa maior total entre arquivos e declarações; páginas de declarações não ficam inacessíveis após acabar a lista de arquivos. A coluna de contexto preserva o valor declarado, sem derivar URL ou fluxo.

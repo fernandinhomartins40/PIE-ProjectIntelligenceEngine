@@ -8,6 +8,7 @@ import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import { functionalInput, functionalOutput } from "./functional.js";
+import { retestInput, retestOutput } from "./retestPlan.js";
 import {
   functionalRecordSchema,
   functionalHistorySchema,
@@ -130,6 +131,17 @@ export function createPieMcp(
     },
     ({ snapshotId, ...paging }) =>
       guarded(() => service.functionalRecords(snapshotId, paging)),
+  );
+  server.registerTool(
+    "pie_retest_plan",
+    {
+      description:
+        "Seleciona candidatos a reteste nos snapshots antes/depois, por impacto de imports registrados ou inventário completo de testes observados. Não autoriza execução, não comprova cobertura ou regressão; inclui provas e limitações.",
+      inputSchema: retestInput,
+      outputSchema: withError(retestOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.retestPlan(input)),
   );
   if (verifier && queue) {
     server.registerTool(

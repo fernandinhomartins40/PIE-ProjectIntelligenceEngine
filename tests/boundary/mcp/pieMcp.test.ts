@@ -134,6 +134,37 @@ async function verifyFunctional(
   expect(retained.isError).not.toBe(true);
   const record = retained.structuredContent as { id: string; result: unknown };
   expect(record.result).toEqual(functional.structuredContent);
+  const retests = await client.callTool({
+    name: "pie_retest_plan",
+    arguments: { beforeId: snapshotId, afterId: snapshotId, mode: "full" },
+  });
+  expect(retests.structuredContent).toMatchObject({
+    state: "unverified",
+    executionAuthorized: false,
+    candidates: { total: 0 },
+  });
+  const retestTool = catalog.find((item) => item.name === "pie_retest_plan")!;
+  expect(
+    ajv.compile(retestTool.outputSchema as AnySchema)(
+      retests.structuredContent,
+    ),
+  ).toBe(true);
+  expect(
+    JSON.parse(
+      (
+        await exec(process.execPath, [
+          script,
+          "retest-plan",
+          snapshotId,
+          snapshotId,
+          "--mode",
+          "full",
+          "--db",
+          db,
+        ])
+      ).stdout,
+    ),
+  ).toEqual(retests.structuredContent);
   const read = await client.callTool({
     name: "pie_functional_record_get",
     arguments: { id: record.id },

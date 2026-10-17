@@ -33,6 +33,7 @@ export async function runPie(args: string[]): Promise<void> {
       continuous: { type: "boolean" },
       "poll-ms": { type: "string" },
       module: { type: "string" },
+      mode: { type: "string" },
     },
   });
   const [command, target] = parsed.positionals;
@@ -73,6 +74,9 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n>. Retenção preserva somente a página solicitada.",
+    );
+    console.log(
+      "Candidatos a reteste: retest-plan <antes-id> <depois-id> --mode affected|full --limit <1–200> --offset <n>. Plano não autoriza execução nem comprova cobertura.",
     );
     console.log(
       "VERIFY Linux: verify <autorização.json> --state-dir <diretório-0700> --docker-bin <executável-absoluto> --docker-host <daemon-local>. Recursos: resources --state-dir <diretório> | recover <run-id> com as mesmas opções Docker. Sem pull automático.",
@@ -175,6 +179,7 @@ export async function runPie(args: string[]): Promise<void> {
       "export",
       "mcp",
       "compare",
+      "retest-plan",
       "serve",
       "enqueue",
       "job",
@@ -338,6 +343,14 @@ export async function runPie(args: string[]): Promise<void> {
         result = await service.compare({
           beforeId: target,
           afterId: parsed.positionals[2],
+          ...paging,
+        });
+        break;
+      case "retest-plan":
+        result = await service.retestPlan({
+          beforeId: target!,
+          afterId: parsed.positionals[2],
+          mode: parsed.values.mode ?? "affected",
           ...paging,
         });
         break;
