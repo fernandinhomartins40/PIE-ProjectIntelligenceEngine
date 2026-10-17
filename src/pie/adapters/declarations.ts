@@ -195,6 +195,16 @@ function prismaTokens(source: string) {
 function prisma(source: string): AdapterRead {
   const tokens = prismaTokens(source);
   const declarations: Declaration[] = [];
+  const modelNames = new Set(
+    tokens.flatMap((token, index) =>
+      !token.literal &&
+      token.value === "model" &&
+      !tokens[index + 1]?.literal &&
+      tokens[index + 2]?.value === "{"
+        ? [tokens[index + 1]!.value]
+        : [],
+    ),
+  );
   const fieldAttributes = new Set(["@id", "@unique", "@relation", "@default"]);
   const modelAttributes = new Set(["@@id", "@@unique", "@@map"]);
   for (let i = 0; i < tokens.length; i++) {
@@ -245,6 +255,15 @@ function prisma(source: string): AdapterRead {
           parent: model,
           line: field.line,
         });
+        const targetModel = tokens[i + 1]!.value;
+        if (modelNames.has(targetModel))
+          declarations.push({
+            adapter: "prisma-schema",
+            kind: "schema_relation",
+            name: targetModel,
+            parent: model,
+            line: field.line,
+          });
       }
       if (field.value !== "\n") previousLine = field.line;
     }

@@ -12,6 +12,7 @@ import { runPie } from "../../src/pie/cli.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { dataReviewOutput } from "../../src/pie/dataReview.js";
 
 const exec = promisify(execFile);
 
@@ -98,6 +99,23 @@ async function writeDataReviewFixture(repo: string) {
       "  id String @id",
       "  @@map(TABLE_NAME)",
       "}",
+      "model Account {",
+      "  id String @id",
+      "  ownerId String",
+      "  owner Owner @relation(fields: [ownerId], references: [id])",
+      "}",
+      "model Owner {",
+      "  id String @id",
+      "  accounts Account[]",
+      "}",
+      "model LogEntry {",
+      "  id String @id",
+      "  actor Owner",
+      "}",
+      "model AuditEntry {",
+      "  id String @id",
+      "  actor Owner",
+      "}",
       "// model Commented { id String @id }",
     ].join("\n"),
   );
@@ -115,7 +133,89 @@ async function writeDataReviewFixture(repo: string) {
       'CREATE TABLE "Pair" ("left" TEXT, "right" TEXT);',
       'ALTER TABLE "Pair" ADD CONSTRAINT "Pair_pkey" PRIMARY KEY ("left", "right");',
       'CREATE TABLE "CompoundUnique" ("left" TEXT, "right" TEXT, UNIQUE ("left", "right"));',
+      'CREATE TABLE "Owner" ("id" TEXT PRIMARY KEY);',
+      'CREATE TABLE "Account" ("id" TEXT PRIMARY KEY, "ownerId" TEXT, FOREIGN KEY ("ownerId") REFERENCES "Owner" ("id"));',
+      'CREATE TABLE "LogEntry" ("id" TEXT PRIMARY KEY, "actorId" TEXT);',
+      'ALTER TABLE "LogEntry" ADD CONSTRAINT "log_entry_actor_fk" FOREIGN KEY ("actorId") REFERENCES "Owner" ("id");',
+      'CREATE TABLE "AuditEntry" ("id" TEXT PRIMARY KEY, "actorId" TEXT);',
     ].join("\n"),
+  );
+}
+
+function expectDataReview(input: unknown) {
+  const expected = dataReviewOutput.parse(input);
+  expect(expected).toMatchObject({
+    schemaVersion: 3,
+    engine: "data",
+    state: "unverified",
+    models: {
+      total: 1,
+      items: [
+        {
+          category: "model_selector_not_observed",
+          model: { name: "Membership", source: { path: "schema.prisma" } },
+        },
+      ],
+    },
+    coverage: {
+      runtime: false,
+      schemaFiles: 1,
+      examinedModels: 10,
+      unexaminedSchemaFiles: 0,
+      migrationFiles: 1,
+      unexaminedMigrationFiles: 0,
+      declaredRelations: 4,
+    },
+  });
+  expect(expected.migrations.items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "Product" }),
+        state: "unique_constraint_observed",
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "NaturalKey" }),
+        state: "unique_constraint_observed",
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "Membership" }),
+        state: "table_observed_without_unique_constraint",
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "Pair" }),
+        state: "unique_constraint_observed",
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "UnresolvedMap" }),
+        state: "migration_inventory_incomplete",
+      }),
+    ]),
+  );
+  expect(expected.relations.items).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        relation: expect.objectContaining({ parent: "Account", name: "Owner" }),
+        state: "foreign_key_observed",
+      }),
+      expect.objectContaining({
+        relation: expect.objectContaining({ parent: "Owner", name: "Account" }),
+        state: "foreign_key_observed",
+      }),
+      expect.objectContaining({
+        relation: expect.objectContaining({
+          parent: "LogEntry",
+          name: "Owner",
+        }),
+        state: "foreign_key_observed",
+      }),
+      expect.objectContaining({
+        relation: expect.objectContaining({
+          parent: "AuditEntry",
+          name: "Owner",
+        }),
+        state: "foreign_key_not_observed",
+      }),
+    ]),
   );
 }
 
@@ -148,51 +248,7 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
 
     const request = { snapshotId: snapshot.id, limit: 10 };
     const expected = await service.dataReview(request);
-    expect(expected).toMatchObject({
-      engine: "data",
-      state: "unverified",
-      models: {
-        total: 1,
-        items: [
-          {
-            category: "model_selector_not_observed",
-            model: { name: "Membership", source: { path: "schema.prisma" } },
-          },
-        ],
-      },
-      coverage: {
-        runtime: false,
-        schemaFiles: 1,
-        examinedModels: 6,
-        unexaminedSchemaFiles: 0,
-        migrationFiles: 1,
-        unexaminedMigrationFiles: 0,
-      },
-    });
-    expect(expected.migrations.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          model: expect.objectContaining({ name: "Product" }),
-          state: "unique_constraint_observed",
-        }),
-        expect.objectContaining({
-          model: expect.objectContaining({ name: "NaturalKey" }),
-          state: "unique_constraint_observed",
-        }),
-        expect.objectContaining({
-          model: expect.objectContaining({ name: "Membership" }),
-          state: "table_observed_without_unique_constraint",
-        }),
-        expect.objectContaining({
-          model: expect.objectContaining({ name: "Pair" }),
-          state: "unique_constraint_observed",
-        }),
-        expect.objectContaining({
-          model: expect.objectContaining({ name: "UnresolvedMap" }),
-          state: "migration_inventory_incomplete",
-        }),
-      ]),
-    );
+    expectDataReview(expected);
     const migrationEvidence = expected.migrations.items.find(
       (finding) => finding.model.name === "NaturalKey",
     )!.evidenceIds;
@@ -251,7 +307,7 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
       (item) => item.name === "pie_data_review",
     );
     expect(tool).toBeDefined();
-    expect(tool!.description).toContain("migrations PostgreSQL");
+    expect(tool!.description).toContain("REFERENCES");
     const ajv = new Ajv2020({ strict: false, validateFormats: false });
     expect(ajv.validateSchema(tool!.inputSchema)).toBe(true);
     expect(ajv.validateSchema(tool!.outputSchema as AnySchema)).toBe(true);

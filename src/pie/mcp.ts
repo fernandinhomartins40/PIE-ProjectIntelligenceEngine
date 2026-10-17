@@ -101,7 +101,7 @@ export function createPieMcp(
     "pie_data_review",
     {
       description:
-        "Analisa fatos Prisma e observações estáticas de migrations PostgreSQL preservados no snapshot. Compara nomes exatos de modelos/tabelas, respeitando @@map de modelo, e aponta seletores ou constraints únicas não observados; não calcula o estado final nem conecta ao banco. Achados permanecem unverified.",
+        "Analisa fatos Prisma e observações estáticas de migrations PostgreSQL preservados no snapshot. Compara modelos e tabelas, respeitando @@map literal, e observa seletores, constraints únicas e REFERENCES; não calcula o estado final nem conecta ao banco. Relações ou mappings incompletos permanecem inconclusivos; achados seguem unverified.",
       inputSchema: dataReviewInput,
       outputSchema: withError(dataReviewOutput),
       annotations: read,

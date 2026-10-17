@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Motor Dados: relações Prisma e FOREIGN KEY — 17/10/2026
+
+Terceiro slice T4.5: parser tipa relações Prisma por tipo de field e captura `REFERENCES`/`FOREIGN KEY` no subconjunto SQL suportado. `data-review` correlaciona a relação em qualquer direção, respeita `@@map` literal e reporta constraint observada/ausente como estática `unverified`; mapping/target/cobertura incompletos permanecem inconclusivos. Evidence inclui relação Prisma, models envolvidos, mapping e FK SQL quando observada. Contrato schemaVersion 3. Fixture Git/SQLite testa FK presente por `CREATE TABLE`, FK presente por `ALTER TABLE`, FK ausente, direção reversa, Evidence, schema MCP/Ajv e paridade service/CLI/API/MCP. Validação concluída: 11/11 boundaries, `pie:build`, `check:fast` 2/2, `docs:check:built` (902 lock/365 runtime), `format:check` (4.113 arquivos) e `git diff --check` passaram. Sem runtime PostgreSQL. T4.5 parcial.
+
 ## Motor Dados: observações de migrations Prisma — 17/10/2026
 
 Segundo slice T4.5: reader limitado de PostgreSQL em `prisma/migrations/*/migration.sql` registra tabelas e constraints únicas suportadas como facts/Evidence. `data-review` compara nomes exatos, respeita `@@map` literal de modelo e retorna estado observacional `unverified`; mapeamento não literal/desconhecido deixa a comparação incompleta. Preserva Evidence da tabela/constraint/mapping e paginação. Contrato atualizado para schemaVersion 2. Teste Git/SQLite valida comentário/string negativa, PK, UNIQUE, índice, chave composta, modelo mapeado e mapping não resolvido, schema/payload MCP e paridade service/CLI/HTTP/MCP. 11/11 boundaries, `pie:build`, `check:fast` (2/2), `docs:check:built` (licenses:check: 902 lock/365 runtime), `format:check` (4.113 arquivos) e `git diff --check` passaram em Windows/Node 24.18.0/npm 11.16.0. Limites: sem cálculo do estado final, `@map`/schema SQL, SQL dinâmico ou banco real. T4.5 parcial.

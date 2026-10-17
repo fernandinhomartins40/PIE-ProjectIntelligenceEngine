@@ -35,13 +35,28 @@ const migrationFindingSchema = z.strictObject({
   uncertainty: z.array(z.string()),
 });
 
+const relationFindingSchema = z.strictObject({
+  id: z.string(),
+  relation: adapterFactSchema,
+  state: z.enum([
+    "no_migration_files_observed",
+    "foreign_key_not_observed",
+    "foreign_key_observed",
+    "migration_inventory_incomplete",
+  ]),
+  evidenceIds: z.array(z.string().uuid()).min(1),
+  observation: z.string(),
+  uncertainty: z.array(z.string()),
+});
+
 export const dataReviewOutput = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   engine: z.literal("data"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
   models: pagedOutput(findingSchema),
   migrations: pagedOutput(migrationFindingSchema),
+  relations: pagedOutput(relationFindingSchema),
   coverage: z.strictObject({
     discovery: z.enum(["complete", "partial"]),
     runtime: z.literal(false),
@@ -50,6 +65,8 @@ export const dataReviewOutput = z.strictObject({
     unexaminedSchemaFiles: z.number().int().nonnegative(),
     migrationFiles: z.number().int().nonnegative(),
     unexaminedMigrationFiles: z.number().int().nonnegative(),
+    declaredRelations: z.number().int().nonnegative(),
+    unexaminedRelations: z.number().int().nonnegative(),
     limitations: z.array(z.string()),
   }),
 });
@@ -202,13 +219,106 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
     offset: input.offset,
     limit: input.limit,
   });
+  const prismaRelations = declarations.filter(
+    (fact) => fact.kind === "schema_relation",
+  );
+  const relationFindings = prismaRelations.map((relation) => {
+    const sourceModel = models.find(
+      (model) =>
+        model.name === relation.parent &&
+        model.source.path === relation.source.path,
+    );
+    const targetModels = models.filter((model) => model.name === relation.name);
+    const targetModel = targetModels.length === 1 ? targetModels[0] : undefined;
+    const mappedName = (model: typeof sourceModel) => {
+      if (!model)
+        return { name: null, evidenceId: undefined, unresolved: true };
+      const modelMapping = declarations.find(
+        (fact) =>
+          fact.kind === "config_directive" &&
+          fact.name === "@@map" &&
+          fact.source.path === model.source.path &&
+          (fact.parent === model.name ||
+            fact.parent?.startsWith(`${model.name}.`)),
+      );
+      if (!modelMapping)
+        return { name: model.name, evidenceId: undefined, unresolved: false };
+      if (!modelMapping.parent?.startsWith(`${model.name}.`))
+        return {
+          name: null,
+          evidenceId: modelMapping.evidenceId,
+          unresolved: true,
+        };
+      return {
+        name: modelMapping.parent.slice(model.name.length + 1),
+        evidenceId: modelMapping.evidenceId,
+        unresolved: false,
+      };
+    };
+    const sourceTable = mappedName(sourceModel);
+    const targetTable = mappedName(targetModel);
+    const observed = migrationFacts.filter(
+      (fact) =>
+        fact.kind === "schema_relation" &&
+        ((fact.parent === sourceTable.name && fact.name === targetTable.name) ||
+          (fact.parent === targetTable.name && fact.name === sourceTable.name)),
+    );
+    const incomplete =
+      snapshot.coverage.status === "partial" ||
+      incompleteMigrationPaths.size > 0 ||
+      schemaFileIncomplete(snapshot, relation.source.path) ||
+      (targetModel
+        ? schemaFileIncomplete(snapshot, targetModel.source.path)
+        : true) ||
+      targetModels.length !== 1 ||
+      sourceTable.unresolved ||
+      targetTable.unresolved;
+    const state = incomplete
+      ? "migration_inventory_incomplete"
+      : migrationFiles.length === 0
+        ? "no_migration_files_observed"
+        : observed.length > 0
+          ? "foreign_key_observed"
+          : "foreign_key_not_observed";
+    const evidenceIds = [
+      relation.evidenceId,
+      ...(sourceModel ? [sourceModel.evidenceId] : []),
+      ...(targetModel ? [targetModel.evidenceId] : []),
+      ...(sourceTable.evidenceId ? [sourceTable.evidenceId] : []),
+      ...(targetTable.evidenceId ? [targetTable.evidenceId] : []),
+      ...observed.map((fact) => fact.evidenceId),
+    ];
+    return {
+      id: `data:relation-review:${relation.id}`,
+      relation,
+      state,
+      evidenceIds: [...new Set(evidenceIds)],
+      observation:
+        state === "foreign_key_observed"
+          ? "Uma declaracao FOREIGN KEY REFERENCES entre as tabelas associadas foi observada nas migrations analisadas."
+          : state === "foreign_key_not_observed"
+            ? "Nenhuma declaracao FOREIGN KEY REFERENCES entre as tabelas associadas foi observada nas migrations analisadas."
+            : state === "no_migration_files_observed"
+              ? "Nenhum arquivo de migration Prisma foi observado para comparar esta relacao."
+              : "A cobertura de schema ou migrations nao permite comparar esta relacao com seguranca.",
+      uncertainty: [
+        "Relacoes Prisma e FOREIGN KEY estaticas nao comprovam integridade dos dados nem constraint efetiva no banco.",
+        "Nomes SQL sao comparados sem schemas e sem calcular migrations posteriores; uma FK em qualquer direcao conta como relacao observada.",
+      ],
+    };
+  });
+  const selectedRelations = page(relationFindings, {
+    offset: input.offset,
+    limit: input.limit,
+  });
   return dataReviewOutput.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     engine: "data",
     snapshotId: snapshot.id,
     state: "unverified",
     models: selected,
     migrations: selectedMigrations,
+    relations: selectedRelations,
     coverage: {
       discovery: snapshot.coverage.status,
       runtime: false,
@@ -221,6 +331,13 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
       ).length,
       migrationFiles: migrationFiles.length,
       unexaminedMigrationFiles: incompleteMigrationPaths.size,
+      declaredRelations: prismaRelations.length,
+      unexaminedRelations: relationFindings.filter((finding) =>
+        [
+          "migration_inventory_incomplete",
+          "no_migration_files_observed",
+        ].includes(finding.state),
+      ).length,
       limitations: [
         "A analise consome fatos estaticos do snapshot; nao conecta nem consulta banco.",
         "Diretivas reconhecidas: @id, @@id, @unique e @@unique. Ausencia observada gera item informativo unverified, nunca defeito confirmado.",

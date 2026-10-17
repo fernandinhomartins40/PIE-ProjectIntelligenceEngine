@@ -24,6 +24,7 @@ export const adapterFactSchema = z.strictObject({
     "script",
     "service",
     "service_dependency",
+    "schema_relation",
     "endpoint",
     "model",
     "field",

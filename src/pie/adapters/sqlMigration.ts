@@ -150,6 +150,14 @@ function hasPair(tokens: Token[], first: string, second: string): boolean {
   );
 }
 
+function referencedTables(tokens: Token[]): string[] {
+  return tokens.flatMap((token, index) => {
+    if (!keyword(token, "references")) return [];
+    const target = qualifiedName(tokens, index + 1);
+    return target ? [target.name] : [];
+  });
+}
+
 /** Reads a bounded PostgreSQL migration subset; unsupported SQL stays unknown. */
 export function readSqlMigration(source: string): AdapterRead {
   const declarations: Declaration[] = [];
@@ -216,6 +224,9 @@ export function readSqlMigration(source: string): AdapterRead {
           add("config_directive", "primary_key", table, statement[0]!.line);
         else if (kind === "unique")
           add("config_directive", "unique", table, statement[0]!.line);
+        else if (kind === "foreign" && keyword(statement[index + 1], "key"))
+          for (const target of referencedTables(statement))
+            add("schema_relation", target, table, statement[0]!.line);
       }
       continue;
     } else continue;
@@ -245,12 +256,14 @@ export function readSqlMigration(source: string): AdapterRead {
         add("config_directive", "primary_key", table, line);
       else if (definition.some((token) => keyword(token, "unique")))
         add("config_directive", "unique", table, line);
+      for (const target of referencedTables(definition))
+        add("schema_relation", target, table, line);
     }
   }
   return {
     declarations,
     limitations: [
-      "PostgreSQL migration: reconhece CREATE TABLE, PRIMARY KEY, UNIQUE, CREATE UNIQUE INDEX e ALTER TABLE ADD destas formas estaticas; nao calcula estado final, nao interpreta SQL dinamico e nao comprova migrations aplicadas ao banco.",
+      "PostgreSQL migration: reconhece CREATE TABLE, PRIMARY KEY, UNIQUE, REFERENCES, CREATE UNIQUE INDEX e ALTER TABLE ADD destas formas estaticas; nao calcula estado final, nao interpreta SQL dinamico e nao comprova migrations aplicadas ao banco.",
     ],
   };
 }
