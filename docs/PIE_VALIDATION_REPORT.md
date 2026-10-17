@@ -268,14 +268,14 @@ E2E comprova conexão por teclado, descoberta Git/SQLite, arquivos/declarações
 
 Data inicial: 16/10/2026. Ambiente: Windows, PowerShell, workspace local autorizado.
 
-| Verificação executada | Resultado | Limite |
-|---|---|---|
-| git status e remote -v iniciais | Repositório vazio, sem commits e origin configurado | Não havia código PIE anterior |
-| Leitura dos 12 documentos | Realizada integralmente, com releitura em blocos após saída truncada | Documentos descrevem requisitos, não implementação |
-| git fetch upstream main --tags | Histórico e refs obtidos | Comando composto terminou 1 por descoberta de gh ausente; fetch confirmado por branch e SHA |
-| git switch -c pie/integration upstream/main | Sucesso | Sem push |
-| API GitHub origin fork | false | Fork remoto não criado |
-| npm ci --ignore-scripts --no-audit --no-fund | EBADENGINE | Node 22.17.1 não satisfaz engines; não desativar requisito |
+| Verificação executada                        | Resultado                                                            | Limite                                                                                      |
+| -------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| git status e remote -v iniciais              | Repositório vazio, sem commits e origin configurado                  | Não havia código PIE anterior                                                               |
+| Leitura dos 12 documentos                    | Realizada integralmente, com releitura em blocos após saída truncada | Documentos descrevem requisitos, não implementação                                          |
+| git fetch upstream main --tags               | Histórico e refs obtidos                                             | Comando composto terminou 1 por descoberta de gh ausente; fetch confirmado por branch e SHA |
+| git switch -c pie/integration upstream/main  | Sucesso                                                              | Sem push                                                                                    |
+| API GitHub origin fork                       | false                                                                | Fork remoto não criado                                                                      |
+| npm ci --ignore-scripts --no-audit --no-fund | EBADENGINE                                                           | Node 22.17.1 não satisfaz engines; não desativar requisito                                  |
 
 ## Resultados posteriores
 

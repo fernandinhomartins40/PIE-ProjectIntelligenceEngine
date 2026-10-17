@@ -2,9 +2,33 @@ name: PIE integration
 on:
   push:
     branches: [main]
-    paths: ["apps/web/**", "scripts/build-pie-web.mjs", "src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pie*.test.ts", "package*.json", ".github/workflows/pie.yml"]
+    paths:
+      [
+        "apps/web/**",
+        "scripts/build-pie-web.mjs",
+        "src/pie/**",
+        "prisma/**",
+        "prisma.config.ts",
+        "scripts/pie.mjs",
+        "tests/boundary/pie*.test.ts",
+        "tests/boundary/mcp/pie*.test.ts",
+        "package*.json",
+        ".github/workflows/pie.yml",
+      ]
   pull_request:
-    paths: ["apps/web/**", "scripts/build-pie-web.mjs", "src/pie/**", "prisma/**", "prisma.config.ts", "scripts/pie.mjs", "tests/boundary/pie*.test.ts", "tests/boundary/mcp/pie*.test.ts", "package*.json", ".github/workflows/pie.yml"]
+    paths:
+      [
+        "apps/web/**",
+        "scripts/build-pie-web.mjs",
+        "src/pie/**",
+        "prisma/**",
+        "prisma.config.ts",
+        "scripts/pie.mjs",
+        "tests/boundary/pie*.test.ts",
+        "tests/boundary/mcp/pie*.test.ts",
+        "package*.json",
+        ".github/workflows/pie.yml",
+      ]
   workflow_dispatch:
 permissions:
   contents: read

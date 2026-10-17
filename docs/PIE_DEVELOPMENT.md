@@ -103,13 +103,13 @@ As novas dependências têm arquivos originais de licença coletados de tarballs
 
 `node scripts/pie.mjs declarations UUID_DO_SNAPSHOT --db C:/dados-pie/pie.sqlite` consulta os fatos descobertos. API GET /v1/declarations/:snapshot e MCP pie_declarations_list oferecem a mesma paginação e as mesmas evidências. O comando discover inclui declarationCount. Snapshots antigos não são reanalisados silenciosamente: seu campo de declarações é vazio até nova descoberta.
 
-| Adaptador | Sintaxe examinada | Limites |
-|---|---|---|
-| node-manifest | package.json, mapas dependencies/devDependencies/peerDependencies/optionalDependencies e nomes de scripts | Não comprova instalação/uso; não retém comandos/versões |
-| composer-manifest | composer.json, require/require-dev e nomes de scripts | Declaração Laravel não é análise do código PHP |
-| compose | Arquivos compose/docker-compose YAML, services e depends_on lista/mapa | Sem execução/interpolação/include/extends/profiles; valores de secrets não coletados |
-| openapi | Arquivos openapi/swagger JSON/YAML, versão 3.0.x/3.1.x, operações HTTP literais em paths | Sem $ref externo, fetch, servidores, exemplos ou validação runtime |
-| prisma-schema | Arquivos .prisma, declarações model e campos em linhas próprias | Lexer limitado, ignora strings/comentários; não valida relações/constraints/migrations/banco |
+| Adaptador         | Sintaxe examinada                                                                                         | Limites                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| node-manifest     | package.json, mapas dependencies/devDependencies/peerDependencies/optionalDependencies e nomes de scripts | Não comprova instalação/uso; não retém comandos/versões                                      |
+| composer-manifest | composer.json, require/require-dev e nomes de scripts                                                     | Declaração Laravel não é análise do código PHP                                               |
+| compose           | Arquivos compose/docker-compose YAML, services e depends_on lista/mapa                                    | Sem execução/interpolação/include/extends/profiles; valores de secrets não coletados         |
+| openapi           | Arquivos openapi/swagger JSON/YAML, versão 3.0.x/3.1.x, operações HTTP literais em paths                  | Sem $ref externo, fetch, servidores, exemplos ou validação runtime                           |
+| prisma-schema     | Arquivos .prisma, declarações model e campos em linhas próprias                                           | Lexer limitado, ignora strings/comentários; não valida relações/constraints/migrations/banco |
 
 Cada fato é estático e unverified, com hash do arquivo, linha, evidência e identidade derivada da declaração. O limite usa o orçamento maxGraphEdges; ausência por falha/limite não equivale a inexistência. coverage.status continua restrito ao inventário de arquivos Git; limitações dos adaptadores devem ser lidas separadamente. Esta matriz não promete suporte universal às stacks.
 
@@ -126,7 +126,6 @@ IDs de arquivos vêm de graph; IDs de declarações vêm de declarations. A mesm
 O grafo de investigação combina imports já registrados com relações derivadas das declarações: declared_in liga declaração ao arquivo; field_of liga campo Prisma ao model do mesmo arquivo; depends liga serviços Compose quando origem e destino são únicos no mesmo arquivo. Destinos ausentes/ambíguos não são inventados. unresolvedRelations informa lacunas declarativas no snapshot inteiro. Ciclos são visitados uma vez por nó e limites permanecem explícitos em coverage.truncated.
 
 coverage.scope é recorded-relationships; discoveryStatus mantém a cobertura de arquivos do snapshot original, separada da truncagem da busca. Todas as evidências e limitações de origem permanecem acessíveis. Trace estático não comprova execução, teste, autorização, entitlement ou persistência de dados. Esse grafo derivado não substitui o grafo completo página→API→serviço→banco do plano. Ele é calculado a partir do snapshot persistido, sem reler código; carregamento paginado diretamente do backend ainda é pendente.
-
 
 ## Execução VERIFY pela CLI Linux
 
@@ -191,29 +190,35 @@ node scripts/pie.mjs mcp /projeto --db /dados-pie/pie.sqlite --state-dir /dados-
 ```
 
 O catálogo passa a anunciar pie_test_run. A entrada é o grant completo descrito acima, preso à raiz do servidor. Sem as opções a ferramenta não existe; seleção parcial é recusada. A chamada persiste o registro v2 antes da resposta; examine result.state e evidence. BUSY indica operação ativa ou limpeza pendente. Cancelamento da requisição é encaminhado ao coordenador. Encerramento aguarda execução, persistência e limpeza antes de fechar o banco. Não há fila VERIFY ou retry automático.
+
 ## Fila de verificação
 
 Em Linux, enfileire com `enqueue-verify /dados-pie/grant.json --key CHAVE` e as opções `--db`, `--state-dir`, `--docker-bin` e `--docker-host` já descritas. Execute `work-verify /projeto` com as mesmas opções para consumir um job. Os comandos `job UUID` e `cancel-job UUID` consultam/cancelam. O worker comum `work` continua exclusivo de descoberta.
 
 VERIFY não admite retry automático: perda de lease resulta em `EXECUTION_INTERRUPTED`, exigindo inspeção do resultado e recuperação de recursos antes de uma nova autorização deliberada. O ID do job identifica também a execução e o journal. Estado succeeded do job significa workflow concluído e prova persistida; examine result.state para saber se testes passaram. PostgreSQL exige aplicar a migração 202610160004 antes de usar essa fila.
+
 ## Enfileiramento pela API e pelo MCP
 
 Com VERIFY explicitamente habilitado, `POST /v1/jobs/verification` recebe `{ "idempotencyKey": "chave", "authorization": <grant completo> }`. Exige a mesma autenticação/CSRF das demais mutações. Retorna 202 com job persistido, sem iniciar testes. Use o worker separado `work-verify` para consumir; GET /v1/jobs/:id consulta e POST /v1/jobs/:id/cancel solicita cancelamento, limitados à raiz do servidor.
 
 No MCP habilitado, `pie_verification_enqueue` usa a mesma entrada; `pie_verification_job_get` e `pie_verification_job_cancel` recebem `{ "id": "UUID" }`. Essas ferramentas aceitam apenas jobs VERIFY da raiz escolhida pelo operador. O catálogo padrão continua sem execução/enfileiramento VERIFY. Chave idempotente repetida preserva o pedido; escolha diferente sob a mesma chave é recusada. succeeded do job não significa testes aprovados: confira result.state e a execução persistida.
+
 ## Resultados no painel
 
 Abaixo da investigação estática, Verificações executadas lista resultados persistidos do snapshot selecionado, com páginas de dez registros. Atualizar verificações consulta novamente a API; Abrir verificação mostra prova, limpeza, limitações, casos e autorização preservada. Casos têm páginas de 25. Um resultado aprovado vale para os testes autorizados, não para todo o projeto. Ausência de registro é informada explicitamente. O painel também oferece envio explícito de grant para a fila quando essa capacidade está habilitada.
+
 ## Autorizar e acompanhar jobs no painel
 
 A seção Autorizar e acompanhar verificação aceita o grant VERIFY completo em JSON e uma chave idempotente escolhida pelo operador. O grant precisa apontar para o snapshot selecionado; servidor valida política, raiz, imagem, expiração e limites. A capacidade depende das opções VERIFY e da fila habilitadas ao iniciar serve; sem isso o formulário fica indisponível.
 
 O envio cria um job, consumido somente pelo worker separado work-verify. O UUID retornado permite consultar e solicitar cancelamento, inclusive após reabrir o painel. Não há polling, retry automático, armazenamento de grants no navegador nem autorização inferida de arquivos. Uma resposta de envio incerta pode ser repetida com a mesma chave e grant. Dados enviados ficam preservados na fila do serviço. Job concluído exige consultar o histórico para interpretar o resultado dos testes.
+
 ## Workers em modo contínuo
 
 `work /projeto --db /dados-pie/pie.sqlite --continuous --poll-ms 1000` consome descoberta sequencialmente. `work-verify /projeto --continuous` exige também --db e as três opções explícitas Docker/estado já descritas. O intervalo ocioso aceita 100–30000 ms e exige continuous; sem essa opção cada comando processa um job.
 
 O processo publica uma linha JSON listening e continua em primeiro plano; SIGINT/SIGTERM encerram espera e cancelam/drenam operação ativa antes de liberar recursos. Ao concluir, publica a contagem de jobs processados, que não significa testes aprovados. Falha operacional encerra o processo, sem laço de retry silencioso. Não há instalação automática de serviço do sistema nem repetição de VERIFY interrompido; recuperação continua sendo ação explícita pelo journal.
+
 ## Rotas estáticas Next App Router
 
 A descoberta usa uma única AST por arquivo TS/JS/JSX para imports e exports. Arquivos convencionais page geram declarações page com export default de valor; Route Handlers JS/TS geram endpoint para métodos HTTP explicitamente exportados. Os fatos aparecem em declarations e trace pela CLI/MCP/API/painel, com linha e evidência. A convenção usa a [referência oficial de Route Handlers](https://nextjs.org/docs/app/api-reference/file-conventions/route).
@@ -227,6 +232,7 @@ No modo continuous, stdout usa NDJSON: um objeto JSON por linha para a abertura 
 Declarações express-ast reconhecem chamadas diretas no escopo superior a receptores const originados de import/default/Router ou require express. Método/padrão literal, receptor local, linha e prova são preservados em declarations e trace. O parent é o nome do receptor local, não uma URL pública; prefixos de app.use não são inventados. Referência: [roteamento Express](https://expressjs.com/en/guide/routing/).
 
 Somente caminhos literais começando com / ou * são examinados. Escopos aninhados, aliases mutáveis, cadeias route(), templates dinâmicos, arrays/regex, resolução de handlers e efeitos de código chamado permanecem desconhecidos. Binding require sombreado não é tratado como carregador CommonJS. Essa observação estática não confirma framework instalado, servidor ouvindo, autenticação nem funcionamento HTTP.
+
 ## Configuração Nginx estática
 
 A descoberta reconhece nginx.conf, nginx.*.conf e arquivos .conf sob diretório nginx. location e diretivas selecionadas listen, server_name, proxy_pass, fastcgi_pass, grpc_pass e include geram fatos nginx-config com linha e evidência. O nome é um array JSON [diretiva, ...argumentos], preservando limites entre argumentos; parent descreve blocos ancestrais por nome de diretiva e linha.
@@ -239,22 +245,27 @@ Userinfo de autenticação em URI de transporte é substituído por [REDACTED]; 
 export <snapshot-id> --format md/html inclui arquivos com IDs, declarações com contexto/linha, relações do grafo registrado, evidências e seus hashes/metadados, cobertura e limitações. O export valida a integridade antes de serializar e não relê nem executa as fontes. O JSON preserva o snapshot completo. O HTML escapa conteúdo externo e usa CSP sem scripts.
 
 São relatórios de observação estática. Resultados VERIFY persistidos separadamente ainda não são incorporados a esse artefato; consulte verification/verifications para interpretá-los. Ausência de relação ou declaração não comprova ausência de comportamento.
+
 ## Análise funcional OBSERVE
 
 `functional <snapshot-id> --module src/app --limit 50 --offset 0` apresenta lacunas de verificação das páginas/endpoints declarados. O módulo é opcional e deve ser caminho relativo canônico. MCP `pie_functional_review` e POST /v1/functional recebem snapshotId, modulePath opcional e paginação; todos usam o mesmo serviço. A API mantém autenticação/origem/CSRF.
 
 O resultado informa evidência, incerteza, passos de reprodução propostos, proposta e critérios de aceite. São achados informativos unverified, não defeitos comprovados. Não executa código, não infere autoridade de URLs e não aprova rota com base em testes sem vínculo. owner null significa responsável ainda não definido. A análise é derivada do snapshot, sem persistência própria de auditoria; motor funcional completo, cenários executáveis e histórico de findings permanecem em desenvolvimento.
+
 ## Lacunas funcionais no painel
 
 A seção Lacunas de verificação funcional consulta a análise OBSERVE do snapshot selecionado. Informe módulo relativo opcional e clique Analisar lacunas funcionais; navegue pelas páginas e abra a prova da declaração ou os critérios de validação propostos. O estado permanece não verificado/informativo. A análise não executa cenários, comprova defeitos nem aprova o projeto. Ao trocar módulo ou snapshot, a prova selecionada é limpa; ausência de declarações é informada sem concluir ausência de funcionalidades.
+
 ## Preservar análise funcional
 
 functional-retain <snapshot-id> --module <caminho> --limit <n> --offset <n> salva explicitamente a página analisada como registro imutável. functional-record <id> lê e verifica o registro. MCP usa pie_functional_retain e pie_functional_record_get; API usa POST /v1/functional-records (mesma entrada da análise) e GET /v1/functional-records/:id. Salvar é operação distinta da consulta funcional, que continua sem gravar.
 
 Registros preservam pedido, resultado paginado, data, snapshot e hash canônico; validam fatos/evidências contra o snapshot. Não são prova runtime e não representam páginas omitidas. Mesmo ID não pode substituir conteúdo histórico. PostgreSQL exige migration 202610160005 antes destas operações. Listagem paginada de análises, contestação e interface de retenção ainda estão pendentes.
+
 ## Listar análises preservadas
 
 functional-records <snapshot-id> --limit 50 --offset 0 lista o histórico pelo snapshot. MCP pie_functional_records_list recebe snapshotId e paginação; HTTP GET /v1/functional-records usa snapshotId, limit e offset na query. Ordenação é por data e ID, limite máximo 200. Cada resumo indica módulo e offset/quantidade/total da página analisada, ID e hash do registro completo. O estado unverified não representa aprovação; a leitura por ID recupera a página original preservada.
+
 ## Histórico funcional no painel
 
 Depois de analisar, Salvar página analisada preserva a página corrente no serviço. Análises funcionais preservadas lista registros por snapshot com paginação, módulo e cobertura da página. Abrir análise recupera o registro original e seu SHA-256, inclusive após reload. Achados e prova da declaração continuam disponíveis; o histórico não recalcula o texto com o motor atual.
@@ -263,7 +274,6 @@ Cada salvamento explícito cria um novo registro. Se houver resposta incerta, co
 
 A comparação de snapshots inclui declarationChanges com paginação independente: observações antes/depois e provas preservadas. source_changed indica alteração de bytes da fonte; observed_only_before/after não comprovam remoção/adição de comportamento; ambiguous preserva ocorrências sem inventar alinhamento. Não comprova regressão runtime.
 
-
 No painel, Comparar versões mostra declarações antes/depois e abre a prova de cada versão. A paginação alcança todos os arquivos e declarações da comparação. Texto traduzido mantém limitações: ausência de observação não comprova remoção, bytes alterados não comprovam mudança de comportamento e ocorrências ambíguas não são alinhadas por suposição.
 
 ## Planejamento de retestes
@@ -271,6 +281,7 @@ No painel, Comparar versões mostra declarações antes/depois e abre a prova de
 retest-plan <antes-id> <depois-id> --mode affected|full --limit 50 --offset 0 lista candidatos no snapshot posterior. A saída schema v2 contém `planDigest`, identidade determinística da seleção completa independente de página. MCP pie_retest_plan recebe beforeId/afterId/mode e paginação; API POST /v1/retest-plan usa o mesmo JSON autenticado. affected seleciona testes alcançados pelo impacto registrado nas duas versões; full lista todos os arquivos classificados como teste observados na versão posterior.
 
 Plano não autoriza execução nem produz grant automaticamente. Para vincular uma escolha explícita, inclua no grant VERIFY `retestPlan: { beforeSnapshotId, mode, planDigest }` retornado para esses snapshots e escolha em `testFiles` somente candidatos daquele plano. O coordenador recalcula o digest e a seleção usando os snapshots persistidos na admissão e novamente antes da execução; grant fora do plano é recusado. A autorização/registro imutável preserva o vínculo. A classificação por nome e imports não comprovam cobertura; compatibilidade do runner permanece `not_probed`. Dependências não resolvidas/dinâmicas podem omitir candidatos. Nenhum candidato não equivale a aprovação. Testes removidos/não observados são contados, não executados como se ainda existissem.
+
 ## Candidatos a reteste no painel
 
 Após Comparar snapshots, Planejamento de retestes permite selecionar Impacto registrado nas duas versões ou Todos os testes observados na versão posterior. Planejar retestes consulta o serviço; tabelas paginadas mostram motivo e prova de cada candidato. Modo consultado é exibido para distinguir o resultado dos controles ainda não submetidos. Seleção não autoriza nem executa código. Arquivos classificados como teste podem exigir outro runner; compatibilidade fica não verificada. Nenhum candidato não comprova ausência de regressão.

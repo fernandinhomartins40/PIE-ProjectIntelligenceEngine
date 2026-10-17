@@ -16,7 +16,10 @@ import { sha256 } from "../../src/pie/evidence.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { verificationRunSchema } from "../../src/pie/execution/runContracts.js";
-import { runEvidence, verifyRunEvidence } from "../../src/pie/execution/runEvidence.js";
+import {
+  runEvidence,
+  verifyRunEvidence,
+} from "../../src/pie/execution/runEvidence.js";
 import { openStore } from "../../src/pie/store.js";
 
 const exec = promisify(execFile);
@@ -51,7 +54,10 @@ async function persistRun(
       sourceBytes: 100_000,
     },
   });
-  nextRunTime = Math.max(nextRunTime + 2000, Date.parse(snapshot.createdAt) + 1000);
+  nextRunTime = Math.max(
+    nextRunTime + 2000,
+    Date.parse(snapshot.createdAt) + 1000,
+  );
   const time = nextRunTime;
   const createdAt = new Date(time).toISOString();
   const completedAt = new Date(time + 1000).toISOString();
@@ -219,7 +225,11 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     const tool = catalog.tools.find(
       (candidate) => candidate.name === "pie_verification_compare",
     )!;
-    const ajv = new Ajv2020({ allErrors: true, strict: false, validateFormats: false });
+    const ajv = new Ajv2020({
+      allErrors: true,
+      strict: false,
+      validateFormats: false,
+    });
     const outputValid = ajv.compile(tool.outputSchema as AnySchema);
     const mcp = await client.callTool({
       name: "pie_verification_compare",
@@ -227,9 +237,10 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     });
     expect(mcp.isError).not.toBe(true);
     expect(mcp.structuredContent).toEqual(expected);
-    expect(outputValid(mcp.structuredContent), JSON.stringify(outputValid.errors)).toBe(
-      true,
-    );
+    expect(
+      outputValid(mcp.structuredContent),
+      JSON.stringify(outputValid.errors),
+    ).toBe(true);
 
     const stableRun = await persistRun(store, afterSnapshot, [
       { name: "save", outcome: "failed" },
@@ -273,9 +284,12 @@ it("rejeita execuções cruzadas e preserva inconclusivo com imagem divergente",
     const baseline = await persistRun(store, record, [
       { name: "save", outcome: "passed" },
     ]);
-    const other = await persistRun(store, record, [
-      { name: "save", outcome: "failed" },
-    ], `node@sha256:${"c".repeat(64)}`);
+    const other = await persistRun(
+      store,
+      record,
+      [{ name: "save", outcome: "failed" }],
+      `node@sha256:${"c".repeat(64)}`,
+    );
     const result = await service.verificationComparison({
       beforeRunId: baseline.id,
       afterRunId: other.id,

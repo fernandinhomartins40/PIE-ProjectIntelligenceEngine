@@ -71,7 +71,10 @@ export const verificationComparisonOutput = z.strictObject({
   }),
 });
 
-type TestCase = Extract<VerificationRun["result"]["cases"][number], { kind: "case" }>;
+type TestCase = Extract<
+  VerificationRun["result"]["cases"][number],
+  { kind: "case" }
+>;
 type CaseMap = Map<string, TestCase[]>;
 
 function authorizedFiles(run: VerificationRun): Set<string> | null {
@@ -102,7 +105,10 @@ function sourcePath(file: string | null): string | null {
   return relative;
 }
 
-function casesByIdentity(run: VerificationRun, files: Set<string>): {
+function casesByIdentity(
+  run: VerificationRun,
+  files: Set<string>,
+): {
   cases: CaseMap;
   outsideSelection: number;
 } {
@@ -124,7 +130,9 @@ function casesByIdentity(run: VerificationRun, files: Set<string>): {
 }
 
 function sameSet(left: Set<string>, right: Set<string>): boolean {
-  return left.size === right.size && [...left].every((value) => right.has(value));
+  return (
+    left.size === right.size && [...left].every((value) => right.has(value))
+  );
 }
 
 /** Compares only uniquely matched Node cases from immutable, same-project runs. */
@@ -176,25 +184,29 @@ export function compareVerificationRuns(
     : { cases: new Map<string, TestCase[]>(), outsideSelection: 0 };
   const beforeCases = new Map(
     [...beforeCaptured.cases].filter(([, entries]) =>
-      sharedFiles.has(entries[0]!.file ? sourcePath(entries[0]!.file) ?? "" : ""),
+      sharedFiles.has(
+        entries[0]!.file ? (sourcePath(entries[0]!.file) ?? "") : "",
+      ),
     ),
   );
   const afterCases = new Map(
     [...afterCaptured.cases].filter(([, entries]) =>
-      sharedFiles.has(entries[0]!.file ? sourcePath(entries[0]!.file) ?? "" : ""),
+      sharedFiles.has(
+        entries[0]!.file ? (sourcePath(entries[0]!.file) ?? "") : "",
+      ),
     ),
   );
   const outsideSharedSelection =
     beforeCaptured.outsideSelection +
     afterCaptured.outsideSelection +
     [...beforeCaptured.cases]
-      .filter(([, entries]) =>
-        !sharedFiles.has(sourcePath(entries[0]!.file) ?? ""),
+      .filter(
+        ([, entries]) => !sharedFiles.has(sourcePath(entries[0]!.file) ?? ""),
       )
       .reduce((total, [, entries]) => total + entries.length, 0) +
     [...afterCaptured.cases]
-      .filter(([, entries]) =>
-        !sharedFiles.has(sourcePath(entries[0]!.file) ?? ""),
+      .filter(
+        ([, entries]) => !sharedFiles.has(sourcePath(entries[0]!.file) ?? ""),
       )
       .reduce((total, [, entries]) => total + entries.length, 0);
   const keys = new Set([...beforeCases.keys(), ...afterCases.keys()]);
@@ -239,10 +251,7 @@ export function compareVerificationRuns(
     else if (oldCase.outcome === "passed" && newCase.outcome === "failed") {
       classification = "regression_observed";
       regressions++;
-    } else if (
-      oldCase.outcome === "failed" &&
-      newCase.outcome === "passed"
-    ) {
+    } else if (oldCase.outcome === "failed" && newCase.outcome === "passed") {
       classification = "recovery_observed";
       recoveries++;
     } else if (!outcomeChanged) {
