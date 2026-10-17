@@ -1,4 +1,5 @@
 import { TraceResult } from "./TraceResult.js";
+import { Verifications } from "./Verifications.js";
 import { useEffect, useRef, useState } from "react";
 import {
   api,
@@ -163,7 +164,10 @@ export function Investigation({
           <strong className="status-label">Não verificado</strong>
         </div>
       </section>
-      <section className="card investigation">
+      <section
+        className="card investigation"
+        aria-label="Observações estáticas"
+      >
         <div className="section-heading">
           <div>
             <p className="eyebrow">INVESTIGAÇÃO</p>
@@ -503,6 +507,7 @@ export function Investigation({
           </ul>
         </aside>
       )}
+      <Verifications key={snapshotId} snapshotId={snapshotId} />
     </>
   );
 }

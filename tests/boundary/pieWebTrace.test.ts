@@ -63,7 +63,9 @@ it.skipIf(!existsSync(executablePath))(
         .click();
       await page.getByRole("button", { name: "Rastrear relações" }).click();
       await page.getByText("1–25 de 650", { exact: true }).waitFor();
-      const next = page.getByRole("button", { name: "Próxima", exact: true });
+      const next = page
+        .getByRole("region", { name: "Observações estáticas" })
+        .getByRole("button", { name: "Próxima", exact: true });
       await next.click();
       await page.getByText("26–50 de 650", { exact: true }).waitFor();
       await next.click();

@@ -10,12 +10,133 @@ import { expect, it } from "vitest";
 import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { NodeVerification } from "../../src/pie/execution/verification.js";
 
 const executablePath =
   process.env.PIE_BROWSER_EXECUTABLE ??
   (process.platform === "win32"
     ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
     : "/usr/bin/google-chrome");
+
+it.skipIf(!existsSync(executablePath))(
+  "painel apresenta execução blocked real e prova preservada sem alegar aprovação",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "pie-web-verification-"));
+    const repo = join(root, "repo");
+    await mkdir(repo);
+    await promisify(execFile)("git", ["init", repo]);
+    await writeFile(
+      join(repo, "test.mjs"),
+      "import {test} from 'node:test';test('fixture',()=>{});",
+    );
+    await promisify(execFile)("git", ["-C", repo, "add", "."]);
+    const store = await openStore(join(root, "history.sqlite"), repo);
+    const service = new PieService(store);
+    const observed = await service.discover({
+      profile: "OBSERVE",
+      environment: "local",
+      repositoryRoot: repo,
+    });
+    const snapshot = store.snapshot(observed.snapshot.id);
+    const owner = new NodeVerification({
+      executable: join(root, "missing-docker"),
+      endpoint: "unix:///var/run/docker.sock",
+      temporaryParent: root,
+    });
+    const grant = {
+      schemaVersion: 1,
+      profile: "VERIFY",
+      allowTargetExecution: true,
+      environment: "local",
+      repositoryRoot: repo,
+      snapshotId: snapshot.id,
+      treeDigest: snapshot.treeDigest,
+      image: `node@sha256:${"1".repeat(64)}`,
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
+      testFiles: ["test.mjs"],
+      limits: {
+        timeoutMs: 1000,
+        memoryMiB: 256,
+        cpus: 1,
+        pids: 32,
+        workspaceMiB: 64,
+        outputBytes: 65536,
+        sourceBytes: 100000,
+      },
+    };
+    const run = await owner.execute(grant, snapshot);
+    await store.saveVerification(run);
+    await owner.close();
+    const token = "fixture-web-verify-32-characters-minimum";
+    const server = await startPieApi(service, {
+      root: repo,
+      token,
+      webDirectory: resolve("dist/pie-web"),
+    });
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    try {
+      browser = await chromium.launch({ executablePath, headless: true });
+      const page = await browser.newPage();
+      await page.goto(server.url);
+      await page.getByLabel("Credencial do serviço local").fill(token);
+      await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      const section = page.getByRole("region", {
+        name: "Verificações do snapshot",
+      });
+      await section
+        .getByRole("cell", { name: "Bloqueado", exact: true })
+        .waitFor();
+      await section
+        .getByRole("button", {
+          name: `Abrir verificação ${run.id.slice(0, 8)}`,
+        })
+        .click();
+      const details = section.getByRole("article", {
+        name: "Detalhes da verificação",
+      });
+      await details
+        .getByRole("heading", { name: "Bloqueado", exact: true })
+        .waitFor();
+      await details.getByText(run.evidence.sha256, { exact: true }).waitFor();
+      await details
+        .getByText("Nenhum caso de teste comprovado nesta execução.")
+        .waitFor();
+      await details.getByText("Autorização e limites preservados").click();
+      expect(await details.locator("pre").textContent()).toContain(
+        '"test.mjs"',
+      );
+      expect(
+        await section
+          .getByText("Aprovado no escopo executado", { exact: true })
+          .count(),
+      ).toBe(0);
+      await section
+        .getByRole("button", { name: "Atualizar verificações" })
+        .click();
+      await section
+        .getByRole("cell", { name: "Bloqueado", exact: true })
+        .waitFor();
+      for (const width of [360, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(
+          await page.evaluate(
+            "document.documentElement.scrollWidth <= innerWidth",
+          ),
+          JSON.stringify(
+            await page.evaluate(
+              "Array.from(document.querySelectorAll('body *')).filter(e => e.getBoundingClientRect().right > innerWidth).map(e => [e.tagName, e.className, e.getBoundingClientRect().width]).slice(0,15)",
+            ),
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      await browser?.close();
+      await server.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);
 
 it.skipIf(!existsSync(executablePath))(
   "painel usa descoberta, evidência, trace e comparação reais em navegador",

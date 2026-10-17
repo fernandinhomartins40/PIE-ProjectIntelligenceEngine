@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Painel de resultados VERIFY — 16/10/2026
+
+CI 38986169418 (45d3a8900) passou: enfileiramento API/MCP, Ajv, idempotência/cancelamento e Docker/PostgreSQL reais. Painel agora consulta histórico paginado de verificações por snapshot, permite atualizar e abrir resultado persistido, mostra estado, limpeza, imagem, evidência/hash, falha/limitações e autorização v2 preservada. Formato v1 informa ausência de autorização completa. Casos são renderizados em páginas de 25. Dados vêm exclusivamente da API local autenticada. passed descreve somente o escopo executado; blocked/skipped/inconclusive não aprovam. Troca de snapshot desmonta seleção e cancela leituras pendentes.
+
+Teste Chrome Windows usa NodeVerification real com Docker indisponível, persiste blocked e confere prova/autorização na interface, sem simular resultado nem executar alvo no host. Encontrou overflow de mensagens com caminhos longos em 360 px, corrigido na representação CSS e tabela existente. Teste blocked passou; os três testes do painel passaram na rodada ampla. Sessão/CSRF também passou. Novo paginador exigiu delimitar o teste de trace à região Observações estáticas; rerun passou (um teste, 16,20s). Typecheck web e build passaram. Lint sem erros, com aviso de tamanho em Verifications; limites de módulos: 2046 fontes; descoberta: 1463 testes. Custos de CPU/memória desta tela ainda não medidos. Envio de autorização/fila e acompanhamento de job pela interface, demais runners e motores ainda pendentes; goal integral ativo.
+
 ## Enfileiramento VERIFY pela API/MCP — 16/10/2026
 
 CI 38985908103 do commit d0cd0a6db passou: migração e fila PostgreSQL reais, worker VERIFY Docker e correlação job/run/journal. API agora oferece POST /v1/jobs/verification com idempotencyKey e authorization, apenas com fila e verificador habilitados; retorno 202 não executa testes. MCP habilitado oferece pie_verification_enqueue, pie_verification_job_get e pie_verification_job_cancel. Servidor MCP mantém fila até finalizar transporte/verificador. Consulta/cancelamento usam scopedJob compartilhado, restringindo raiz; MCP restringe também tipo verification. API mantém autenticação, origem e CSRF existentes.
