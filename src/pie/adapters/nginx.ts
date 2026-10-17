@@ -1,5 +1,6 @@
 import type { AdapterRead, Declaration } from "./contracts.js";
 import { nginxDirectives } from "./nginxSyntax.js";
+import { AdapterParseFailure } from "./parseFailure.js";
 
 const selected = new Set([
   "listen",
@@ -31,7 +32,11 @@ export function readNginx(source: string, limit: number): AdapterRead {
           : null;
     if (!kind) continue;
     if (command === "include") includes++;
-    if (!args.length) throw new Error("Nginx directive missing arguments");
+    if (!args.length)
+      throw new AdapterParseFailure(
+        "invalid_syntax",
+        "Nginx directive missing arguments",
+      );
     const transport = ["proxy_pass", "grpc_pass", "fastcgi_pass"].includes(
       command!,
     );

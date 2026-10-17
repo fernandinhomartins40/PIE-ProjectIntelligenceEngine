@@ -327,3 +327,11 @@ ESM relativos `export ... from` são seguidos recursivamente até router local �
 Medição única após o reexport: frio 29,676 s/22,875 s CPU; quente 13,781 s/11,437 s CPU; 4.273 enumerados/4.250 examinados, 49.999.686 bytes, cobertura parcial, cache 4.244 hits/2.968.772 bytes retidos; pico RSS cumulativo 513 MiB. Anterior: 23,897/19,578 s frio e 12,711/10,688 s quente; diferença observada (+24,2%/+16,8% frio, +8,4%/+7,0% quente) não é causal, pois foi uma rodada única sem controlar conteúdo/carga. Família Git e tokens não medidos.
 
 CI pública observada do commit anterior `4b69794de`: PIE integration passou (39013301108), Release falhou pela política de criação de PR do Actions, CI geral estava em execução. A falha de browser no SHA `1f4ea65c9` foi superada pelo integration success posterior; a origem histórica não foi apurada por falta de acesso aos logs privados.
+
+## Continuação — falhas tipadas nos parsers declarativos — 17/10/2026
+
+Em andamento sobre `4e6d06d5a34f422ce200176912eceb63ca151d92`: `readDeclarationsResult` retorna categorias conhecidas para sintaxe inválida, estrutura inválida e formato OpenAPI não suportado; Nginx preserva mensagens detalhadas com tipo; descoberta mantém nó e registra limitação tipada. Erros de implementação não são capturados pela nova fronteira. Build e 16 boundaries (`pieAdapters`/`pieExpressCrossFile`) passaram após duas regressões de mensagem terem sido corrigidas. Reexecutar gates completos, revisar e commitar na main. T1.1 segue parcial.
+
+Validação final da fatia declarativa: pie:build, check:fast, docs:check:built, ormat:check, git diff --check e 16 boundaries (pieAdapters/pieExpressCrossFile) passaram. Working tree pronta para commit; T1.1 continua parcial.
+
+Correção estrutural adicional: removido catch genérico do conversor collectDeclarations, que antes ocultava erros de integridade como falha de formato. A descoberta só registra omissão para erros conhecidos de filesystem/política e relança falhas inesperadas. Fixture Git real verifica arquivo removido após stage. CI da entrega anterior: PIE integration passou, Release falhou por política de criação de PR, CI geral ainda em andamento; os links e SHA estão no plano mestre.

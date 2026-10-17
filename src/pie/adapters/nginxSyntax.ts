@@ -4,6 +4,8 @@
   block: boolean;
   ancestors: Array<{ words: string[]; line: number }>;
 }
+import { AdapterParseFailure } from "./parseFailure.js";
+
 const escapedValue = (ch: string) =>
   ({ n: "\n", r: "\r", t: "\t", '"': '"', "'": "'", "\\": "\\" })[ch] ??
   `\\${ch}`;
@@ -38,11 +40,18 @@ class NginxLexer {
     this.flush();
     if (ch === "}") {
       if (this.words.length || !this.ancestors.length)
-        throw new Error("Nginx unmatched closing block");
+        throw new AdapterParseFailure(
+          "invalid_syntax",
+          "Nginx unmatched closing block",
+        );
       this.ancestors.pop();
       return;
     }
-    if (!this.words.length) throw new Error("Nginx directive missing name");
+    if (!this.words.length)
+      throw new AdapterParseFailure(
+        "invalid_syntax",
+        "Nginx directive missing name",
+      );
     const directive = {
       words: this.words,
       line: this.startLine,
@@ -51,7 +60,10 @@ class NginxLexer {
     };
     if (directive.block) {
       if (this.ancestors.length >= 128)
-        throw new Error("Nginx nesting exceeds 128");
+        throw new AdapterParseFailure(
+          "invalid_structure",
+          "Nginx nesting exceeds 128",
+        );
       this.ancestors.push({ words: this.words, line: this.startLine });
     }
     this.words = [];
@@ -91,7 +103,10 @@ class NginxLexer {
   }
   consume(ch: string): NginxDirective | undefined {
     if (this.needSpace && !quoteSeparator(ch))
-      throw new Error("Nginx expected separator after quote");
+      throw new AdapterParseFailure(
+        "invalid_syntax",
+        "Nginx expected separator after quote",
+      );
     const data = this.consumeData(ch);
     if (ch === "\n") this.line++;
     if (data) return;
@@ -135,7 +150,10 @@ class NginxLexer {
       this.words.length ||
       this.ancestors.length
     )
-      throw new Error("Nginx incomplete syntax");
+      throw new AdapterParseFailure(
+        "invalid_syntax",
+        "Nginx incomplete syntax",
+      );
   }
 }
 

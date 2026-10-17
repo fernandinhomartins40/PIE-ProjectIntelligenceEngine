@@ -20,7 +20,7 @@ import {
 } from "./imports.js";
 import { readInventoryFile } from "./readFile.js";
 import { collectDeclarations } from "./adapters/collect.js";
-import { readDeclarations } from "./adapters/declarations.js";
+import { readDeclarationsResult } from "./adapters/declarations.js";
 import { readCodeFactsResult } from "./codeFacts.js";
 import {
   declarationEvidenceObservation,
@@ -113,6 +113,20 @@ function classify(path: string): GraphNode["kind"] {
   )
     return "test";
   return "file";
+}
+
+function expectedInventoryFailure(cause: unknown): string | null {
+  if (cause instanceof PieError) {
+    if (cause.code === "POLICY_DENIED") return "policy_denied";
+    if (cause.code === "IO_ERROR") return "io_error";
+    return null;
+  }
+  if (!(cause instanceof Error)) return null;
+  const code = (cause as NodeJS.ErrnoException).code;
+  return code &&
+    ["EACCES", "EIO", "ELOOP", "ENOENT", "ENOTDIR", "EPERM"].includes(code)
+    ? "io_error"
+    : null;
 }
 
 export async function discoverProject(
@@ -283,24 +297,31 @@ export async function discoverProject(
             `${parsed.value.omitted} declarações AST omitidas por orçamento de grafo em ${path}.`,
           );
       } else {
-        try {
-          const declared = collectDeclarations(
-            item,
-            readDeclarations(path, buffer.toString("utf8"), declarationLimit),
-          );
-          evidence.push(...declared.evidence);
-          declarations.push(...declared.declarations);
-          limitations.push(...declared.limitations);
-        } catch {
+        const parsed = readDeclarationsResult(
+          path,
+          buffer.toString("utf8"),
+          declarationLimit,
+        );
+        if (!parsed.ok) {
           limitations.push(
-            `${path}: formato declarativo não analisado; nenhuma declaração inferida a partir da falha.`,
+            `${path}: formato declarativo não analisado (${parsed.error.kind}); nenhum fato inferido a partir da falha.`,
           );
+          continue;
         }
+        const declared = collectDeclarations(item, parsed.value);
+        evidence.push(...declared.evidence);
+        declarations.push(...declared.declarations);
+        limitations.push(...declared.limitations);
       }
     } catch (cause) {
       if (cause instanceof PieError && cause.code === "LIMIT_EXCEEDED")
         throw cause;
+      const failure = expectedInventoryFailure(cause);
+      if (!failure) throw cause;
       omitted++;
+      limitations.push(
+        `${path}: entrada omitida por falha esperada de inventário (${failure}); conteúdo e fatos não retidos.`,
+      );
     }
   }
   if (paths.length > policy.maxFiles) omitted += paths.length - policy.maxFiles;

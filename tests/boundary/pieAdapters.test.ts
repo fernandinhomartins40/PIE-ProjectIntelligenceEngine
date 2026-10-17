@@ -6,7 +6,10 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 import { discoverProject } from "../../src/pie/discovery.js";
-import { readDeclarations } from "../../src/pie/adapters/declarations.js";
+import {
+  readDeclarations,
+  readDeclarationsResult,
+} from "../../src/pie/adapters/declarations.js";
 import { validateSnapshot } from "../../src/pie/snapshotIntegrity.js";
 import { declarationIdentity } from "../../src/pie/adapters/identity.js";
 import { openStore } from "../../src/pie/store.js";
@@ -669,6 +672,19 @@ it("mantém falhas, limites e sintaxes não suportadas explícitas sem declaraç
       10,
     ),
   ).toThrow();
+  expect(
+    readDeclarationsResult("compose.yml", "services: [broken", 10),
+  ).toMatchObject({ ok: false, error: { kind: "invalid_syntax" } });
+  expect(
+    readDeclarationsResult("openapi.yaml", "openapi: 2.0\npaths: {}", 10),
+  ).toMatchObject({ ok: false, error: { kind: "unsupported_format" } });
+  expect(
+    readDeclarationsResult("nginx.conf", 'server_name "example"suffix;', 10),
+  ).toMatchObject({ ok: false, error: { kind: "invalid_syntax" } });
+  expect(readDeclarationsResult("package.json", "[]", 10)).toMatchObject({
+    ok: false,
+    error: { kind: "invalid_structure" },
+  });
   const limited = readDeclarations(
     "package.json",
     '{"dependencies":{"a":"1","b":"2"}}',
@@ -691,13 +707,20 @@ it("mantém falhas, limites e sintaxes não suportadas explícitas sem declaraç
   try {
     await exec("git", ["init", root]);
     await writeFile(join(root, "package.json"), "{broken");
+    await writeFile(join(root, "removed.txt"), "indexed before removal");
     await exec("git", ["-C", root, "add", "."]);
+    await rm(join(root, "removed.txt"));
     const snapshot = await discoverProject(
       { repositoryRoot: root, profile: "OBSERVE", environment: "local" },
       randomUUID(),
     );
     expect(snapshot.nodes).toHaveLength(1);
     expect(snapshot.declarations).toHaveLength(0);
+    expect(
+      snapshot.coverage.limitations.some((value) =>
+        value.includes("falha esperada de inventário (io_error)"),
+      ),
+    ).toBe(true);
     expect(
       snapshot.coverage.limitations.some((value) =>
         value.includes("não analisado"),

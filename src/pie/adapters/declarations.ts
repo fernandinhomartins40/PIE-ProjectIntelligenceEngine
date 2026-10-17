@@ -5,6 +5,11 @@ import type { AdapterRead, Declaration } from "./contracts.js";
 import { readNginx } from "./nginx.js";
 import { cachedAnalysis } from "../analysisCache.js";
 import { sha256 } from "../evidence.js";
+import { err, ok, type Result } from "../../domain/result.js";
+import {
+  AdapterParseFailure,
+  type AdapterParseFailureKind,
+} from "./parseFailure.js";
 
 const object = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -12,8 +17,16 @@ const object = (value: unknown): Record<string, unknown> | null =>
     : null;
 
 function manifest(path: string, source: string): AdapterRead {
-  const parsed = object(JSON.parse(source));
-  if (!parsed) throw new Error("Manifest must be object");
+  let value: unknown;
+  try {
+    value = JSON.parse(source);
+  } catch (cause) {
+    if (cause instanceof SyntaxError)
+      throw new AdapterParseFailure("invalid_syntax");
+    throw cause;
+  }
+  const parsed = object(value);
+  if (!parsed) throw new AdapterParseFailure("invalid_structure");
   const tree = parseTree(source);
   if (!tree) throw new Error("Missing JSON syntax tree");
   const fieldLine = (group: string, name: string) => {
@@ -62,9 +75,9 @@ function manifest(path: string, source: string): AdapterRead {
 function structured(path: string, source: string): AdapterRead {
   const lineCounter = new LineCounter();
   const document = parseDocument(source, { lineCounter, uniqueKeys: true });
-  if (document.errors.length) throw new Error("Invalid structured document");
+  if (document.errors.length) throw new AdapterParseFailure("invalid_syntax");
   const parsed = object(document.toJS({ maxAliasCount: 50 }));
-  if (!parsed) throw new Error("Expected structured object");
+  if (!parsed) throw new AdapterParseFailure("invalid_structure");
   const lineAt = (segments: string[]): number => {
     const parent = document.getIn(segments.slice(0, -1), true);
     if (!isMap(parent)) return 1;
@@ -79,7 +92,7 @@ function structured(path: string, source: string): AdapterRead {
   const isCompose = /(?:^|\/)(?:docker-)?compose[^/]*\.ya?ml$/i.test(path);
   if (isCompose) {
     const services = object(parsed.services);
-    if (!services) throw new Error("Missing Compose services");
+    if (!services) throw new AdapterParseFailure("invalid_structure");
     for (const [name, raw] of Object.entries(services)) {
       const service = object(raw);
       if (!service) continue;
@@ -113,7 +126,7 @@ function structured(path: string, source: string): AdapterRead {
     };
   }
   if (typeof parsed.openapi !== "string" || !/^3\.[01]\./.test(parsed.openapi))
-    throw new Error("Only OpenAPI 3.0/3.1 declarations supported");
+    throw new AdapterParseFailure("unsupported_format");
   for (const [route, raw] of Object.entries(object(parsed.paths) ?? {})) {
     if (!route.startsWith("/")) continue;
     for (const method of [
@@ -157,7 +170,7 @@ function prismaTokens(source: string) {
       value === '"' ||
       (source.startsWith("/*", match.index) && !value.startsWith("/*"))
     )
-      throw new Error("Unterminated Prisma literal or comment");
+      throw new AdapterParseFailure("invalid_syntax");
     if (
       !value.startsWith("//") &&
       !value.startsWith("/*") &&
@@ -233,6 +246,21 @@ export function readDeclarations(
     ["pie-declarations-v1", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
+}
+
+/** Typed expected source failures; programming and I/O errors are not swallowed. */
+export function readDeclarationsResult(
+  path: string,
+  source: string,
+  limit: number,
+): Result<AdapterRead | null, { kind: AdapterParseFailureKind; path: string }> {
+  try {
+    return ok(readDeclarations(path, source, limit));
+  } catch (cause) {
+    if (cause instanceof AdapterParseFailure)
+      return err({ kind: cause.kind, path });
+    throw cause;
+  }
 }
 
 function readDeclarationsUncached(
