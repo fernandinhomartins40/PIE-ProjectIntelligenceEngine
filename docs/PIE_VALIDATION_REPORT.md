@@ -518,3 +518,9 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - `npm run pie:build`: passou.
 - `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts`: 13/13 passou; teste adicional confirma `PieError(IO_ERROR)` e ausência de projeto persistido para raiz inexistente.
 - Gates `check:fast`, `docs:check:built`, `format:check` e `git diff --check` serão executados sobre o conjunto final antes da publicação.
+
+# Revalidação incremental — jobs/daemon — 17/10/2026
+
+- `node scripts/run-exact-tests.mjs tests/boundary/pieJobs.test.ts`: passou, 4 testes; 1 skip condicional Linux-only no Windows local.
+- Cobertura observada: daemon consome jobs enfileirados após ficar ocioso e encerra espera longa; workflows OBSERVE/VERIFY; leases, recuperação de worker perdido e rejeição de publicação por lease obsoleta.
+- CLI daemon Linux e PostgreSQL não foram reexecutados nesta rodada; esses resultados não são inferidos do teste Windows.

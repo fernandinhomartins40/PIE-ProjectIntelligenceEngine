@@ -393,3 +393,5 @@ Precisão de versão: php-parser foi configurado com gramática PHP 8.4; invalid
 A validação inicial de política em `PieService.discover` também foi ajustada para produzir `PieError(INVALID_INPUT)` estável. Regressão de serviço com SQLite real passou dentro dos 12 testes de `pieFoundation`.
 
 A resolução inicial da raiz em `PieService.discover` agora converte errnos esperados em `PieError(IO_ERROR)`; erro não reconhecido continua propagando. Teste com SQLite confirma que raiz inexistente não cria projeto parcial. `pie:build` e `pieFoundation` passaram (13/13); T1.1 permanece parcial.
+
+Revalidação T1.3 (Windows): `node scripts/run-exact-tests.mjs tests/boundary/pieJobs.test.ts` passou, 4 testes e 1 skip Linux-only. A cobertura inclui daemon contínuo real, OBSERVE/VERIFY, leases, recuperação de worker perdido e recusa de resultado antigo. O teste de CLI subprocesso Linux e PostgreSQL não foram reexecutados nesta rodada; T1.3 segue parcial.
