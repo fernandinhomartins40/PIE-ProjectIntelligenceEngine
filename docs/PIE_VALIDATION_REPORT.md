@@ -428,5 +428,12 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - Reproduzido separadamente no host Windows que o timeout do `execFile` do Node 24 reporta `killed: true`, `signal: SIGTERM` e `code: null`; a classificação de limite inclui essa forma observada.
 - `npm run pie:build`: passou.
 - `npm run check:fast`, `npm run docs:check:built`, `npm run format:check` e `git diff --check`: passaram após a implementação e atualização documental.
-- CI do commit com a correção ainda não foi executada; os três workflows consultados são do SHA anterior e estavam `in_progress`.
+- No SHA `476e6d6925ebb5470212d7df0e2ea599b7c2734c`, PIE integration run `39016437574` passou; CI run `39016437605` continua pendente; Release run `39016437844` falhou no job “Update release proposal”, step Release Please. O motivo exato da falha ainda não foi consultado.
 - Evidência limitada à supervisão Git de descoberta no Windows; Linux/macOS, outros processos e persistência de estados de cancelamento não verificados. Nenhum código do repositório alvo é executado.
+
+## Fork oficial e remotos — 17/10/2026
+
+- API autenticada de `GET /user` confirmou a conta `fernandinhomartins40`; `GET /repos/fernandinhomartins40/PIE-ProjectIntelligenceEngine` confirmou que o remoto PIE não é fork.
+- `POST /repos/morluto/rea/forks` criou `fernandinhomartins40/rea`; resposta confirmou `fork=true`, parent `morluto/rea`, branch padrão `main`.
+- `git fetch rea-fork main` passou. `git rev-list --left-right --count main...rea-fork/main` retornou `67 93`; `git merge-base --is-ancestor rea-fork/main HEAD` retornou falso. Push ao fork não tentado porque não é fast-forward; sem force-push/merge e sem branch criada.
+- `origin` PIE ficou intacto; remotos `upstream` e `rea-fork` receberam push URL local `DISABLED`. A configuração está fora do versionamento.

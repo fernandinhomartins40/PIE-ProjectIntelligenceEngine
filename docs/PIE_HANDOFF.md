@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Continuidade atual — fork oficial REA preparado — 17/10/2026
+
+Conta autenticada verificada como `fernandinhomartins40`; fork `https://github.com/fernandinhomartins40/rea` criado da origem oficial, com parent `morluto/rea`. O `origin` existente continua sendo o projeto PIE. `upstream` e `rea-fork` são fetch-only na configuração local. O fork nasceu em HEAD upstream mais novo; `main` local está 67 commits à frente e 93 atrás, sem fast-forward. Próximo: integrar upstream com análise de conflitos e validação em `main` antes de qualquer push ao fork; não usar force nem abrir branch. T0.1 segue parcial até histórico sincronizado e reutilização upstream caracterizada. Para o SHA `476e6d6925ebb5470212d7df0e2ea599b7c2734c`, PIE integration passou; CI geral está pendente; Release falhou em Release Please e o motivo exato ainda não foi obtido.
+
 ## Continuidade atual — supervisão/cancelamento Git — 17/10/2026
 
 Na descoberta, o wrapper Git convertia toda falha de `execFile` em `IO_ERROR`; abortar subprocesso ativo podia ser confundido com erro de inventário, e o timeout real Windows era `killed=true`, `signal=SIGTERM`, `code=null`. O produtor agora preserva `signal.reason` quando cancelado e representa timeout/capacidade do filho como `LIMIT_EXCEEDED`. `pieFoundation` passou 9/9 com repositório Git real, incluindo cancelamento assíncrono e timeout total de 1 ms. `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram. Próximo: publicar diretamente em `main` e conferir os workflows do novo SHA. Não ampliar a alegação para workers/jobs ou outros subprocessos; T1.1/T1.3 seguem parciais.
