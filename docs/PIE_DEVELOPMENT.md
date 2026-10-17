@@ -245,3 +245,8 @@ Registros preservam pedido, resultado paginado, data, snapshot e hash canônico;
 ## Listar análises preservadas
 
 functional-records <snapshot-id> --limit 50 --offset 0 lista o histórico pelo snapshot. MCP pie_functional_records_list recebe snapshotId e paginação; HTTP GET /v1/functional-records usa snapshotId, limit e offset na query. Ordenação é por data e ID, limite máximo 200. Cada resumo indica módulo e offset/quantidade/total da página analisada, ID e hash do registro completo. O estado unverified não representa aprovação; a leitura por ID recupera a página original preservada.
+## Histórico funcional no painel
+
+Depois de analisar, Salvar página analisada preserva a página corrente no serviço. Análises funcionais preservadas lista registros por snapshot com paginação, módulo e cobertura da página. Abrir análise recupera o registro original e seu SHA-256, inclusive após reload. Achados e prova da declaração continuam disponíveis; o histórico não recalcula o texto com o motor atual.
+
+Cada salvamento explícito cria um novo registro. Se houver resposta incerta, consulte/atualize o histórico antes de decidir salvar novamente; o painel não repete gravações automaticamente. Registros persistidos não aprovam funcionalidade e não autorizam execução. Contestação e reteste vinculado ainda estão pendentes.

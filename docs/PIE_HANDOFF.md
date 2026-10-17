@@ -1,5 +1,13 @@
 # PIE — Continuidade
 
+## Retenção e histórico funcional no painel — 16/10/2026
+
+CI 38992307065 (dc540da8e) terminou com sucesso, incluindo paginação PostgreSQL real. Após limite público da API GitHub, conclusão foi lida usando credencial Git existente somente em memória, sem expor/persistir segredo. Painel agora salva explicitamente a página funcional analisada, lista histórico paginado e abre registro preservado por ID/hash sem recalcular achados. Mostra módulo, offset/quantidade/total e estado não verificado. Cada salvamento deliberado cria novo registro; não há retry automático de mutação incerta. Consulta e salvamento permanecem ações distintas.
+
+FunctionalFinding é a apresentação compartilhada entre análise corrente e registro histórico; useFunctionalHistory é dono de consultas abortáveis, seleção, paginação e atualização. História limpa a página antiga ao iniciar consulta nova; não apresenta dados antigos sob novo offset. Seleção de prova é limpa ao salvar/abrir registro. API segue sessão/CSRF existentes; nada salvo em localStorage/sessionStorage. Não há autorização de execução inferida de uma análise.
+
+Chrome real com Git/SQLite validou salvamento, prova/hash persistidos, consulta e abertura após reload, mantendo módulo/página do registro e responsividade 360/1440. Rodada ampla: seis testes passaram, um Linux ignorado, três arquivos (35,30s), incluindo trace, sessão/CSRF, resultado blocked e histórico de snapshots. Build web e typecheck web passaram. Novos componentes/hooks/testes com lint sem avisos/erros; tamanho de FunctionalReview permanece dívida pré-existente. Teste focado repetido após ajuste da limpeza de página passou (um teste, 13,21s). Limites de módulos: 2055 fontes; descoberta: 1464 testes. Contestação, retestes vinculados, motores completos e aceite integral continuam pendentes; goal ativo. CPU/memória/tokens não medidos.
+
 ## Histórico funcional paginado — 16/10/2026
 
 SQLite/PostgreSQL agora listam registros funcionais por snapshot com ordenação createdAt/id, limite 1–200 e offset, total/nextOffset. Resumo preserva ID, módulo, offset/quantidade de achados da página retida, total de declarações, estado unverified e SHA-256. Cada item deriva de registro validado, sem reinterpretar fontes nem recalcular achados. Contagem/leitura usam transação consistente (SQLite BEGIN e PostgreSQL RepeatableRead). Não confundir paginação do histórico com cobertura da página analisada.

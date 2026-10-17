@@ -8,6 +8,12 @@ export type Trace = Awaited<ReturnType<PieService["trace"]>>;
 export type Comparison = Awaited<ReturnType<PieService["compare"]>>;
 export type Evidence = Awaited<ReturnType<PieService["evidence"]>>;
 export type FunctionalReview = Awaited<ReturnType<PieService["functional"]>>;
+export type FunctionalRecord = Awaited<
+  ReturnType<PieService["functionalRecord"]>
+>;
+export type FunctionalHistory = Awaited<
+  ReturnType<PieService["functionalRecords"]>
+>;
 export type Discovery = Awaited<ReturnType<PieService["discover"]>>;
 export type VerificationHistory = Awaited<
   ReturnType<PieService["verifications"]>

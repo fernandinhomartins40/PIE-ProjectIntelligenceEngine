@@ -72,6 +72,7 @@ it.skipIf(!existsSync(executablePath))(
         .click();
       await section.getByText("1–10 de 13", { exact: true }).waitFor();
       await section
+        .getByRole("group", { name: "Paginação da análise atual" })
         .getByRole("button", { name: "Próxima", exact: true })
         .click();
       await section.getByText("11–13 de 13", { exact: true }).waitFor();
@@ -95,6 +96,24 @@ it.skipIf(!existsSync(executablePath))(
       await finding
         .getByRole("heading", { name: "Critérios de validação" })
         .waitFor();
+      const history = section.getByRole("region", {
+        name: "Histórico funcional preservado",
+      });
+      await history
+        .getByRole("button", { name: "Salvar página analisada" })
+        .click();
+      const retained = history.getByRole("article", {
+        name: "Análise funcional preservada",
+        exact: true,
+      });
+      await retained
+        .getByRole("heading", { name: "Registro histórico · não verificado" })
+        .waitFor();
+      const records = store.functionalRecords(snapshot.id);
+      expect(records.total).toBe(1);
+      await retained
+        .getByText(records.items[0]!.sha256, { exact: true })
+        .waitFor();
       await section.getByLabel("Módulo relativo (opcional)").fill("missing");
       await section
         .getByRole("button", { name: "Analisar lacunas funcionais" })
@@ -108,6 +127,22 @@ it.skipIf(!existsSync(executablePath))(
       expect(
         await section.getByLabel("Prova da análise funcional").count(),
       ).toBe(0);
+      await page.reload();
+      const restoredHistory = page.getByRole("region", {
+        name: "Histórico funcional preservado",
+      });
+      await restoredHistory
+        .getByRole("button", {
+          name: `Abrir análise ${records.items[0]!.id.slice(0, 8)}`,
+        })
+        .click();
+      await restoredHistory
+        .getByRole("article", {
+          name: "Análise funcional preservada",
+          exact: true,
+        })
+        .getByText(records.items[0]!.sha256, { exact: true })
+        .waitFor();
       for (const width of [360, 1440]) {
         await page.setViewportSize({ width, height: 900 });
         expect(

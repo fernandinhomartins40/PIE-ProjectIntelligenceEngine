@@ -1,58 +1,7 @@
 import { useFunctionalReview } from "./useFunctionalReview.js";
-import type { FunctionalReview as Review } from "./api.js";
+import { Finding } from "./FunctionalFinding.js";
+import { FunctionalHistory } from "./FunctionalHistory.js";
 import { Notice, Pager } from "./components.js";
-
-function Finding({
-  finding,
-  onEvidence,
-}: {
-  finding: Review["findings"]["items"][number];
-  onEvidence: (id: string) => void;
-}) {
-  return (
-    <article className="card" aria-label={`Lacuna ${finding.declaration.name}`}>
-      <h3>{finding.declaration.name}</h3>
-      <p>{finding.observation}</p>
-      <dl>
-        <dt>Estado</dt>
-        <dd>Não verificado · informativo</dd>
-        <dt>Fonte</dt>
-        <dd className="path">
-          {finding.declaration.source.path}:
-          {finding.declaration.source.line ?? "linha não informada"}
-        </dd>
-        <dt>Responsável</dt>
-        <dd>Não definido</dd>
-      </dl>
-      <button onClick={() => onEvidence(finding.evidenceIds[0]!)}>
-        Abrir prova da declaração
-      </button>
-      <details>
-        <summary>Incertezas e validação proposta</summary>
-        <h4>Incertezas</h4>
-        <ul>
-          {finding.uncertainty.map((value) => (
-            <li key={value}>{value}</li>
-          ))}
-        </ul>
-        <h4>Reprodução proposta</h4>
-        <ol>
-          {finding.reproduction.map((value) => (
-            <li key={value}>{value}</li>
-          ))}
-        </ol>
-        <h4>Proposta</h4>
-        <p>{finding.proposal}</p>
-        <h4>Critérios de validação</h4>
-        <ul>
-          {finding.acceptance.map((value) => (
-            <li key={value}>{value}</li>
-          ))}
-        </ul>
-      </details>
-    </article>
-  );
-}
 
 export function FunctionalReview({ snapshotId }: { snapshotId: string }) {
   const {
@@ -120,16 +69,18 @@ export function FunctionalReview({ snapshotId }: { snapshotId: string }) {
               ausência de funcionalidade.
             </Notice>
           )}
-          <Pager
-            offset={review.findings.offset}
-            total={review.findings.total}
-            limit={10}
-            onChange={(offset) =>
-              setRequest((previous) =>
-                previous ? { ...previous, offset } : undefined,
-              )
-            }
-          />
+          <div role="group" aria-label="Paginação da análise atual">
+            <Pager
+              offset={review.findings.offset}
+              total={review.findings.total}
+              limit={10}
+              onChange={(offset) =>
+                setRequest((previous) =>
+                  previous ? { ...previous, offset } : undefined,
+                )
+              }
+            />
+          </div>
           <details>
             <summary>Cobertura e limitações da análise</summary>
             <ul>
@@ -155,6 +106,11 @@ export function FunctionalReview({ snapshotId }: { snapshotId: string }) {
           </dl>
         </aside>
       )}
+      <FunctionalHistory
+        snapshotId={snapshotId}
+        review={review}
+        onEvidence={setProofId}
+      />
     </section>
   );
 }
