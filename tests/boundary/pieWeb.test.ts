@@ -11,12 +11,151 @@ import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
 import { NodeVerification } from "../../src/pie/execution/verification.js";
+import { VerificationCoordinator } from "../../src/pie/execution/coordinator.js";
+import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
 
 const executablePath =
   process.env.PIE_BROWSER_EXECUTABLE ??
   (process.platform === "win32"
     ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
     : "/usr/bin/google-chrome");
+
+it.skipIf(process.platform !== "linux" || !existsSync(executablePath))(
+  "painel enfileira autorização real com sessão/CSRF, consulta e cancela sem executar",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "pie-web-queue-"));
+    const repo = join(root, "repo");
+    const state = join(root, "private");
+    await mkdir(repo);
+    await mkdir(state, { mode: 0o700 });
+    await promisify(execFile)("git", ["init", repo]);
+    await writeFile(
+      join(repo, "test.mjs"),
+      "throw new Error('enfileirar não executa');",
+    );
+    await promisify(execFile)("git", ["-C", repo, "add", "."]);
+    const store = await openStore(join(root, "history.sqlite"), repo);
+    const service = new PieService(store);
+    const observed = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = store.snapshot(observed.snapshot.id);
+    const verifier = await VerificationCoordinator.open(store, {
+      root: repo,
+      stateDirectory: state,
+      executable: join(root, "missing-docker"),
+      endpoint: "unix:///var/run/docker.sock",
+    });
+    const queue = new SqliteJobQueue(join(root, "jobs.sqlite"));
+    const token = "fixture-web-queue-token-32-characters-minimum";
+    const server = await startPieApi(service, {
+      root: repo,
+      token,
+      verifier,
+      queue,
+      webDirectory: resolve("dist/pie-web"),
+    });
+    const grant = {
+      schemaVersion: 1,
+      profile: "VERIFY",
+      allowTargetExecution: true,
+      environment: "local",
+      repositoryRoot: repo,
+      snapshotId: snapshot.id,
+      treeDigest: snapshot.treeDigest,
+      image: `node@sha256:${"1".repeat(64)}`,
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
+      testFiles: ["test.mjs"],
+      limits: {
+        timeoutMs: 1000,
+        memoryMiB: 256,
+        cpus: 1,
+        pids: 32,
+        workspaceMiB: 64,
+        outputBytes: 65536,
+        sourceBytes: 100000,
+      },
+    };
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    try {
+      browser = await chromium.launch({ executablePath, headless: true });
+      const page = await browser.newPage();
+      await page.goto(server.url);
+      await page.getByLabel("Credencial do serviço local").fill(token);
+      await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      const section = page.getByRole("region", { name: "Fila de verificação" });
+      await section
+        .getByLabel("Autorização VERIFY em JSON")
+        .fill(JSON.stringify({ ...grant, snapshotId: randomUUID() }));
+      await section
+        .getByLabel("Chave idempotente da solicitação")
+        .fill("browser-queue");
+      await section
+        .getByRole("button", { name: "Autorizar e enfileirar testes" })
+        .click();
+      await section
+        .getByText("A autorização deve indicar o snapshot selecionado.", {
+          exact: true,
+        })
+        .waitFor();
+      await section
+        .getByLabel("Autorização VERIFY em JSON")
+        .fill(JSON.stringify(grant));
+      await section
+        .getByRole("button", { name: "Autorizar e enfileirar testes" })
+        .click();
+      const job = section.getByRole("article", { name: "Job de verificação" });
+      await job
+        .getByRole("heading", { name: "Na fila", exact: true })
+        .waitFor();
+      const id = await section.getByLabel("UUID do job VERIFY").inputValue();
+      expect(queue.get(id)).toMatchObject({
+        payload: grant,
+        attempts: 0,
+        state: "queued",
+      });
+      expect(store.verifications(snapshot.id).total).toBe(0);
+      await section.getByRole("button", { name: "Consultar job" }).click();
+      await job
+        .getByRole("heading", { name: "Na fila", exact: true })
+        .waitFor();
+      await section
+        .getByRole("button", { name: "Solicitar cancelamento" })
+        .click();
+      await job
+        .getByRole("heading", { name: "Cancelado", exact: true })
+        .waitFor();
+      expect(queue.get(id).state).toBe("cancelled");
+      await section
+        .getByRole("button", { name: "Autorizar e enfileirar testes" })
+        .click();
+      await job
+        .getByRole("heading", { name: "Cancelado", exact: true })
+        .waitFor();
+      expect(await section.getByLabel("UUID do job VERIFY").inputValue()).toBe(
+        id,
+      );
+      await page.reload();
+      expect(
+        await section.getByLabel("Autorização VERIFY em JSON").inputValue(),
+      ).toBe("");
+      expect(await section.getByLabel("UUID do job VERIFY").inputValue()).toBe(
+        "",
+      );
+      expect(
+        await page.evaluate(() => [localStorage.length, sessionStorage.length]),
+      ).toEqual([0, 0]);
+    } finally {
+      await browser?.close();
+      await server.close();
+      queue.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);
 
 it.skipIf(!existsSync(executablePath))(
   "painel apresenta execução blocked real e prova preservada sem alegar aprovação",
@@ -83,6 +222,12 @@ it.skipIf(!existsSync(executablePath))(
       const section = page.getByRole("region", {
         name: "Verificações do snapshot",
       });
+      await page
+        .getByRole("region", { name: "Fila de verificação" })
+        .getByText("Enfileiramento VERIFY não habilitado neste servidor.", {
+          exact: true,
+        })
+        .waitFor();
       await section
         .getByRole("cell", { name: "Bloqueado", exact: true })
         .waitFor();

@@ -17,7 +17,12 @@ export type Session = {
   csrfToken: string | null;
   expiresAt: number | null;
 };
-export type Context = { root: string; profile: "OBSERVE" };
+export type Context = {
+  root: string;
+  profile: "OBSERVE";
+  verificationEnabled: boolean;
+  verificationQueueEnabled: boolean;
+};
 
 let csrf: string | null = null;
 export const setCsrf = (value: string | null): void => {

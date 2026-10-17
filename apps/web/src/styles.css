@@ -201,6 +201,13 @@ pre.path {
   white-space: pre-wrap;
   max-width: 100%;
 }
+.authorization-input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0.6rem 0;
+  font: inherit;
+}
 .investigation {
   min-width: 0;
   overflow-wrap: anywhere;

@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Painel conectado à fila VERIFY — 16/10/2026
+
+CI 38986542581 (d8f17ba62) passou, incluindo Chrome Linux. Painel agora envia authorization JSON completo com chave idempotente para a fila real, exige snapshot selecionado, consulta job por UUID e solicita cancelamento com sessão/CSRF. GET /v1/context informa verificationQueueEnabled somente quando fila e verificador existem; formulário permanece indisponível por padrão. Nenhuma autorização é gerada automaticamente nem armazenada no navegador; grant enviado permanece no job persistido. Estado succeeded é exibido como workflow concluído, com orientação para ler o resultado real. Worker permanece separado, sem início/retry automático pelo painel.
+
+Teste Chrome Linux novo usa SQLite, grant e coordenador reais, confere snapshot incorreto recusado, fila sem execução, consulta, cancelamento, idempotência e ausência de dados em storage/reload. Ignorado neste Windows; CI da nova entrega ainda pendente. Rodada local: cinco testes passaram e um skipped em dois arquivos (29,88s). Rerun focado do caso blocked com formulário desabilitado passou (4,82s). Typecheck web/build e compilação PIE passaram. Novos componentes/hooks com lint sem avisos/erros. Demais runners, daemon, recuperação completa, seis motores e aceite integral continuam pendentes; goal ativo.
+
 ## Painel de resultados VERIFY — 16/10/2026
 
 CI 38986169418 (45d3a8900) passou: enfileiramento API/MCP, Ajv, idempotência/cancelamento e Docker/PostgreSQL reais. Painel agora consulta histórico paginado de verificações por snapshot, permite atualizar e abrir resultado persistido, mostra estado, limpeza, imagem, evidência/hash, falha/limitações e autorização v2 preservada. Formato v1 informa ausência de autorização completa. Casos são renderizados em páginas de 25. Dados vêm exclusivamente da API local autenticada. passed descreve somente o escopo executado; blocked/skipped/inconclusive não aprovam. Troca de snapshot desmonta seleção e cancela leituras pendentes.

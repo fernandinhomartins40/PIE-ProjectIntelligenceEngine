@@ -281,6 +281,8 @@ export async function startPieApi(
           root: authorizedRoot,
           profile: "OBSERVE",
           verificationEnabled: options.verifier !== undefined,
+          verificationQueueEnabled:
+            options.verifier !== undefined && options.queue !== undefined,
         });
         return;
       }
