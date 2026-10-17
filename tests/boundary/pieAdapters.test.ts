@@ -106,6 +106,75 @@ function expectNextDeclarations(snapshot: Snapshot) {
   ).toBe(false);
 }
 
+function expectProductEvidenceGaps(
+  product: Awaited<ReturnType<PieService["product"]>>,
+) {
+  expect(product).toMatchObject({
+    engine: "product",
+    state: "insufficient_evidence",
+    scope: { declaredTargets: 2, examinedTargets: 1 },
+    opportunities: {
+      total: 2,
+      nextOffset: 1,
+      items: [
+        {
+          journey: "unobserved",
+          state: "insufficient_evidence",
+          movements: {
+            eliminate: "not_assessed",
+            combine: "not_assessed",
+            automate: "not_assessed",
+            anticipate: "not_assessed",
+            create: "not_assessed",
+          },
+          evidenceIds: expect.arrayContaining([expect.any(String)]),
+          missingEvidence: expect.arrayContaining([
+            expect.stringContaining("Jornada observada"),
+          ]),
+        },
+      ],
+    },
+    coverage: { observedJourneys: false, runtime: false },
+  });
+}
+
+it("associa lacunas de produto à declaração/evidência sem criar uma jornada", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-product-next-"));
+  const external = await mkdtemp(join(tmpdir(), "pie-product-history-"));
+  const store = await openStore(join(external, "pie.sqlite"), root);
+  const service = new PieService(store);
+  try {
+    await exec("git", ["init", root]);
+    await mkdir(join(root, "app"), { recursive: true });
+    await writeFile(
+      join(root, "app", "page.tsx"),
+      "export default function Page(){return null}",
+    );
+    await writeFile(
+      join(root, "app", "route.ts"),
+      "export function GET(){return null}",
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const discovered = await service.discover({
+      repositoryRoot: root,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = store.snapshot(discovered.snapshot.id);
+    expect(snapshot.declarations).toHaveLength(2);
+    expectProductEvidenceGaps(
+      await service.product({
+        snapshotId: snapshot.id,
+        limit: 1,
+      }),
+    );
+  } finally {
+    await store.close();
+    await rm(root, { recursive: true, force: true });
+    await rm(external, { recursive: true, force: true });
+  }
+});
+
 it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-next-"));
   const external = await mkdtemp(join(tmpdir(), "pie-next-history-"));

@@ -56,6 +56,95 @@ export const functionalOutput = z.strictObject({
   }),
 });
 
+/** Product review is evidence-led: static declarations alone never imply UX friction. */
+const productFinding = z.strictObject({
+  id: z.string(),
+  journey: z.literal("unobserved"),
+  state: z.literal("insufficient_evidence"),
+  declaration: adapterFactSchema,
+  evidenceIds: z.array(z.string().uuid()).min(1),
+  movements: z.strictObject({
+    eliminate: z.literal("not_assessed"),
+    combine: z.literal("not_assessed"),
+    automate: z.literal("not_assessed"),
+    anticipate: z.literal("not_assessed"),
+    create: z.literal("not_assessed"),
+  }),
+  missingEvidence: z.array(z.string()),
+});
+export const productInput = functionalInput;
+export const productOutput = z.strictObject({
+  schemaVersion: z.literal(1),
+  engine: engineName.extract(["product"]),
+  snapshotId: z.string().uuid(),
+  profile: z.literal("OBSERVE"),
+  state: z.literal("insufficient_evidence"),
+  scope: functionalOutput.shape.scope,
+  opportunities: pagedOutput(productFinding),
+  coverage: z.strictObject({
+    staticDeclarations: z.enum(["complete", "partial"]),
+    observedJourneys: z.literal(false),
+    runtime: z.literal(false),
+    limitations: z.array(z.string()),
+  }),
+});
+
+export function assessProduct(snapshotInput: Snapshot, input: unknown) {
+  const request = productInput.parse(input);
+  const snapshot = validateSnapshot(snapshotInput);
+  if (request.snapshotId !== snapshot.id)
+    throw new PieError(
+      "POLICY_DENIED",
+      "Análise de produto pertence a outro snapshot.",
+    );
+  const { targets, selected } = selectFunctionalTargets(snapshot, request);
+  const opportunities = selected.items.map((declaration) => ({
+    id: `product:evidence-gap:${declaration.id}`,
+    journey: "unobserved" as const,
+    state: "insufficient_evidence" as const,
+    declaration,
+    evidenceIds: [
+      declaration.evidenceId,
+      ...declaration.derivations.map((item) => item.evidenceId),
+    ],
+    movements: {
+      eliminate: "not_assessed" as const,
+      combine: "not_assessed" as const,
+      automate: "not_assessed" as const,
+      anticipate: "not_assessed" as const,
+      create: "not_assessed" as const,
+    },
+    missingEvidence: [
+      "Jornada observada com objetivo do usuário, início, passos e resultado esperado.",
+      "Evidência de interface/acessibilidade e fluxos mobile/desktop, quando aplicável.",
+      "Medição da fricção atual, dependências, impacto, custo e risco da hipótese.",
+    ],
+  }));
+  return productOutput.parse({
+    schemaVersion: 1,
+    engine: "product",
+    snapshotId: snapshot.id,
+    profile: "OBSERVE",
+    state: "insufficient_evidence",
+    scope: {
+      modulePath: request.modulePath,
+      declaredTargets: targets.length,
+      examinedTargets: selected.items.length,
+    },
+    opportunities: { ...selected, items: opportunities },
+    coverage: {
+      staticDeclarations: snapshot.coverage.status,
+      observedJourneys: false,
+      runtime: false,
+      limitations: [
+        ...snapshot.coverage.limitations,
+        "Declarações estáticas não demonstram jornada, fricção, clareza, acessibilidade ou oportunidade de produto.",
+        "Nenhuma oportunidade foi confirmada; os cinco movimentos aguardam evidência de jornadas observadas.",
+      ],
+    },
+  });
+}
+
 function canonicalModulePath(modulePath: string): boolean {
   return (
     !modulePath ||

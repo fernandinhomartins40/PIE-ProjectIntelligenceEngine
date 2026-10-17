@@ -100,7 +100,7 @@ export async function runPie(args: string[]): Promise<void> {
       "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova e http-probes <snapshot-id> lista o histórico. Não inicia o servidor do projeto.",
     );
     console.log(
-      "Análise funcional OBSERVE: functional <snapshot-id> --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Lacunas de verificação não são defeitos comprovados.",
+      "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id>, ambos aceitam --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Código estático não comprova comportamento nem fricção de UX.",
     );
     console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
@@ -206,6 +206,7 @@ export async function runPie(args: string[]): Promise<void> {
       "graph",
       "declarations",
       "functional",
+      "product-review",
       "functional-retain",
       "functional-record",
       "functional-record-export",
@@ -352,6 +353,13 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "functional":
         result = await service.functional({
+          snapshotId: target!,
+          ...paging,
+          modulePath: parsed.values.module ?? "",
+        });
+        break;
+      case "product-review":
+        result = await service.product({
           snapshotId: target!,
           ...paging,
           modulePath: parsed.values.module ?? "",

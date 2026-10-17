@@ -366,6 +366,14 @@ export async function startPieApi(
         );
         return;
       }
+      if (request.method === "POST" && url.pathname === "/v1/product") {
+        respond(
+          response,
+          200,
+          await service.product(functionalInput.parse(await body(request))),
+        );
+        return;
+      }
       if (request.method === "POST" && url.pathname === "/v1/data-review") {
         respond(
           response,

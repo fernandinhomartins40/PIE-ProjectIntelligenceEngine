@@ -34,6 +34,13 @@ async function verifyFunctionalHistory(
   expect(await functional.json()).toEqual(
     await service.functional({ snapshotId: snapshotId }),
   );
+  const product = await fetch(`${url}/v1/product`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ snapshotId }),
+  });
+  expect(product.status).toBe(200);
+  expect(await product.json()).toEqual(await service.product({ snapshotId }));
   const retained = await fetch(`${url}/v1/functional-records`, {
     method: "POST",
     headers,

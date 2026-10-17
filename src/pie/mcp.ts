@@ -7,7 +7,11 @@ import type { PieService } from "./service.js";
 import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
-import { functionalInput, functionalOutput } from "./functional.js";
+import {
+  functionalInput,
+  functionalOutput,
+  productOutput,
+} from "./functional.js";
 import { dataReviewInput, dataReviewOutput } from "./dataReview.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
@@ -113,6 +117,17 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.dataReview(input)),
+  );
+  server.registerTool(
+    "pie_product_review",
+    {
+      description:
+        "Revisa cobertura para análise de produto/UX sem inferir fricção a partir de código estático. Declarações geram lacunas de evidência; oportunidades só podem ser confirmadas com jornadas observadas.",
+      inputSchema: functionalInput,
+      outputSchema: withError(productOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.product(input)),
   );
   server.registerTool(
     "pie_functional_review",

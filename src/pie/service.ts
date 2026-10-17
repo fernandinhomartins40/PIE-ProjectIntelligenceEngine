@@ -7,7 +7,11 @@ import { page } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
 import { compareSnapshots, comparisonInput } from "./compare.js";
 import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
-import { assessFunctionalResult, functionalInput } from "./functional.js";
+import {
+  assessFunctionalResult,
+  assessProduct,
+  functionalInput,
+} from "./functional.js";
 import { dataReviewInput, reviewData } from "./dataReview.js";
 import {
   exportSnapshot as renderSnapshotExport,
@@ -349,6 +353,13 @@ export class PieService {
           repositoryRoot: snapshot.root,
         }),
       );
+    });
+  }
+  product(input: unknown) {
+    return this.#read(async () => {
+      const request = functionalInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      return assessProduct(snapshot, request);
     });
   }
   dataReview(input: unknown) {

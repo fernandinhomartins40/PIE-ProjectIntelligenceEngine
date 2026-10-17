@@ -284,6 +284,54 @@ async function verifyFunctional(
   ).toEqual(listed.structuredContent);
 }
 
+async function verifyProductReview(
+  client: Client,
+  options: { script: string; db: string; snapshotId: string },
+  catalog: Awaited<ReturnType<Client["listTools"]>>["tools"],
+  ajv: Ajv2020,
+) {
+  const { script, db, snapshotId } = options;
+  const product = await client.callTool({
+    name: "pie_product_review",
+    arguments: { snapshotId },
+  });
+  expect(product.isError).not.toBe(true);
+  expect(product.structuredContent).toMatchObject({
+    engine: "product",
+    state: "insufficient_evidence",
+    coverage: { observedJourneys: false },
+  });
+  const tool = catalog.find((item) => item.name === "pie_product_review")!;
+  expect(
+    ajv.compile(tool.outputSchema as AnySchema)(product.structuredContent),
+  ).toBe(true);
+  const cli = await exec(process.execPath, [
+    script,
+    "product-review",
+    snapshotId,
+    "--db",
+    db,
+  ]);
+  expect(JSON.parse(cli.stdout)).toEqual(product.structuredContent);
+}
+
+async function verifyVerificationList(
+  client: Client,
+  catalog: Awaited<ReturnType<Client["listTools"]>>["tools"],
+  ajv: Ajv2020,
+  snapshotId: string,
+) {
+  const runs = await client.callTool({
+    name: "pie_verifications_list",
+    arguments: { snapshotId },
+  });
+  expect(runs.structuredContent).toMatchObject({ total: 0, items: [] });
+  const tool = catalog.find((item) => item.name === "pie_verifications_list")!;
+  expect(
+    ajv.compile(tool.outputSchema as AnySchema)(runs.structuredContent),
+  ).toBe(true);
+}
+
 async function verifyHttpProbeAdapters(
   client: Client,
   catalog: Awaited<ReturnType<Client["listTools"]>>["tools"],
@@ -527,23 +575,24 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
       port: httpPort,
       responseBody: httpBody,
     });
-    const runs = await client.callTool({
-      name: "pie_verifications_list",
-      arguments: { snapshotId: discovered.snapshot.id },
-    });
+    await verifyProductReview(
+      client,
+      { script, db, snapshotId: discovered.snapshot.id },
+      tools.tools,
+      ajv,
+    );
     await verifyFunctional(
       client,
       { script, db, snapshotId: discovered.snapshot.id },
       tools.tools,
       ajv,
     );
-    expect(runs.structuredContent).toMatchObject({ total: 0, items: [] });
-    const runSchema = tools.tools.find(
-      (tool) => tool.name === "pie_verifications_list",
-    )!;
-    expect(
-      ajv.compile(runSchema.outputSchema as AnySchema)(runs.structuredContent),
-    ).toBe(true);
+    await verifyVerificationList(
+      client,
+      tools.tools,
+      ajv,
+      discovered.snapshot.id,
+    );
     const graph = await client.callTool({
       name: "pie_graph_query",
       arguments: { snapshotId: discovered.snapshot.id, limit: 1 },

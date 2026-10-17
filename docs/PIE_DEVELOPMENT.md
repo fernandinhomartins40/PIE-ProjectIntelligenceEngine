@@ -1,4 +1,4 @@
-# Desenvolvimento PIE
+﻿# Desenvolvimento PIE
 
 ## Comparar resultados VERIFY
 
@@ -264,6 +264,10 @@ O resultado informa evidência, incerteza, passos de reprodução propostos, pro
 ## Lacunas funcionais no painel
 
 A seção Lacunas de verificação funcional consulta a análise OBSERVE do snapshot selecionado. Informe módulo relativo opcional e clique Analisar lacunas funcionais; navegue pelas páginas e abra a prova da declaração ou os critérios de validação propostos. O estado permanece não verificado/informativo. A análise não executa cenários, comprova defeitos nem aprova o projeto. Ao trocar módulo ou snapshot, a prova selecionada é limpa; ausência de declarações é informada sem concluir ausência de funcionalidades.
+
+## Análise de produto/UX OBSERVE
+
+`product-review <snapshot-id> --module <caminho> --limit 50 --offset 0` gera o contrato de lacunas de evidência para páginas/endpoints, via serviço compartilhado, CLI, MCP `pie_product_review` e POST autenticado `/v1/product`. O relatório não afirma jornada, fricção nem oportunidade a partir de código estático; marca os cinco movimentos como não avaliados e informa evidência necessária. Fluxos observados, acessibilidade/UI, mobile/desktop, impacto, custo, dependências e risco ainda não são coletados por este motor.
 
 ## Preservar análise funcional
 
