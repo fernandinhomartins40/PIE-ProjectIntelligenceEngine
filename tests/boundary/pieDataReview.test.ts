@@ -225,6 +225,7 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
       (item) => item.name === "pie_data_review",
     );
     expect(tool).toBeDefined();
+    expect(tool!.description).toContain("migrations PostgreSQL");
     const ajv = new Ajv2020({ strict: false, validateFormats: false });
     expect(ajv.validateSchema(tool!.inputSchema)).toBe(true);
     expect(ajv.validateSchema(tool!.outputSchema as AnySchema)).toBe(true);

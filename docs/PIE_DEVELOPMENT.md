@@ -112,6 +112,7 @@ As novas dependências têm arquivos originais de licença coletados de tarballs
 | compose           | Arquivos compose/docker-compose YAML, services e depends_on lista/mapa                                    | Sem execução/interpolação/include/extends/profiles; valores de secrets não coletados         |
 | openapi           | Arquivos openapi/swagger JSON/YAML, versão 3.0.x/3.1.x, operações HTTP literais em paths                  | Sem $ref externo, fetch, servidores, exemplos ou validação runtime                           |
 | prisma-schema     | Arquivos .prisma, declarações model e campos em linhas próprias                                           | Lexer limitado, ignora strings/comentários; não valida relações/constraints/migrations/banco |
+| sql-migration     | `prisma/migrations/*/migration.sql`: formas suportadas de CREATE TABLE/PRIMARY KEY/UNIQUE/índice único    | Sem cálculo do estado final, SQL dinâmico, mapeamentos Prisma ou prova de aplicação no banco |
 
 Cada fato é estático e unverified, com hash do arquivo, linha, evidência e identidade derivada da declaração. O limite usa o orçamento maxGraphEdges; ausência por falha/limite não equivale a inexistência. coverage.status continua restrito ao inventário de arquivos Git; limitações dos adaptadores devem ser lidas separadamente. Esta matriz não promete suporte universal às stacks.
 
