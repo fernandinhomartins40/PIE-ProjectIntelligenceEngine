@@ -12,13 +12,11 @@ import {
 } from "./contracts.js";
 import { sealEvidence, sha256 } from "./evidence.js";
 import { inventoryPath } from "./inventoryPath.js";
-import {
-  readImports,
-  resolveImports,
-  type ImportReference,
-} from "./imports.js";
+import { resolveImports, type ImportReference } from "./imports.js";
 import { readInventoryFile } from "./readFile.js";
 import { collectDeclarations } from "./adapters/collect.js";
+import { readDeclarations } from "./adapters/declarations.js";
+import { readCodeFacts } from "./codeFacts.js";
 import type { AdapterFact } from "./adapters/contracts.js";
 
 const runFile = promisify(execFile);
@@ -216,22 +214,23 @@ export async function discoverProject(
         kind: classify(path),
         evidenceIds: [item.id],
       });
-      const declared = collectDeclarations(
-        item,
-        buffer.toString("utf8"),
-        Math.max(0, policy.maxGraphEdges - declarations.length),
+      const declarationLimit = Math.max(
+        0,
+        policy.maxGraphEdges - declarations.length,
       );
-      evidence.push(...declared.evidence);
-      declarations.push(...declared.declarations);
-      limitations.push(...declared.limitations);
       if (/\.[cm]?[jt]sx?$/.test(path)) {
         try {
-          const parsed = readImports(
+          const parsed = readCodeFacts(
             path,
             buffer.toString("utf8"),
             Math.max(0, policy.maxGraphEdges - imports.length),
+            declarationLimit,
           );
           imports.push(...parsed.references);
+          const declared = collectDeclarations(item, parsed.declarations);
+          evidence.push(...declared.evidence);
+          declarations.push(...declared.declarations);
+          limitations.push(...declared.limitations);
           if (parsed.omitted > 0)
             limitations.push(
               `${parsed.omitted} declarações AST omitidas por orçamento de grafo em ${path}.`,
@@ -239,6 +238,20 @@ export async function discoverProject(
         } catch {
           limitations.push(
             `AST não analisada: ${path}. O arquivo permanece no inventário, sem relações inferidas.`,
+          );
+        }
+      } else {
+        try {
+          const declared = collectDeclarations(
+            item,
+            readDeclarations(path, buffer.toString("utf8"), declarationLimit),
+          );
+          evidence.push(...declared.evidence);
+          declarations.push(...declared.declarations);
+          limitations.push(...declared.limitations);
+        } catch {
+          limitations.push(
+            `${path}: formato declarativo não analisado; nenhuma declaração inferida a partir da falha.`,
           );
         }
       }

@@ -251,7 +251,7 @@ export async function runPie(args: string[]): Promise<void> {
                 : Number(parsed.values["poll-ms"]),
           }),
           null,
-          2,
+          parsed.values.continuous ? undefined : 2,
         ),
       );
       return;

@@ -9,6 +9,7 @@ export const adapterFactSchema = z.strictObject({
     "compose",
     "openapi",
     "prisma-schema",
+    "next-app-convention",
   ]),
   kind: z.enum([
     "dependency",
@@ -18,6 +19,7 @@ export const adapterFactSchema = z.strictObject({
     "endpoint",
     "model",
     "field",
+    "page",
   ]),
   name: z.string().min(1).max(1000),
   parent: z.string().max(1000).nullable(),

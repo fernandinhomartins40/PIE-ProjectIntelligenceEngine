@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -11,6 +11,116 @@ import { validateSnapshot } from "../../src/pie/snapshotIntegrity.js";
 import { openStore } from "../../src/pie/store.js";
 import { PieService } from "../../src/pie/service.js";
 import { DatabaseSync } from "node:sqlite";
+import { readCodeFacts } from "../../src/pie/codeFacts.js";
+
+it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-next-"));
+  const external = await mkdtemp(join(tmpdir(), "pie-next-history-"));
+  const store = await openStore(join(external, "pie.sqlite"), root);
+  const service = new PieService(store);
+  try {
+    await exec("git", ["init", root]);
+    const directory = join(root, "src", "app", "(shop)", "orders", "[id]");
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "route.ts"),
+      "import {handler} from './handler';\n// export function DELETE() {}\nexport { handler as POST };\nexport async function GET() { throw new Error('não executar'); }\n",
+    );
+    await writeFile(
+      join(directory, "handler.ts"),
+      "export const handler = () => null;",
+    );
+    await writeFile(
+      join(root, "src", "app", "page.tsx"),
+      "export default function Page(){return <main>Real source fixture</main>}",
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const observed = await service.discover({
+      repositoryRoot: root,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = store.snapshot(observed.snapshot.id);
+    expect(snapshot.declarations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          adapter: "next-app-convention",
+          kind: "endpoint",
+          name: "POST /orders/[id]",
+          source: expect.objectContaining({ line: 3 }),
+        }),
+        expect.objectContaining({
+          kind: "endpoint",
+          name: "GET /orders/[id]",
+          source: expect.objectContaining({ line: 4 }),
+        }),
+        expect.objectContaining({ kind: "page", name: "/" }),
+      ]),
+    );
+    expect(snapshot.declarations).toHaveLength(3);
+    expect(snapshot.edges).toHaveLength(1);
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    const endpoint = snapshot.declarations.find((item) =>
+      item.name.startsWith("GET"),
+    )!;
+    const proof = await service.evidence(endpoint.evidenceId);
+    expect(proof).toMatchObject({
+      method: "static",
+      state: "unverified",
+      source: { path: "src/app/(shop)/orders/[id]/route.ts", line: 4 },
+    });
+    const trace = await service.trace({
+      snapshotId: snapshot.id,
+      nodeId: endpoint.id,
+    });
+    expect(trace.edges.items.some((item) => item.kind === "declared_in")).toBe(
+      true,
+    );
+    expect(trace.coverage.runtime).toBe(false);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+    await rm(external, { recursive: true, force: true });
+  }
+});
+
+it("Next não confunde comentários, strings, tipos e nomes parecidos com rotas", () => {
+  const source =
+    "const example = 'export function DELETE() {}';\nexport type { GET } from './types';\nexport const POST = () => null;\nexport function HEAD() {}";
+  expect(
+    readCodeFacts("app/api/route.ts", source, 10, 1).declarations,
+  ).toMatchObject({
+    declarations: [{ name: "POST /api" }],
+    limitations: expect.arrayContaining([expect.stringContaining("omitidas")]),
+  });
+  expect(
+    readCodeFacts("notapp/api/route.ts", source, 10, 10).declarations
+      .declarations,
+  ).toEqual([]);
+  expect(
+    readCodeFacts("app/api/notroute.ts", source, 10, 10).declarations
+      .declarations,
+  ).toEqual([]);
+  expect(
+    readCodeFacts("app/api/route.tsx", source, 10, 10).declarations
+      .declarations,
+  ).toEqual([]);
+  expect(
+    readCodeFacts("app/page.tsx", "export default interface Example {}", 10, 10)
+      .declarations.declarations,
+  ).toEqual([]);
+  for (const path of [
+    "app/_private/route.ts",
+    "app/@slot/page.tsx",
+    "app/(.)modal/page.tsx",
+  ])
+    expect(
+      readCodeFacts(path, source, 10, 10).declarations.declarations,
+    ).toEqual([]);
+  expect(() =>
+    readCodeFacts("app/api/route.ts", "export const GET = {", 10, 10),
+  ).toThrow();
+});
 
 const exec = promisify(execFile);
 

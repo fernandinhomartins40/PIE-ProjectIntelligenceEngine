@@ -1,5 +1,15 @@
 # PIE — Continuidade
 
+## Correção do protocolo contínuo e estado da CI — 16/10/2026
+
+CI 38987122505 (8b4e9af13) falhou no teste POSIX da CLI contínua. Log autenticado confirmou consumo do job e exit 0 antes da falha; JSON.parse rejeitou o resumo final porque a CLI combinava um registro inicial de uma linha com JSON final indentado. Corrigido o produtor: no modo continuous, a resposta final também usa uma única linha, mantendo NDJSON consistente. Comandos de um job continuam com JSON indentado. Correção por inspeção da causa no produtor, sem relaxar o teste. Validação positiva dessa correção exige a próxima CI Linux; não registrar a execução anterior como verde. Typecheck completo e limites de módulos (2050 fontes), descoberta de 1463 testes passaram na entrega de rotas. Goal integral permanece ativo.
+
+## Rotas Next App Router no grafo — 16/10/2026
+
+readCodeFacts passa a ser dono da árvore Babel TS/JS/JSX e produz imports + declarações Next sem parsing duplicado. imports.ts agora mantém somente resolução convencional de referências; coletor recebe fatos já interpretados. Convenções app/**/page.tsx e route.ts/js produzem page e endpoint com exports explícitos, padrão de caminho, linha e prova selada. Grupos são removidos do padrão, segmentos dinâmicos permanecem literais; segmentos privados/paralelos/interceptados não são convertidos em rota pública. Alias de export nomeado é registrado, sem inventar valor resolvido ou execução. Adapter next-app-convention indica a fonte da derivação, não confirmação de framework ativo.
+
+Integração Git/SQLite real comprova persistência, evidência, declared_in no trace e imports do mesmo AST. Testes distinguem comentários/strings, exports de tipo, nomes parecidos, JSX não suportado em route, orçamento e parse inválido. Rodada adapters/fundação/trace: 12 passaram (5,58s); após refinamentos, adapters/MCP: seis passaram (11,73s). Build PIE e typecheck web passaram. Lint dos novos parsers sem avisos/erros. Sem execução de aplicação Next nesta entrega; autenticação, build, rewrites/basePath, conflitos e disponibilidade HTTP não comprovados. Rotas Express/Laravel, demais runners/motores e aceite integral permanecem pendentes; goal ativo.
+
 ## Workers contínuos — 16/10/2026
 
 CI 38986773802 (1d4880fe6) passou, incluindo enfileiramento/cancelamento real pelo painel Chrome Linux. work/work-verify agora aceitam --continuous e --poll-ms 100–30000 (padrão 1000). JobDaemon consome sequencialmente, concorrência 1, espera ociosa abortável e para diante de falha operacional; não repete auditorias VERIFY interrompidas. SIGINT/SIGTERM cancelam trabalho ativo e drenam worker/coordenador antes de fechar fila/store. Worker revalida encerramento após resolver raiz, antes de novo claim. Sem continuous, comportamento de um job preservado. É processo em primeiro plano; não instala serviço do sistema.

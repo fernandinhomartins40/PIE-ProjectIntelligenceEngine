@@ -1,5 +1,3 @@
-import { parse } from "@babel/parser";
-import { traverseFast } from "@babel/types";
 import { dirname, posix } from "node:path";
 import { sha256 } from "./evidence.js";
 import type { GraphEdge, GraphNode } from "./contracts.js";
@@ -8,40 +6,6 @@ export interface ImportReference {
   sourcePath: string;
   specifier: string;
   line: number;
-}
-
-/** Parse syntax only. No module resolution through project code, plugins or execution. */
-export function readImports(
-  path: string,
-  source: string,
-  maxReferences: number,
-): { references: ImportReference[]; omitted: number } {
-  const tree = parse(source, {
-    sourceType: "unambiguous",
-    plugins:
-      path.endsWith(".tsx") || path.endsWith(".jsx")
-        ? ["typescript", "jsx"]
-        : ["typescript"],
-  });
-  const references: ImportReference[] = [];
-  let omitted = 0;
-  traverseFast(tree, (node) => {
-    if (
-      (node.type === "ImportDeclaration" ||
-        node.type === "ExportNamedDeclaration" ||
-        node.type === "ExportAllDeclaration") &&
-      node.source
-    ) {
-      if (references.length < maxReferences)
-        references.push({
-          sourcePath: path,
-          specifier: node.source.value,
-          line: node.loc?.start.line ?? 1,
-        });
-      else omitted++;
-    }
-  });
-  return { references, omitted };
 }
 
 /** Bounded conventional relative resolution; aliases and conditional exports remain unknown. */

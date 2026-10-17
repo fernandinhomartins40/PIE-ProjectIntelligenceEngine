@@ -204,3 +204,10 @@ O envio cria um job, consumido somente pelo worker separado work-verify. O UUID 
 `work /projeto --db /dados-pie/pie.sqlite --continuous --poll-ms 1000` consome descoberta sequencialmente. `work-verify /projeto --continuous` exige também --db e as três opções explícitas Docker/estado já descritas. O intervalo ocioso aceita 100–30000 ms e exige continuous; sem essa opção cada comando processa um job.
 
 O processo publica uma linha JSON listening e continua em primeiro plano; SIGINT/SIGTERM encerram espera e cancelam/drenam operação ativa antes de liberar recursos. Ao concluir, publica a contagem de jobs processados, que não significa testes aprovados. Falha operacional encerra o processo, sem laço de retry silencioso. Não há instalação automática de serviço do sistema nem repetição de VERIFY interrompido; recuperação continua sendo ação explícita pelo journal.
+## Rotas estáticas Next App Router
+
+A descoberta usa uma única AST por arquivo TS/JS/JSX para imports e exports. Arquivos convencionais page geram declarações page com export default de valor; Route Handlers JS/TS geram endpoint para métodos HTTP explicitamente exportados. Os fatos aparecem em declarations e trace pela CLI/MCP/API/painel, com linha e evidência. A convenção usa a [referência oficial de Route Handlers](https://nextjs.org/docs/app/api-reference/file-conventions/route).
+
+Grupos de rota não compõem o padrão; parâmetros dinâmicos são preservados como [id], sem fabricar uma URL concreta. Rotas paralelas/interceptadas/privadas permanecem sem conversão pública. A análise não resolve wildcard, configurações, métodos automáticos, instalação do framework, conflitos ou valor de handler; não confirma rota acessível, autorização, integração com banco ou funcionamento em runtime.
+
+No modo continuous, stdout usa NDJSON: um objeto JSON por linha para a abertura e o resumo final. Comandos de um job mantêm JSON indentado. Uma linha de resumo conta workflows, não testes aprovados.

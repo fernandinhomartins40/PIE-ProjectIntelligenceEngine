@@ -1,22 +1,19 @@
 import { randomUUID } from "node:crypto";
 import type { Evidence } from "../contracts.js";
 import { sealEvidence } from "../evidence.js";
-import type { AdapterFact } from "./contracts.js";
-import { readDeclarations } from "./declarations.js";
+import type { AdapterFact, AdapterRead } from "./contracts.js";
 import { declarationIdentity } from "./identity.js";
 
 /** Owns conversion from parser declarations into immutable evidence-linked facts. */
 export function collectDeclarations(
   file: Evidence,
-  source: string,
-  limit: number,
+  parsed: AdapterRead | null,
 ) {
   const evidence: Evidence[] = [];
   const declarations: AdapterFact[] = [];
   const identities = new Set<string>();
   let repeated = 0;
   try {
-    const parsed = readDeclarations(file.source.path, source, limit);
     if (!parsed) return { evidence, declarations, limitations: [] };
     const { sha256: previousDigest, ...fields } = file;
     void previousDigest;
