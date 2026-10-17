@@ -14,6 +14,27 @@ type RouterMount = {
   prefix: string;
   router: string;
   line: number;
+  imported?: ExpressRouterImport;
+};
+export type ExpressRouterImport = {
+  specifier: string;
+  importedName: string;
+  localName: string;
+  line: number;
+};
+export type ExpressRouterExport = {
+  exportName: string;
+  localName: string;
+  line: number;
+};
+export type ExpressCrossFileMount = ExpressRouterImport & {
+  prefix: string;
+  mountLine: number;
+};
+export type ExpressRead = AdapterRead & {
+  crossFileMounts: ExpressCrossFileMount[];
+  routerExports: ExpressRouterExport[];
+  omittedCrossFileFacts: number;
 };
 type RouterDerivation = {
   line: number;
@@ -53,9 +74,31 @@ function isExpressRequire(call: CallExpression) {
 function bindImport(
   statement: ImportDeclaration,
   bindings: Map<string, Binding>,
+  importedRouters: Map<string, ExpressRouterImport>,
 ) {
-  if (statement.source.value !== "express" || statement.importKind === "type")
+  if (statement.importKind === "type") return;
+  if (statement.source.value !== "express") {
+    if (!statement.source.value.startsWith(".")) return;
+    for (const item of statement.specifiers) {
+      if (item.type === "ImportSpecifier" && item.importKind === "type")
+        continue;
+      const importedName =
+        item.type === "ImportDefaultSpecifier"
+          ? "default"
+          : item.type === "ImportSpecifier"
+            ? memberName(item.imported)
+            : null;
+      if (!importedName) continue;
+      const value = {
+        specifier: statement.source.value,
+        importedName,
+        localName: item.local.name,
+        line: statement.loc?.start.line ?? 1,
+      };
+      importedRouters.set(item.local.name, value);
+    }
     return;
+  }
   for (const item of statement.specifiers) {
     if (item.type === "ImportDefaultSpecifier")
       bindings.set(item.local.name, "factory");
@@ -157,6 +200,7 @@ function endpoint(
 function mountedRouter(
   call: CallExpression,
   bindings: Map<string, Binding>,
+  importedRouters: Map<string, ExpressRouterImport>,
 ): RouterMount[] {
   const callee = call.callee;
   if (
@@ -178,17 +222,17 @@ function mountedRouter(
     firstRouterArgument = 1;
   }
   return call.arguments.slice(firstRouterArgument).flatMap((argument) => {
-    if (
-      argument.type !== "Identifier" ||
-      bindings.get(argument.name) !== "router"
-    )
-      return [];
+    if (argument.type !== "Identifier") return [];
+    const binding = bindings.get(argument.name);
+    const imported = importedRouters.get(argument.name);
+    if (binding !== "router" && !imported) return [];
     return [
       {
         receiver,
         prefix,
         router: argument.name,
         line: call.loc?.start.line ?? 1,
+        ...(binding !== "router" && imported ? { imported } : {}),
       },
     ];
   });
@@ -280,8 +324,42 @@ function routerPrefixes(mounts: readonly RouterMount[]) {
 export function readExpressDeclarations(
   tree: File,
   limit: number,
-): AdapterRead {
+): ExpressRead {
   const bindings = new Map<string, Binding>();
+  const importedRouters = new Map<string, ExpressRouterImport>();
+  const exportCandidates: ExpressRouterExport[] = [];
+  for (const statement of tree.program.body) {
+    if (statement.type === "ExportNamedDeclaration") {
+      const declaration = statement.declaration;
+      if (declaration?.type === "VariableDeclaration")
+        for (const variable of declaration.declarations)
+          if (variable.id.type === "Identifier")
+            exportCandidates.push({
+              exportName: variable.id.name,
+              localName: variable.id.name,
+              line: variable.loc?.start.line ?? statement.loc?.start.line ?? 1,
+            });
+      for (const specifier of statement.specifiers)
+        if (specifier.type === "ExportSpecifier" && !statement.source) {
+          const localName = memberName(specifier.local);
+          const exportName = memberName(specifier.exported);
+          if (localName && exportName)
+            exportCandidates.push({
+              exportName,
+              localName,
+              line: specifier.loc?.start.line ?? statement.loc?.start.line ?? 1,
+            });
+        }
+    } else if (
+      statement.type === "ExportDefaultDeclaration" &&
+      statement.declaration.type === "Identifier"
+    )
+      exportCandidates.push({
+        exportName: "default",
+        localName: statement.declaration.name,
+        line: statement.loc?.start.line ?? 1,
+      });
+  }
   const body = tree.program.body.map((statement) =>
     statement.type === "ExportNamedDeclaration" && statement.declaration
       ? statement.declaration
@@ -295,7 +373,8 @@ export function readExpressDeclarations(
   const mounts: RouterMount[] = [];
   let omitted = 0;
   for (const statement of body) {
-    if (statement.type === "ImportDeclaration") bindImport(statement, bindings);
+    if (statement.type === "ImportDeclaration")
+      bindImport(statement, bindings, importedRouters);
     if (statement.type === "VariableDeclaration")
       bindVariables(statement, bindings, requireShadowed);
     if (statement.type !== "ExpressionStatement") continue;
@@ -309,11 +388,28 @@ export function readExpressDeclarations(
         bindings.delete(left.object.name);
     }
     if (statement.expression.type !== "CallExpression") continue;
-    mounts.push(...mountedRouter(statement.expression, bindings));
+    mounts.push(
+      ...mountedRouter(statement.expression, bindings, importedRouters),
+    );
     const route = endpoint(statement.expression, bindings);
     if (route) routes.push(route);
   }
   const resolvePrefixes = routerPrefixes(mounts);
+  const routerExports = exportCandidates.filter(
+    (item) => bindings.get(item.localName) === "router",
+  );
+  const crossFileMounts = mounts.flatMap((mount) =>
+    mount.imported
+      ? [{ ...mount.imported, prefix: mount.prefix, mountLine: mount.line }]
+      : [],
+  );
+  const boundedCrossFileMounts = crossFileMounts.slice(0, limit);
+  const boundedRouterExports = routerExports.slice(0, limit);
+  const omittedCrossFileFacts =
+    crossFileMounts.length -
+    boundedCrossFileMounts.length +
+    routerExports.length -
+    boundedRouterExports.length;
   let unresolvedMounts = 0;
   for (const route of routes) {
     const resolved =
@@ -364,11 +460,14 @@ export function readExpressDeclarations(
   }
   return {
     declarations,
+    crossFileMounts: boundedCrossFileMounts,
+    routerExports: boundedRouterExports,
+    omittedCrossFileFacts,
     limitations:
       bindings.size || declarations.length
         ? [
             "Express AST: somente bindings const/import e chamadas diretas no escopo superior com caminho literal; prefixos literais de app.use/router.use são compostos quando o router é alcançável por montagens estáticas. Isso não comprova instalação, handler válido, autorização, listen ou disponibilidade HTTP.",
-            "Escopos aninhados, aliases mutáveis, factories, routers importados de outros arquivos, cadeias route(), caminhos dinâmicos/arrays/regex e efeitos de código chamado não examinados; ausência de fato não prova ausência de endpoint.",
+            "Mounts por import relativo default/named para export literal de router em módulo rastreado geram relação cross-file, mas o prefixo não é composto no nome do endpoint. Reexports, namespaces, require cross-file, escopos aninhados, aliases mutáveis, factories, cadeias route(), caminhos dinâmicos/arrays/regex e efeitos de código chamado continuam não examinados; ausência de fato não prova ausência de endpoint.",
             ...(unresolvedMounts
               ? [
                   `${unresolvedMounts} rotas pertencem a routers sem montagem literal resolvida, wildcard ou em ciclo; seus caminhos podem permanecer locais ao router.`,

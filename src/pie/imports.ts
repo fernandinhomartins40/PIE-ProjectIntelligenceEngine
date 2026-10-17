@@ -17,6 +17,37 @@ export type ImportResolution =
   | { kind: "relative-file"; targetPath: string }
   | { kind: "declared-package"; manifestPath: string };
 
+export function resolveRelativeTarget(
+  byPath: ReadonlyMap<string, GraphNode>,
+  sourcePath: string,
+  specifier: string,
+): GraphNode | undefined {
+  const base = posix.normalize(
+    posix.join(dirname(sourcePath).replaceAll("\\", "/"), specifier),
+  );
+  const candidates = [base];
+  if (/\.[cm]?js$/.test(base))
+    candidates.push(
+      base.replace(/\.([cm]?)js$/, ".$1ts"),
+      base.replace(/\.js$/, ".tsx"),
+    );
+  if (!posix.extname(base))
+    candidates.push(
+      ...[
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mts",
+        ".mjs",
+        "/index.ts",
+        "/index.tsx",
+        "/index.js",
+      ].map((extension) => base + extension),
+    );
+  return candidates.map((path) => byPath.get(path)).find(Boolean);
+}
+
 /** Bounded conventional relative resolution; aliases and conditional exports remain unknown. */
 export function resolveImports(
   nodes: readonly GraphNode[],
@@ -47,33 +78,11 @@ export function resolveImports(
     let target: GraphNode | undefined;
     let declaredPackage: DeclaredPackage | undefined;
     if (reference.specifier.startsWith(".")) {
-      const base = posix.normalize(
-        posix.join(
-          dirname(reference.sourcePath).replaceAll("\\", "/"),
-          reference.specifier,
-        ),
+      target = resolveRelativeTarget(
+        byPath,
+        reference.sourcePath,
+        reference.specifier,
       );
-      const candidates = [base];
-      if (/\.[cm]?js$/.test(base))
-        candidates.push(
-          base.replace(/\.([cm]?)js$/, ".$1ts"),
-          base.replace(/\.js$/, ".tsx"),
-        );
-      if (!posix.extname(base))
-        candidates.push(
-          ...[
-            ".ts",
-            ".tsx",
-            ".js",
-            ".jsx",
-            ".mts",
-            ".mjs",
-            "/index.ts",
-            "/index.tsx",
-            "/index.js",
-          ].map((extension) => base + extension),
-        );
-      target = candidates.map((path) => byPath.get(path)).find(Boolean);
     } else {
       // A package edge means only that the observed manifest declares this package;
       // it does not resolve the imported subpath or prove runtime loading.

@@ -8,16 +8,30 @@ import {
   policySchema,
   snapshotSchema,
   type GraphNode,
+  type Evidence,
   type Snapshot,
 } from "./contracts.js";
 import { sealEvidence, sha256 } from "./evidence.js";
 import { inventoryPath } from "./inventoryPath.js";
-import { resolveImports, type ImportReference } from "./imports.js";
+import {
+  resolveImports,
+  resolveRelativeTarget,
+  type ImportReference,
+} from "./imports.js";
 import { readInventoryFile } from "./readFile.js";
 import { collectDeclarations } from "./adapters/collect.js";
 import { readDeclarations } from "./adapters/declarations.js";
 import { readCodeFacts } from "./codeFacts.js";
 import type { AdapterFact } from "./adapters/contracts.js";
+import {
+  expressRouterExportObservation,
+  expressRouterMountEdgeId,
+  expressRouterMountObservation,
+} from "./adapters/expressEvidence.js";
+import type {
+  ExpressCrossFileMount,
+  ExpressRouterExport,
+} from "./adapters/express.js";
 
 const runFile = promisify(execFile);
 // Git hooks, package scripts and project executables are never launched.
@@ -151,6 +165,11 @@ export async function discoverProject(
   const evidence: Snapshot["evidence"] = [];
   const imports: ImportReference[] = [];
   const declarations: AdapterFact[] = [];
+  const expressModules: Array<{
+    path: string;
+    mounts: ExpressCrossFileMount[];
+    exports: ExpressRouterExport[];
+  }> = [];
   const limitations = [
     "Somente arquivos rastreados pelo Git; arquivos novos não rastreados não foram examinados.",
     "Inventário Git e imports estáticos TS/JS; relação de pacote significa somente declaração no manifest observado, sem comprovar instalação, subpath resolvido ou carregamento.",
@@ -227,6 +246,15 @@ export async function discoverProject(
             declarationLimit,
           );
           imports.push(...parsed.references);
+          expressModules.push({
+            path,
+            mounts: parsed.express.crossFileMounts,
+            exports: parsed.express.routerExports,
+          });
+          if (parsed.express.omittedCrossFileFacts > 0)
+            limitations.push(
+              `${parsed.express.omittedCrossFileFacts} fatos de mount/export Express cross-file omitidos pelo limite de análise em ${path}.`,
+            );
           const declared = collectDeclarations(item, parsed.declarations);
           evidence.push(...declared.evidence);
           declarations.push(...declared.declarations);
@@ -335,6 +363,150 @@ export async function discoverProject(
     limitations.push(
       `${resolved.unresolved} declarações de importação não resolvidas; ausência de aresta não prova ausência de dependência.`,
     );
+  const fileNodesByPath = new Map(nodes.map((node) => [node.path, node]));
+  const relativeNodeIndex = fileNodesByPath;
+  const moduleByPath = new Map(
+    expressModules.map((module) => [module.path, module]),
+  );
+  const importProofsByTuple = new Map<string, Evidence>();
+  for (const item of evidence) {
+    if (!item.observation.startsWith("Import AST ")) continue;
+    const match =
+      /^Import AST (.+); não comprova carregamento em runtime\.$/.exec(
+        item.observation,
+      );
+    if (!match) continue;
+    try {
+      const tuple: unknown = JSON.parse(match[1]!);
+      if (
+        Array.isArray(tuple) &&
+        tuple.length === 3 &&
+        tuple[1] === "relative-file" &&
+        typeof tuple[0] === "string" &&
+        typeof tuple[2] === "string"
+      )
+        importProofsByTuple.set(
+          JSON.stringify([item.source.path, item.source.line, ...tuple]),
+          item,
+        );
+    } catch {
+      // Only sealed import observations emitted above are considered.
+    }
+  }
+  const expressEdges: Snapshot["edges"] = [];
+  let unresolvedExpressMounts = 0;
+  let omittedExpressMounts = 0;
+  const maxExpressEdges = Math.max(
+    0,
+    policy.maxGraphEdges - resolved.edges.length,
+  );
+  const makeDerivedEvidence = (
+    original: Evidence,
+    line: number,
+    observation: string,
+  ) => {
+    const { sha256: _previousDigest, ...fields } = original;
+    return sealEvidence({
+      ...fields,
+      id: randomUUID(),
+      source: { ...original.source, line },
+      confidence: "derived",
+      observation,
+    });
+  };
+  for (const module of expressModules) {
+    for (const mount of module.mounts) {
+      remaining();
+      const targetPath = resolveRelativeTarget(
+        relativeNodeIndex,
+        module.path,
+        mount.specifier,
+      );
+      const targetModule = targetPath
+        ? moduleByPath.get(targetPath.path)
+        : undefined;
+      const exports = targetModule?.exports.filter(
+        (item) => item.exportName === mount.importedName,
+      );
+      const sourceNode = fileNodesByPath.get(module.path);
+      const sourceEvidence = evidenceByPath.get(module.path);
+      if (
+        !targetPath ||
+        !targetModule ||
+        exports?.length !== 1 ||
+        !sourceNode ||
+        !sourceEvidence
+      ) {
+        unresolvedExpressMounts++;
+        continue;
+      }
+      if (expressEdges.length >= maxExpressEdges) {
+        omittedExpressMounts++;
+        continue;
+      }
+      const targetNode = fileNodesByPath.get(targetPath.path);
+      const targetEvidence = evidenceByPath.get(targetPath.path);
+      const exported = exports[0]!;
+      if (!targetNode || !targetEvidence) {
+        unresolvedExpressMounts++;
+        continue;
+      }
+      const importProof = importProofsByTuple.get(
+        JSON.stringify([
+          module.path,
+          mount.line,
+          mount.specifier,
+          "relative-file",
+          targetPath.path,
+        ]),
+      );
+      if (!importProof) {
+        unresolvedExpressMounts++;
+        continue;
+      }
+      const mountFact = {
+        specifier: mount.specifier,
+        importedName: mount.importedName,
+        localName: mount.localName,
+        importLine: mount.line,
+        prefix: mount.prefix,
+        targetPath: targetPath.path,
+      };
+      const mountProof = makeDerivedEvidence(
+        sourceEvidence,
+        mount.mountLine,
+        expressRouterMountObservation(mountFact),
+      );
+      const exportProof = makeDerivedEvidence(
+        targetEvidence,
+        exported.line,
+        expressRouterExportObservation(exported.exportName, exported.localName),
+      );
+      evidence.push(mountProof, exportProof);
+      expressEdges.push({
+        id: expressRouterMountEdgeId(
+          sourceNode.id,
+          targetNode.id,
+          mountFact,
+          mount.mountLine,
+          exported.line,
+        ),
+        from: sourceNode.id,
+        to: targetNode.id,
+        kind: "calls",
+        evidenceIds: [mountProof.id, importProof.id, exportProof.id],
+        confidence: "derived",
+      });
+    }
+  }
+  if (unresolvedExpressMounts > 0)
+    limitations.push(
+      `${unresolvedExpressMounts} mounts Express importados não foram resolvidos para um export de router único; prefixos e tipo de runtime permanecem desconhecidos.`,
+    );
+  if (omittedExpressMounts > 0)
+    limitations.push(
+      `${omittedExpressMounts} relações de mount Express omitidas pelo limite global de arestas.`,
+    );
   remaining();
   return snapshotSchema.parse({
     schemaVersion: 1,
@@ -353,7 +525,7 @@ export async function discoverProject(
       ),
     ),
     nodes,
-    edges: resolved.edges,
+    edges: [...resolved.edges, ...expressEdges],
     evidence,
     declarations,
     coverage: {

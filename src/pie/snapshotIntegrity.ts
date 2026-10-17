@@ -10,6 +10,11 @@ import {
   derivationEvidenceObservation,
 } from "./adapters/contracts.js";
 import { declarationIdentity } from "./adapters/identity.js";
+import {
+  expressRouterExportObservation,
+  expressRouterMountEdgeId,
+  expressRouterMountObservation,
+} from "./adapters/expressEvidence.js";
 import { snapshotFiles } from "./snapshotFiles.js";
 
 function validateDeclarations(
@@ -152,6 +157,152 @@ function validateImportEdges(snapshot: Snapshot) {
   }
 }
 
+function validateExpressMountEdges(snapshot: Snapshot) {
+  const nodes = new Map(snapshot.nodes.map((node) => [node.id, node]));
+  const evidence = new Map(snapshot.evidence.map((item) => [item.id, item]));
+  const fileEvidence = new Map(
+    snapshot.evidence
+      .filter((item) => item.source.line === null)
+      .map((item) => [item.source.path, item]),
+  );
+  for (const edge of snapshot.edges) {
+    if (edge.kind !== "calls") continue;
+    const sourceNode = nodes.get(edge.from);
+    const targetNode = nodes.get(edge.to);
+    const proofs = edge.evidenceIds.map((id) => evidence.get(id));
+    const mountProof = proofs.find((item) =>
+      item?.observation.startsWith("Express AST cross-file router mount "),
+    );
+    const importProof = proofs.find((item) =>
+      item?.observation.startsWith("Import AST "),
+    );
+    const exportProof = proofs.find((item) =>
+      item?.observation.startsWith("Express AST router export "),
+    );
+    const mountMatch = mountProof
+      ? /^Express AST cross-file router mount (.+); importação estática não comprova registro em runtime\.$/.exec(
+          mountProof.observation,
+        )
+      : null;
+    const importMatch = importProof
+      ? /^Import AST (.+); não comprova carregamento em runtime\.$/.exec(
+          importProof.observation,
+        )
+      : null;
+    const exportMatch = exportProof
+      ? /^Express AST router export (.+); tipo de retorno não inspecionado em runtime\.$/.exec(
+          exportProof.observation,
+        )
+      : null;
+    let mountTuple: unknown;
+    let importTuple: unknown;
+    let exportTuple: unknown;
+    try {
+      mountTuple = JSON.parse(mountMatch?.[1] ?? "null");
+      importTuple = JSON.parse(importMatch?.[1] ?? "null");
+      exportTuple = JSON.parse(exportMatch?.[1] ?? "null");
+    } catch {
+      mountTuple = null;
+      importTuple = null;
+      exportTuple = null;
+    }
+    const [specifier, importedName, localName, importLine, prefix, targetPath] =
+      Array.isArray(mountTuple) ? mountTuple : [];
+    const [importSpecifier, importKind, importTarget] = Array.isArray(
+      importTuple,
+    )
+      ? importTuple
+      : [];
+    const [exportName, exportLocalName] = Array.isArray(exportTuple)
+      ? exportTuple
+      : [];
+    const sourceFile = sourceNode
+      ? fileEvidence.get(sourceNode.path)
+      : undefined;
+    const targetFile = targetNode
+      ? fileEvidence.get(targetNode.path)
+      : undefined;
+    if (
+      edge.confidence !== "derived" ||
+      edge.evidenceIds.length !== 3 ||
+      new Set(edge.evidenceIds).size !== 3 ||
+      !sourceNode ||
+      !targetNode ||
+      !mountProof ||
+      !importProof ||
+      !exportProof ||
+      !sourceFile ||
+      !targetFile ||
+      !Array.isArray(mountTuple) ||
+      mountTuple.length !== 6 ||
+      !Array.isArray(importTuple) ||
+      importTuple.length !== 3 ||
+      typeof specifier !== "string" ||
+      !specifier.startsWith(".") ||
+      typeof importedName !== "string" ||
+      typeof localName !== "string" ||
+      typeof importLine !== "number" ||
+      !Number.isInteger(importLine) ||
+      typeof prefix !== "string" ||
+      typeof targetPath !== "string" ||
+      targetPath !== targetNode.path ||
+      importSpecifier !== specifier ||
+      importKind !== "relative-file" ||
+      importTarget !== targetPath ||
+      !Array.isArray(exportTuple) ||
+      exportTuple.length !== 2 ||
+      exportName !== importedName ||
+      typeof exportLocalName !== "string" ||
+      mountProof.source.path !== sourceNode.path ||
+      mountProof.source.line === null ||
+      mountProof.source.sha256 !== sourceFile.source.sha256 ||
+      mountProof.method !== "static" ||
+      mountProof.confidence !== "derived" ||
+      importProof.source.path !== sourceNode.path ||
+      importProof.source.line === null ||
+      importProof.source.sha256 !== sourceFile.source.sha256 ||
+      importProof.source.line !== importLine ||
+      importProof.method !== "static" ||
+      importProof.confidence !== "derived" ||
+      exportProof.source.path !== targetNode.path ||
+      exportProof.source.line === null ||
+      exportProof.source.sha256 !== targetFile.source.sha256 ||
+      exportProof.method !== "static" ||
+      exportProof.confidence !== "derived" ||
+      mountProof.observation !==
+        expressRouterMountObservation({
+          specifier,
+          importedName,
+          localName,
+          importLine,
+          prefix,
+          targetPath,
+        }) ||
+      exportProof.observation !==
+        expressRouterExportObservation(exportName, exportLocalName) ||
+      edge.id !==
+        expressRouterMountEdgeId(
+          sourceNode.id,
+          targetNode.id,
+          {
+            specifier,
+            importedName,
+            localName,
+            importLine,
+            prefix,
+            targetPath,
+          },
+          mountProof.source.line,
+          exportProof.source.line,
+        )
+    )
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "Relação de mount Express cross-file sem Evidence consistente.",
+      );
+  }
+}
+
 /** One owner validates the same snapshot semantics for every persistence adapter. */
 export function validateSnapshot(input: unknown): Snapshot {
   const snapshot = snapshotSchema.parse(input);
@@ -189,6 +340,7 @@ export function validateSnapshot(input: unknown): Snapshot {
         "Aresta sem nó de origem ou destino.",
       );
   validateImportEdges(snapshot);
+  validateExpressMountEdges(snapshot);
   validateDeclarations(snapshot, evidenceById);
   const files = snapshotFiles(snapshot).map(({ node, source }) => [
     node.path,
