@@ -207,6 +207,25 @@ export class PieStore implements PiePersistence {
     });
   }
 
+  projectsForRoot(root: string, input: unknown = {}) {
+    const { offset, limit } = pageSchema.parse(input);
+    const total = Number(
+      this.#db
+        .prepare("SELECT count(*) AS total FROM pie_projects WHERE root=?")
+        .get(root)!.total,
+    );
+    return projectsOutput.parse({
+      items: this.#db
+        .prepare(
+          "SELECT id,root,name,created_at FROM pie_projects WHERE root=? ORDER BY created_at,id LIMIT ? OFFSET ?",
+        )
+        .all(root, limit, offset),
+      total,
+      offset,
+      nextOffset: offset + limit < total ? offset + limit : null,
+    });
+  }
+
   project(id: string) {
     const row = this.#db
       .prepare("SELECT id,root,name FROM pie_projects WHERE id=?")

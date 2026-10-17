@@ -18,7 +18,7 @@ Inspecionados controles locais da API/painel PIE e adicionados `docs/SECURITY_IM
 
 ### Isolamento entre raízes na API histórica — 17/10/2026
 
-A regressão `pieApiScope.test.ts` reproduziu vazamento: com dois repositórios Git na mesma base SQLite, `/v1/graph/:snapshotId` autenticado respondeu `200` para snapshot de outra raiz. A API agora verifica a raiz dona de snapshots, Evidence, projetos, execuções, probes HTTP e registros funcionais antes de leituras/exportações; comparações e traces validam os IDs; `/v1/projects` só retorna a raiz autorizada. IDs externos recebem `404`. Boundary de escopo, `pieApi` e `pieJobs`: 7 passaram, 1 PostgreSQL skipped. O adapter PostgreSQL recebeu as consultas de ownership, ainda sem banco real. SEC-03 segue em validação; isso não conclui T4.3.
+A regressão `pieApiScope.test.ts` reproduziu vazamento: com dois repositórios Git na mesma base SQLite, `/v1/graph/:snapshotId` autenticado respondeu `200` para snapshot de outra raiz. A API agora verifica a raiz dona de snapshots, Evidence, projetos, execuções, probes HTTP e registros funcionais antes de leituras/exportações; comparações e traces validam os IDs. `/v1/projects` aplica filtro de raiz e paginação dentro da consulta de persistência SQLite/PostgreSQL, sem percorrer projetos de outras raízes. IDs externos recebem `404`. Boundary de escopo, `pieApi` e `pieJobs`: 7 passaram, 1 PostgreSQL skipped. O adapter PostgreSQL recebeu as consultas de ownership, ainda sem banco real. SEC-03 segue em validação; isso não conclui T4.3.
 
 ## Motor inicial de evidência de Produto/UX — 17/10/2026
 

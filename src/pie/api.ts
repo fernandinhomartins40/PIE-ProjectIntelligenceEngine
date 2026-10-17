@@ -503,34 +503,11 @@ export async function startPieApi(
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/projects") {
-        const { offset, limit } = paging();
-        const selected: Awaited<ReturnType<PieService["projects"]>>["items"] =
-          [];
-        let projectOffset = 0;
-        let scopedTotal = 0;
-        for (;;) {
-          const projects = await service.projects({
-            offset: projectOffset,
-            limit: 200,
-          });
-          for (const project of projects.items) {
-            if (project.root !== authorizedRoot) continue;
-            if (scopedTotal >= offset && selected.length < limit)
-              selected.push(project);
-            scopedTotal += 1;
-          }
-          if (projects.nextOffset === null) break;
-          projectOffset = projects.nextOffset;
-        }
-        respond(response, 200, {
-          items: selected,
-          total: scopedTotal,
-          offset,
-          nextOffset:
-            offset + selected.length < scopedTotal
-              ? offset + selected.length
-              : null,
-        });
+        respond(
+          response,
+          200,
+          await service.projectsForRoot(authorizedRoot, paging()),
+        );
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/discover") {

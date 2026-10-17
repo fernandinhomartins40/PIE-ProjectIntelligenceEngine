@@ -229,6 +229,9 @@ export class PieService {
   projects(input: unknown = {}) {
     return this.#read(async () => this.store.projects(input));
   }
+  projectsForRoot(root: string, input: unknown = {}) {
+    return this.#read(async () => this.store.projectsForRoot(root, input));
+  }
   project(id: string) {
     return this.#read(async () => this.store.project(id));
   }

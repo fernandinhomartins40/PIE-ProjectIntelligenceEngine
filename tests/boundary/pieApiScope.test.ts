@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -46,13 +46,11 @@ it("API local limita leituras históricas à raiz configurada", async () => {
       `/v1/history/${foreign.project.id}`,
       `/v1/snapshots/${foreignSnapshotId}/export`,
       `/v1/verifications/${foreignSnapshotId}/export`,
-      `/v1/http-probes? snapshotId=${foreignSnapshotId}`,
-      `/v1/functional-records? snapshotId=${foreignSnapshotId}`,
+      `/v1/http-probes?snapshotId=${foreignSnapshotId}`,
+      `/v1/functional-records?snapshotId=${foreignSnapshotId}`,
     ];
     for (const endpoint of endpoints) {
-      const response = await fetch(`${api.url}${endpoint.replace("? ", "?")}`, {
-        headers,
-      });
+      const response = await fetch(`${api.url}${endpoint}`, { headers });
       expect(response.status, endpoint).toBe(404);
       expect(await response.json(), endpoint).toMatchObject({
         error: { code: "NOT_FOUND" },
@@ -62,9 +60,16 @@ it("API local limita leituras históricas à raiz configurada", async () => {
     expect(projects.status).toBe(200);
     expect(await projects.json()).toMatchObject({
       total: 1,
-      items: [
-        { root: await (await import("node:fs/promises")).realpath(rootA) },
-      ],
+      items: [{ root: await realpath(rootA) }],
+    });
+    const nextProjectPage = await fetch(`${api.url}/v1/projects?offset=1`, {
+      headers,
+    });
+    expect(await nextProjectPage.json()).toMatchObject({
+      total: 1,
+      offset: 1,
+      items: [],
+      nextOffset: null,
     });
     for (const endpoint of [
       "/v1/functional",

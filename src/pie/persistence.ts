@@ -28,6 +28,10 @@ export interface PiePersistence {
   assertOutside(root: string): Promise<void>;
   addProject(id: string, root: string, name: string): Awaitable<ProjectRecord>;
   projects(input?: unknown): Awaitable<z.infer<typeof projectsOutput>>;
+  projectsForRoot(
+    root: string,
+    input?: unknown,
+  ): Awaitable<z.infer<typeof projectsOutput>>;
   project(id: string): Awaitable<ProjectRecord>;
   saveSnapshot(input: unknown): Awaitable<Snapshot>;
   snapshot(id: string): Awaitable<Snapshot>;

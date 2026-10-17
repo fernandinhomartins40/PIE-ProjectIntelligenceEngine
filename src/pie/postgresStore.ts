@@ -292,6 +292,33 @@ export class PostgresPieStore implements PiePersistence {
     };
   }
 
+  async projectsForRoot(root: string, input: unknown = {}) {
+    const { offset, limit } = pageSchema.parse(input);
+    const [total, rows] = await this.#client.$transaction(
+      [
+        this.#client.project.count({ where: { root } }),
+        this.#client.project.findMany({
+          where: { root },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          skip: offset,
+          take: limit,
+        }),
+      ],
+      { isolationLevel: "RepeatableRead" },
+    );
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        root: row.root,
+        name: row.name,
+        created_at: row.createdAt.toISOString(),
+      })),
+      total,
+      offset,
+      nextOffset: offset + limit < total ? offset + limit : null,
+    };
+  }
+
   async project(id: string) {
     const row = await this.#client.project.findUnique({ where: { id } });
     if (!row) throw new PieError("NOT_FOUND", "Projeto nÃ£o encontrado.");
