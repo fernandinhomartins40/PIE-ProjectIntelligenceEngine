@@ -482,6 +482,7 @@ export async function discoverProject(
         ]
       : [];
   });
+  const importProofsByTuple = new Map<string, Evidence>();
   const resolved = resolveImports(
     nodes,
     imports,
@@ -503,6 +504,17 @@ export async function discoverProject(
         ])}; não comprova carregamento em runtime.`,
       });
       evidence.push(item);
+      if (resolution.kind === "relative-file")
+        importProofsByTuple.set(
+          JSON.stringify([
+            reference.sourcePath,
+            reference.line,
+            reference.specifier,
+            resolution.kind,
+            resolution.targetPath,
+          ]),
+          item,
+        );
       return item.id;
     },
     packages,
@@ -563,31 +575,6 @@ export async function discoverProject(
       ? { ...nested, first: { kind: "re-export", export: reExport } }
       : null;
   };
-  const importProofsByTuple = new Map<string, Evidence>();
-  for (const item of evidence) {
-    if (!item.observation.startsWith("Import AST ")) continue;
-    const match =
-      /^Import AST (.+); não comprova carregamento em runtime\.$/.exec(
-        item.observation,
-      );
-    if (!match) continue;
-    try {
-      const tuple: unknown = JSON.parse(match[1]!);
-      if (
-        Array.isArray(tuple) &&
-        tuple.length === 3 &&
-        tuple[1] === "relative-file" &&
-        typeof tuple[0] === "string" &&
-        typeof tuple[2] === "string"
-      )
-        importProofsByTuple.set(
-          JSON.stringify([item.source.path, item.source.line, ...tuple]),
-          item,
-        );
-    } catch {
-      // Only sealed import observations emitted above are considered.
-    }
-  }
   const expressEdges: Snapshot["edges"] = [];
   const resolvedExpressMounts: Array<{
     sourcePath: string;

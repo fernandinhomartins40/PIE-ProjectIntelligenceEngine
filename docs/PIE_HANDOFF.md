@@ -20,6 +20,8 @@ Na preparação inicial, a conta autenticada foi `fernandinhomartins40`; o fork 
 
 ## Continuidade atual — supervisão/cancelamento Git — 17/10/2026
 
+Outra fragilidade de ownership foi removida em `discoverProject`: a associação entre Evidence e import cross-file passa a ser capturada junto da resolução tipada, sem reparse de texto de observação. Validado por `pieExpressCrossFile` 7/7, `pieAdapters` 10/10, build PIE, `check:fast` e formatação. Esta alteração está local e precisa de commit/push direto em `main` após `docs:check:built`; próximos alvos de maior escopo seguem T1.1 (Result uniforme), T1.2 (retenção/redação) e T3.1/T3.2 (runners).
+
 Auditoria do comportamento no commit `df2a983d1` identificou que a regressão inicial aceitava qualquer `IO_ERROR`, sem provar a causa, e que `git symbolic-ref HEAD` não consegue ler uma referência cujo destino está corrompido. A leitura direta dos metadados Git foi corrigida para distinguir ref inexistente de conteúdo inválido; o teste agora exige também a mensagem tipada específica. Boundary `pieFoundation` completo: 10/10. A correção está publicada em `f3e979496` nos dois remotos.
 
 Correção adicional na mesma fronteira: revisão nula só para HEAD simbólica sem ref; ref malformada dá `IO_ERROR`. O prazo é consultado de novo em cada subprocesso Git aninhado. `pieFoundation` 10/10, `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram no Windows. Próximo: registrar/publicar na `main` e conferir CI. Linux/macOS e cobertura de todos os workers/processos ainda ausentes; T1.1/T1.3 parciais.
