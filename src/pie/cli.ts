@@ -4,7 +4,6 @@ import { parseArgs } from "node:util";
 import { PieError } from "./contracts.js";
 import { openPersistence } from "./openPersistence.js";
 import { PieService } from "./service.js";
-import { renderSnapshot } from "./reports.js";
 import { z } from "zod";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { readHttpProbeGrant } from "./execution/httpGrantFile.js";
@@ -429,14 +428,24 @@ export async function runPie(args: string[]): Promise<void> {
         result = await service.projectVerifications(target!, paging);
         break;
       case "export":
-        console.log(
-          renderSnapshot(
-            await store.snapshot(target!),
-            z
-              .enum(["json", "md", "html"])
-              .parse(parsed.values.format ?? "json"),
-          ),
-        );
+        {
+          let offset = 0;
+          let report = "";
+          do {
+            const exported = await service.exportSnapshot({
+              snapshotId: target!,
+              format: z
+                .enum(["json", "md", "html"])
+                .parse(parsed.values.format ?? "json"),
+              offset,
+              limitBytes: 1_000_000,
+            });
+            report += exported.content;
+            if (exported.nextOffset === null) break;
+            offset = exported.nextOffset;
+          } while (true);
+          process.stdout.write(`${report}\n`);
+        }
         return;
     }
     console.log(JSON.stringify(result, null, 2));

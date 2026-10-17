@@ -9,6 +9,7 @@ import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import { functionalInput, functionalOutput } from "./functional.js";
 import { dataReviewInput, dataReviewOutput } from "./dataReview.js";
+import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
 import {
   functionalRecordSchema,
@@ -39,6 +40,7 @@ import {
   projectsOutput,
   historyOutput,
   evidenceOutput,
+  exportSnapshotOutput,
   httpProbeHistorySchema,
   withError,
 } from "./outputContracts.js";
@@ -320,6 +322,17 @@ export function createPieMcp(
     },
     ({ snapshotId, ...paging }) =>
       guarded(() => service.declarations(snapshotId, paging)),
+  );
+  server.registerTool(
+    "pie_snapshot_export",
+    {
+      description:
+        "Exporta o snapshot observado em JSON, Markdown ou HTML por páginas UTF-8. Cada página preserva snapshot, digest da árvore, hash e offset do artefato completo; concatene as páginas em nextOffset. Exporta somente fatos estáticos, sem aprovar o projeto.",
+      inputSchema: exportSnapshotInput,
+      outputSchema: withError(exportSnapshotOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.exportSnapshot(input)),
   );
   server.registerTool(
     "pie_graph_trace",

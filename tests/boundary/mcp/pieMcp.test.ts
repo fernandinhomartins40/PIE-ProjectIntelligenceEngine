@@ -352,6 +352,59 @@ async function verifyHttpProbeAdapters(
   ).toEqual(history.structuredContent);
 }
 
+async function verifySnapshotExportAdapters(
+  client: Client,
+  tools: Awaited<ReturnType<Client["listTools"]>>["tools"],
+  ajv: Ajv2020,
+  script: string,
+  db: string,
+  snapshotId: string,
+) {
+  const exported = await exec(process.execPath, [
+    script,
+    "export",
+    snapshotId,
+    "--format",
+    "html",
+    "--db",
+    db,
+  ]);
+  expect(exported.stdout).toContain('<html lang="pt-BR">');
+  const exportTool = tools.find((tool) => tool.name === "pie_snapshot_export")!;
+  let exportOffset = 0;
+  let exportedMcp = "";
+  let exportDigest: string | undefined;
+  do {
+    const page = await client.callTool({
+      name: "pie_snapshot_export",
+      arguments: {
+        snapshotId: snapshotId,
+        format: "html",
+        offset: exportOffset,
+        limitBytes: 128,
+      },
+    });
+    expect(page.isError).not.toBe(true);
+    expect(
+      ajv.compile(exportTool.outputSchema as AnySchema)(page.structuredContent),
+    ).toBe(true);
+    const value = page.structuredContent as {
+      snapshotId: string;
+      nextOffset: number | null;
+      sha256: string;
+      content: string;
+    };
+    expect(value.snapshotId).toBe(snapshotId);
+    exportDigest ??= value.sha256;
+    expect(value.sha256).toBe(exportDigest);
+    exportedMcp += value.content;
+    if (value.nextOffset === null) break;
+    exportOffset = value.nextOffset;
+  } while (true);
+  expect(exportedMcp).toContain('<html lang="pt-BR">');
+  expect(exported.stdout).toBe(`${exportedMcp}\n`);
+}
+
 async function discoverMcpFixture(
   repository: string,
   db: string,
@@ -515,16 +568,14 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
       db,
     ]);
     expect(JSON.parse(cliCompared.stdout)).toEqual(compared.structuredContent);
-    const exported = await exec(process.execPath, [
+    await verifySnapshotExportAdapters(
+      client,
+      tools.tools,
+      ajv,
       script,
-      "export",
-      discovered.snapshot.id,
-      "--format",
-      "html",
-      "--db",
       db,
-    ]);
-    expect(exported.stdout).toContain('<html lang="pt-BR">');
+      discovered.snapshot.id,
+    );
     await verifyQueueCli(script, repo, db);
     await verifyDeclarations(client, script, db, discovered.snapshot.id);
   } finally {

@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Próxima frente — histórico de exportações e CI incremental — 17/10/2026
+
+Export de snapshot JSON/Markdown/HTML agora é um workflow único do `PieService`, paginado em UTF-8 e compartilhado por CLI, GET autenticado `/v1/snapshots/:id/export` e MCP `pie_snapshot_export`. API/MCP/CLI produzem o mesmo HTML; páginas validam offset, hash, identidade e não cortam codepoints. Testes focados `pieApi`, `pieMcp`, `pieComparison`: 6/6; atualização da CI incremental e export persistido de relatórios funcionais/VERIFY ainda pendentes. Próximo: revisar ownership/contrato da CI incremental do repo e integrar export histórico somente sobre registros persistidos e verificados.
+
 ## Próximo passo — identidade do path de coverage no Docker — 17/10/2026
 
 `NodeResult` v2 preserva leitura v1; coverage experimental é ativada apenas para grant v2 de arquivo único e paths só são associados por identidade integral. A regressão do reporter cobre path/linha/count positivos e negativos (pieNodeResults + pieDockerPlan: 8/8); typecheck/lint 2/2 e format check passaram. Node 24.18 real em Windows emitiu path host incompatível com `/source`; nenhuma localização foi atribuída. Docker Linux real ausente. Confirmar o path dentro do container antes de projetar os resultados nos bindings CLI/API/MCP. T4.1 permanece parcial.

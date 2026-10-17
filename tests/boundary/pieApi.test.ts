@@ -8,6 +8,7 @@ import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
 import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
+import { sha256 } from "../../src/pie/evidence.js";
 
 async function verifyFunctionalHistory(
   url: string,
@@ -57,6 +58,73 @@ async function verifyFunctionalHistory(
   );
 }
 
+async function verifySnapshotExportApi(
+  url: string,
+  headers: Record<string, string>,
+  snapshotId: string,
+) {
+  expect(
+    (await fetch(`${url}/v1/snapshots/${snapshotId}/export?format=md`)).status,
+  ).toBe(401);
+  const exportPages: Array<{
+    snapshotId: string;
+    treeDigest: string;
+    format: string;
+    offset: number;
+    totalBytes: number;
+    nextOffset: number | null;
+    sha256: string;
+    content: string;
+  }> = [];
+  let exportOffset = 0;
+  do {
+    const pageResponse = await fetch(
+      `${url}/v1/snapshots/${snapshotId}/export?format=md&offset=${exportOffset}&limitBytes=128`,
+      { headers },
+    );
+    expect(pageResponse.status).toBe(200);
+    const page = (await pageResponse.json()) as (typeof exportPages)[number];
+    exportPages.push(page);
+    if (page.nextOffset === null) break;
+    expect(page.nextOffset).toBeGreaterThan(exportOffset);
+    exportOffset = page.nextOffset;
+  } while (true);
+  const exportContent = exportPages.map((page) => page.content).join("");
+  const exportBytes = Buffer.from(exportContent, "utf8");
+  expect(exportPages.every((page) => page.snapshotId === snapshotId)).toBe(
+    true,
+  );
+  expect(new Set(exportPages.map((page) => page.sha256)).size).toBe(1);
+  expect(exportBytes.length).toBe(exportPages[0]!.totalBytes);
+  expect(sha256(exportBytes)).toBe(exportPages[0]!.sha256);
+  expect(exportContent).toContain("# PIE");
+  const multibyteOffset = exportBytes.findIndex((byte) => byte >= 0xc0);
+  expect(multibyteOffset).toBeGreaterThan(0);
+  const shortPage = await fetch(
+    `${url}/v1/snapshots/${snapshotId}/export?format=md&offset=${multibyteOffset}&limitBytes=4`,
+    { headers },
+  );
+  expect(shortPage.status).toBe(200);
+  const shortPageData =
+    (await shortPage.json()) as (typeof exportPages)[number];
+  expect(Buffer.byteLength(shortPageData.content, "utf8")).toBeLessThanOrEqual(
+    4,
+  );
+  expect(shortPageData.nextOffset).toBeGreaterThan(multibyteOffset);
+  const invalidBoundary = exportBytes.findIndex(
+    (byte) => (byte & 0xc0) === 0x80,
+  );
+  expect(invalidBoundary).toBeGreaterThan(0);
+  expect(
+    (
+      await fetch(
+        `${url}/v1/snapshots/${snapshotId}/export?format=md&offset=${invalidBoundary}`,
+        { headers },
+      )
+    ).status,
+  ).toBe(400);
+}
+
 it("API local exige token, nega origem de navegador e compartilha descoberta persistente", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-api-"));
   const repo = join(root, "repo");
@@ -103,6 +171,7 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
     });
     expect(discovery.status).toBe(201);
     const result = (await discovery.json()) as { snapshot: { id: string } };
+    await verifySnapshotExportApi(api.url, headers, result.snapshot.id);
     expect(
       await (
         await fetch(`${api.url}/v1/verifications/${result.snapshot.id}`, {

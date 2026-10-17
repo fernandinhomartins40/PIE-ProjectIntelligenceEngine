@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Exportação paginada compartilhada — 17/10/2026
+
+- `GET /v1/snapshots/:id/export` e MCP `pie_snapshot_export` agora chamam `PieService.exportSnapshot`; CLI também consome o serviço e concatena páginas até o fim. Formato JSON/MD/HTML, offset/limite em bytes UTF-8, `nextOffset`, tamanho total, digest da árvore e SHA-256 do artefato ficam no contrato v1.
+- Boundary API/MCP compara o artefato completo com CLI, valida hash e continuação, força páginas de 128 bytes, testa UTF-8 sem corte, autenticação e schema MCP 2020-12. Focadas `pieApi`, `pieMcp` e `pieComparison`: 6/6 passaram. Build/execução das boundaries utilizou SQLite/Git reais; sem mock no caminho de aplicação.
+- Ainda pendente: exportação persistida de relatórios de motores/histórico além do snapshot e CI incremental completa (T6.1 permanece parcial).
+
 ## Observação runtime VERIFY e regressão do reporter — 17/10/2026
 
 - `NodeResult` v2 preserva v1 e recebe `runtimeLocations`; instrumentação de coverage só para grants v2 de arquivo único. O reporter inclui somente path integral focado, linha selecionada e contagem positiva; não atesta comportamento funcional nem cria `covers`.

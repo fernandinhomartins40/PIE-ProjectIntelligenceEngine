@@ -17,6 +17,7 @@ import { enqueueVerification } from "./jobs/verification.js";
 import { scopedJob } from "./jobs/access.js";
 import { functionalInput } from "./functional.js";
 import { dataReviewInput } from "./dataReview.js";
+import { exportSnapshotInput } from "./exportSnapshot.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
@@ -166,6 +167,27 @@ export async function startPieApi(
           limit: Number(url.searchParams.get("limit") ?? 50),
         });
       const segments = url.pathname.split("/").filter(Boolean);
+      if (
+        request.method === "GET" &&
+        segments.length === 4 &&
+        segments[0] === "v1" &&
+        segments[1] === "snapshots" &&
+        segments[3] === "export"
+      ) {
+        respond(
+          response,
+          200,
+          await service.exportSnapshot(
+            exportSnapshotInput.parse({
+              snapshotId: segments[2],
+              format: url.searchParams.get("format") ?? "json",
+              offset: Number(url.searchParams.get("offset") ?? 0),
+              limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
+            }),
+          ),
+        );
+        return;
+      }
       if (
         request.method === "GET" &&
         segments.length === 4 &&

@@ -9,6 +9,10 @@ import { compareSnapshots, comparisonInput } from "./compare.js";
 import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
 import { assessFunctionalResult, functionalInput } from "./functional.js";
 import { dataReviewInput, reviewData } from "./dataReview.js";
+import {
+  exportSnapshot as renderSnapshotExport,
+  exportSnapshotInput,
+} from "./exportSnapshot.js";
 import { sealFunctional } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
@@ -277,6 +281,16 @@ export class PieService {
         declarations: page(snapshot.declarations, input),
         coverage: snapshot.coverage,
       };
+    });
+  }
+
+  exportSnapshot(input: unknown) {
+    return this.#read(async () => {
+      const request = exportSnapshotInput.parse(input);
+      return renderSnapshotExport(
+        await this.store.snapshot(request.snapshotId),
+        request,
+      );
     });
   }
 

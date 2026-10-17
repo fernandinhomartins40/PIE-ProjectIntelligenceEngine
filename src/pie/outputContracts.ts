@@ -7,6 +7,7 @@ import {
   snapshotSchema,
 } from "./contracts.js";
 import { httpProbeSummarySchema } from "./execution/httpProbe.js";
+import { exportSnapshotOutput } from "./exportSnapshot.js";
 
 const count = z.number().int().nonnegative();
 export const errorOutput = z.strictObject({
@@ -52,6 +53,7 @@ export const historyOutput = pagedOutput(
   z.strictObject({ id: z.string().uuid(), created_at: z.iso.datetime() }),
 );
 export const evidenceOutput = evidenceSchema;
+export { exportSnapshotOutput };
 export const httpProbeHistorySchema = pagedOutput(httpProbeSummarySchema);
 export const declarationsOutput = z.strictObject({
   snapshotId: z.string().uuid(),
