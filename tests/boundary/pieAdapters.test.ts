@@ -92,7 +92,7 @@ it("Next App Router usa exports AST, uma árvore e prova rastreável sem executa
     expect(review).toMatchObject({
       engine: "functional",
       state: "unverified",
-      scope: { declaredTargets: 3 },
+      scope: { declaredTargets: 3, examinedTargets: 1 },
       findings: {
         total: 3,
         nextOffset: 1,
@@ -107,6 +107,11 @@ it("Next App Router usa exports AST, uma árvore e prova rastreável sem executa
       offset: 1,
     });
     expect(next.findings.items[0]!.id).not.toBe(review.findings.items[0]!.id);
+    expect(next.scope).toEqual({
+      modulePath: "src/app",
+      declaredTargets: 3,
+      examinedTargets: 1,
+    });
     expect(
       (
         await service.functional({

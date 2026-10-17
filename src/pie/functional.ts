@@ -141,7 +141,7 @@ export function assessFunctional(
     scope: {
       modulePath,
       declaredTargets: targets.length,
-      examinedTargets: targets.length,
+      examinedTargets: selected.items.length,
     },
     findings: { ...selected, items: findings },
     coverage: {

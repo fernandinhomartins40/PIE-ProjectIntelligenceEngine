@@ -78,7 +78,7 @@ export function validateFunctional(
     actual.total !== expected.selected.total ||
     actual.nextOffset !== expected.selected.nextOffset ||
     record.result.scope.declaredTargets !== expected.targets.length ||
-    record.result.scope.examinedTargets !== expected.targets.length ||
+    record.result.scope.examinedTargets !== expected.selected.items.length ||
     canonicalize(actual.items.map((item) => item.declaration)) !==
       canonicalize(expected.selected.items)
   )

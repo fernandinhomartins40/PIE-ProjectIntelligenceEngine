@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Paginação e cobertura do motor funcional — 17/10/2026
+
+`scope.declaredTargets` continua contando todas as páginas/endpoints declarados no módulo; `scope.examinedTargets` agora conta somente as declarações materializadas na página solicitada. O validador de registros históricos aplica a mesma semântica, impedindo que um registro declare cobertura de itens que não retornou. Isso preserva a distinção entre total conhecido e trabalho examinado sem afirmar comportamento funcional verificado. `pieAdapters` e `pieFunctionalPersistence` passaram (11/11); `pie:build`, `check:fast`, `format:check` e `git diff --check` passaram em Windows. T4.1 segue parcial: execução e verificação de jornadas, permissões, persistência e reload ainda não implementadas neste motor.
+
 ## Estado dos remotos sincronizados — 17/10/2026
 
 Após publicar os relatórios em `1b31911d01e6a474853f7cb606d46a3c32d5a27d`, fetch confirmou `HEAD`, `origin/main` e `rea-fork/main` iguais; upstream `926e18b3f` ancestral e somente branch local `main`. Para esse SHA documental, PIE CI `39040621001` pending e Release `39040621073` queued; fork CI `39040625929` e Release `39040626022` pending. Não houve workflow PIE integration para a mudança somente documental.

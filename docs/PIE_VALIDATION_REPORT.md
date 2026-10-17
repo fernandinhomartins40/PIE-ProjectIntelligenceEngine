@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Cobertura do motor funcional paginado — 17/10/2026
+
+- Corrigida a contagem de cobertura: total declarado permanece global ao módulo; examinados corresponde aos itens da página retornada. Validação de registros históricos exige as mesmas contagens derivadas do snapshot e da solicitação.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts tests/boundary/pieFunctionalPersistence.test.ts`: 11/11 passaram, incluindo análise Next paginada e retenção/validação imutável em SQLite.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check` e `git diff --check` passaram no Windows. Nenhum runner funcional, navegador ou aplicação do usuário foi executado; T4.1 permanece parcial.
+
 ## Relatórios exigidos pelo protocolo de execução — 17/10/2026
 
 - Verificados ausentes e criados: `PIE_PROJECT_MAP.md`, `PIE_AUDIT_PLAN.md`, `PIE_FINDINGS.md` e `PIE_UPSTREAM_DIFF.md`. O protocolo 05 exige os quatro artefatos e findings com ID, severidade, evidência, reprodução, correção, status e limitação.

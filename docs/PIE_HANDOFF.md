@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Continuação do motor funcional — 17/10/2026
+
+Corrigida a semântica da cobertura paginada: `declaredTargets` é o total no escopo e `examinedTargets` é o tamanho da página efetivamente avaliada. O validador histórico confere ambas as contagens contra snapshot e request. Validação: 11/11 boundaries (`pieAdapters`, `pieFunctionalPersistence`), `pie:build`, `check:fast`, `format:check` e `git diff --check`. Próximo: seguir o plano integral com execução real autorizada e vinculada a cenários/evidências; o motor permanece `unverified`, e não há suporte completo para jornadas funcionais.
+
 ## Artefatos de auditoria obrigatórios
 
 Criados `PIE_PROJECT_MAP.md`, `PIE_AUDIT_PLAN.md`, `PIE_FINDINGS.md` e `PIE_UPSTREAM_DIFF.md`, exigidos pela seção 7 do protocolo de execução. A comparação `upstream/main...HEAD` confirmou zero commits upstream-only e 80 commits PIE-only no SHA `4451f1fc4`; diff de árvore: 173 arquivos, +51.949/−103. Licença MIT/notices preservados; sete gaps de notices e revisão legal permanecem abertos. `docs:check:built` e `format:check` passam após formatação. Próximo avanço: `Result` uniforme T1.1 ou retenção/redação T1.2, sem reduzir o restante do objetivo.
