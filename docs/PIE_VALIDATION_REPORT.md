@@ -510,3 +510,5 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts`: passou, 11/11 testes. Inclui Git/SQLite reais, input inválido, caminho ausente e sinal já cancelado; o boundary não executa scripts do repositório-fixture.
 - Falhas inesperadas não foram injetadas; Linux/macOS e demais boundaries não fazem parte desta rodada ainda.
 - O serviço preserva a razão de cancelamento chamando `throwIfAborted()` quando recebe a tag `cancelled`.
+
+- Correção adicional antes da execução completa: validação inválida enviada ao `PieService.discover` retorna `PieError(INVALID_INPUT)`, coberta por teste real de serviço/SQLite; boundary passou 12/12.

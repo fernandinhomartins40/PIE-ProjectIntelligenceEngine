@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { resolve } from "node:path";
-import { PieError, policySchema } from "./contracts.js";
+import { PieError, policySchema, type Policy } from "./contracts.js";
 import { discoverProjectResult, projectName } from "./discovery.js";
 import { page } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
@@ -51,6 +51,13 @@ function discoveryValue(
   } as const;
   const [code, message] = failures[result.error.kind];
   throw new PieError(code, message);
+}
+
+function policyValue(input: unknown): Policy {
+  const parsed = policySchema.safeParse(input);
+  if (!parsed.success)
+    throw new PieError("INVALID_INPUT", "Política de descoberta inválida.");
+  return parsed.data;
 }
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
@@ -138,7 +145,7 @@ export class PieService {
 
   async #discover(input: unknown, signal: AbortSignal) {
     signal.throwIfAborted();
-    const policy = policySchema.parse(input);
+    const policy = policyValue(input);
     const root = await realpath(resolve(policy.repositoryRoot));
     await this.store.assertOutside(root);
     const project = await this.store.addProject(

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
-import { policySchema } from "../../src/pie/contracts.js";
+import { PieError, policySchema } from "../../src/pie/contracts.js";
 import {
   discoverProject,
   discoverProjectResult,
@@ -72,6 +72,18 @@ async function verifyDiscoveryResultFailures() {
       AbortSignal.abort(new DOMException("cancelado", "AbortError")),
     ),
   ).toEqual({ ok: false, error: { kind: "cancelled" } });
+}
+
+async function verifyInvalidServicePolicy() {
+  const { root, repo } = await fixture();
+  const store = await openStore(join(root, "invalid-policy.sqlite"), repo);
+  try {
+    await expect(
+      new PieService(store).discover({ profile: "invalido" }),
+    ).rejects.toMatchObject({ constructor: PieError, code: "INVALID_INPUT" });
+  } finally {
+    store.close();
+  }
 }
 
 async function verifyPersistedSnapshot(
@@ -156,6 +168,10 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
 
   it("classifica falhas esperadas da descoberta sem mascarar falhas inesperadas", async () => {
     await verifyDiscoveryResultFailures();
+  });
+
+  it("expõe política inválida do serviço como erro de domínio estável", async () => {
+    await verifyInvalidServicePolicy();
   });
 
   it("preserva cancelamento recebido enquanto comandos Git estão ativos", async () => {
