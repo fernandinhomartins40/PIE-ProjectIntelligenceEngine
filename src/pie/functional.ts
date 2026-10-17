@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { adapterFactSchema } from "./adapters/contracts.js";
-import { type Snapshot, policySchema, PieError } from "./contracts.js";
+import {
+  type Snapshot,
+  engineName,
+  policySchema,
+  PieError,
+} from "./contracts.js";
 import { page, pageSchema } from "./graph.js";
 import { pagedOutput } from "./outputContracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
@@ -25,7 +30,7 @@ const target = z.strictObject({
 });
 export const functionalOutput = z.strictObject({
   schemaVersion: z.literal(1),
-  engine: z.literal("functional"),
+  engine: engineName.extract(["functional"]),
   snapshotId: z.string().uuid(),
   profile: z.literal("OBSERVE"),
   state: z.literal("unverified"),

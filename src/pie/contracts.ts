@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { adapterFactSchema } from "./adapters/contracts.js";
 import { digestSchema, sourceSchema } from "./source.js";
-export { digestSchema, sourceSchema } from "./source.js";
 
 export const verificationState = z.enum([
   "verified",
