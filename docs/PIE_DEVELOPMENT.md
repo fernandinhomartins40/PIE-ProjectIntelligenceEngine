@@ -229,3 +229,8 @@ Userinfo de autenticação em URI de transporte é substituído por [REDACTED]; 
 export <snapshot-id> --format md/html inclui arquivos com IDs, declarações com contexto/linha, relações do grafo registrado, evidências e seus hashes/metadados, cobertura e limitações. O export valida a integridade antes de serializar e não relê nem executa as fontes. O JSON preserva o snapshot completo. O HTML escapa conteúdo externo e usa CSP sem scripts.
 
 São relatórios de observação estática. Resultados VERIFY persistidos separadamente ainda não são incorporados a esse artefato; consulte verification/verifications para interpretá-los. Ausência de relação ou declaração não comprova ausência de comportamento.
+## Análise funcional OBSERVE
+
+`functional <snapshot-id> --module src/app --limit 50 --offset 0` apresenta lacunas de verificação das páginas/endpoints declarados. O módulo é opcional e deve ser caminho relativo canônico. MCP `pie_functional_review` e POST /v1/functional recebem snapshotId, modulePath opcional e paginação; todos usam o mesmo serviço. A API mantém autenticação/origem/CSRF.
+
+O resultado informa evidência, incerteza, passos de reprodução propostos, proposta e critérios de aceite. São achados informativos unverified, não defeitos comprovados. Não executa código, não infere autoridade de URLs e não aprova rota com base em testes sem vínculo. owner null significa responsável ainda não definido. A análise é derivada do snapshot, sem persistência própria de auditoria; motor funcional completo, cenários executáveis e histórico de findings permanecem em desenvolvimento.

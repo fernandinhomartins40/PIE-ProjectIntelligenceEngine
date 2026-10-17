@@ -7,6 +7,7 @@ import { page } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
 import { compareSnapshots, comparisonInput } from "./compare.js";
 import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
+import { assessFunctional, functionalInput } from "./functional.js";
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
@@ -159,6 +160,17 @@ export class PieService {
         this.store.snapshot(afterId),
       ]);
       return compareSnapshots(before, after, paging);
+    });
+  }
+  functional(input: unknown) {
+    return this.#read(async () => {
+      const request = functionalInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      return assessFunctional(snapshot, request, {
+        profile: "OBSERVE",
+        environment: "local",
+        repositoryRoot: snapshot.root,
+      });
     });
   }
 }

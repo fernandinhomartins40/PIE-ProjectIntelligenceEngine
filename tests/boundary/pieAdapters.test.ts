@@ -14,6 +14,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readCodeFacts } from "../../src/pie/codeFacts.js";
 import { nginxDirectives } from "../../src/pie/adapters/nginxSyntax.js";
 import { renderSnapshot } from "../../src/pie/reports.js";
+import { assessFunctional } from "../../src/pie/functional.js";
 
 it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-next-"));
@@ -79,6 +80,63 @@ it("Next App Router usa exports AST, uma árvore e prova rastreável sem executa
       true,
     );
     expect(trace.coverage.runtime).toBe(false);
+    const review = await service.functional({
+      snapshotId: snapshot.id,
+      modulePath: "src/app",
+      limit: 1,
+    });
+    expect(review).toMatchObject({
+      engine: "functional",
+      state: "unverified",
+      scope: { declaredTargets: 3 },
+      findings: {
+        total: 3,
+        nextOffset: 1,
+        items: [{ state: "unverified", severity: "info", owner: null }],
+      },
+      coverage: { runtime: false, journeyVerification: false },
+    });
+    const next = await service.functional({
+      snapshotId: snapshot.id,
+      modulePath: "src/app",
+      limit: 1,
+      offset: 1,
+    });
+    expect(next.findings.items[0]!.id).not.toBe(review.findings.items[0]!.id);
+    expect(
+      (
+        await service.functional({
+          snapshotId: snapshot.id,
+          modulePath: "missing",
+        })
+      ).findings.total,
+    ).toBe(0);
+    await expect(
+      service.functional({ snapshotId: snapshot.id, modulePath: "../src" }),
+    ).rejects.toThrow("canônico");
+    expect(() =>
+      assessFunctional(
+        snapshot,
+        { snapshotId: randomUUID() },
+        {
+          profile: "OBSERVE",
+          environment: "local",
+          repositoryRoot: snapshot.root,
+        },
+      ),
+    ).toThrow("correspondentes");
+    expect(() =>
+      assessFunctional(
+        snapshot,
+        { snapshotId: snapshot.id },
+        {
+          profile: "VERIFY",
+          allowTargetExecution: true,
+          environment: "local",
+          repositoryRoot: snapshot.root,
+        },
+      ),
+    ).toThrow("OBSERVE");
   } finally {
     await service.close();
     await rm(root, { recursive: true, force: true });

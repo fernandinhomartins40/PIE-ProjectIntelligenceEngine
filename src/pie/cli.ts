@@ -32,6 +32,7 @@ export async function runPie(args: string[]): Promise<void> {
       "docker-host": { type: "string" },
       continuous: { type: "boolean" },
       "poll-ms": { type: "string" },
+      module: { type: "string" },
     },
   });
   const [command, target] = parsed.positionals;
@@ -66,6 +67,9 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Resultados persistidos: verification <run-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta não inicia testes.",
+    );
+    console.log(
+      "Análise funcional OBSERVE: functional <snapshot-id> --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Lacunas de verificação não são defeitos comprovados.",
     );
     console.log(
       "VERIFY Linux: verify <autorização.json> --state-dir <diretório-0700> --docker-bin <executável-absoluto> --docker-host <daemon-local>. Recursos: resources --state-dir <diretório> | recover <run-id> com as mesmas opções Docker. Sem pull automático.",
@@ -157,6 +161,7 @@ export async function runPie(args: string[]): Promise<void> {
       "history",
       "graph",
       "declarations",
+      "functional",
       "trace",
       "evidence",
       "verification",
@@ -286,6 +291,13 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "declarations":
         result = await service.declarations(target!, paging);
+        break;
+      case "functional":
+        result = await service.functional({
+          snapshotId: target!,
+          ...paging,
+          modulePath: parsed.values.module ?? "",
+        });
         break;
       case "trace":
         result = await service.trace({

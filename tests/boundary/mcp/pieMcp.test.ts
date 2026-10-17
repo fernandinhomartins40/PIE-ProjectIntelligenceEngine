@@ -89,6 +89,56 @@ async function verifyQueueCli(script: string, repo: string, db: string) {
   expect(JSON.parse(job.stdout)).toMatchObject({ state: "succeeded" });
 }
 
+async function verifyFunctional(
+  client: Client,
+  options: { script: string; db: string; snapshotId: string },
+  catalog: Awaited<ReturnType<Client["listTools"]>>["tools"],
+  ajv: Ajv2020,
+) {
+  const { script, db, snapshotId } = options;
+  const functional = await client.callTool({
+    name: "pie_functional_review",
+    arguments: { snapshotId: snapshotId },
+  });
+  expect(functional.structuredContent).toMatchObject({
+    engine: "functional",
+    state: "unverified",
+    coverage: { runtime: false },
+    findings: { total: 0 },
+  });
+  const functionalTool = catalog.find(
+    (item) => item.name === "pie_functional_review",
+  )!;
+  expect(
+    ajv.compile(functionalTool.outputSchema as AnySchema)(
+      functional.structuredContent,
+    ),
+  ).toBe(true);
+  expect(
+    JSON.parse(
+      (
+        await exec(process.execPath, [
+          script,
+          "functional",
+          snapshotId,
+          "--db",
+          db,
+        ])
+      ).stdout,
+    ),
+  ).toEqual(functional.structuredContent);
+}
+
+function verifySchemas(
+  catalog: Awaited<ReturnType<Client["listTools"]>>["tools"],
+  ajv: Ajv2020,
+) {
+  for (const tool of catalog) {
+    expect(ajv.validateSchema(tool.inputSchema)).toBe(true);
+    expect(ajv.validateSchema(tool.outputSchema as AnySchema)).toBe(true);
+  }
+}
+
 it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-mcp-"));
   const repo = join(root, "target");
@@ -124,14 +174,17 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
     );
     expect(tools.tools.map((tool) => tool.name)).not.toContain("pie_test_run");
     const ajv = new Ajv2020({ strict: false, validateFormats: false });
-    for (const tool of tools.tools) {
-      expect(ajv.validateSchema(tool.inputSchema)).toBe(true);
-      expect(ajv.validateSchema(tool.outputSchema as AnySchema)).toBe(true);
-    }
+    verifySchemas(tools.tools, ajv);
     const runs = await client.callTool({
       name: "pie_verifications_list",
       arguments: { snapshotId: discovered.snapshot.id },
     });
+    await verifyFunctional(
+      client,
+      { script, db, snapshotId: discovered.snapshot.id },
+      tools.tools,
+      ajv,
+    );
     expect(runs.structuredContent).toMatchObject({ total: 0, items: [] });
     const runSchema = tools.tools.find(
       (tool) => tool.name === "pie_verifications_list",

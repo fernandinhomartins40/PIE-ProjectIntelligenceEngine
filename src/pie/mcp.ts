@@ -7,6 +7,7 @@ import type { PieService } from "./service.js";
 import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
+import { functionalInput, functionalOutput } from "./functional.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { nodeTestGrantSchema } from "./execution/contracts.js";
 import { realpath } from "node:fs/promises";
@@ -81,6 +82,17 @@ export function createPieMcp(
       return { ...result({ schemaVersion: 1, error }), isError: true };
     }
   };
+  server.registerTool(
+    "pie_functional_review",
+    {
+      description:
+        "Analisa lacunas de verificação de páginas/endpoints declarados no snapshot, por módulo e com evidências. OBSERVE: não executa cenários, não comprova defeitos ou funcionamento. Retorna proposta/reprodução/aceite e incerteza.",
+      inputSchema: functionalInput,
+      outputSchema: withError(functionalOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.functional(input)),
+  );
   if (verifier && queue) {
     server.registerTool(
       "pie_verification_enqueue",

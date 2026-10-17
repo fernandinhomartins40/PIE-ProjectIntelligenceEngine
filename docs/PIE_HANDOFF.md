@@ -1,5 +1,13 @@
 # PIE — Continuidade
 
+## Análise funcional de lacunas OBSERVE — 16/10/2026
+
+CI 38991366300 (a872b359e) passou. Nova assessFunctional lê snapshot validado, política OBSERVE e módulo relativo canônico, produz achados tipados para páginas/endpoints declarados com prova, informação de severidade, incerteza, passos de reprodução propostos, proposta e critérios de validação. Estado sempre unverified, responsável desconhecido null. Lacuna de verificação não é defeito nem ausência de implementação. Não associa teste aprovado à rota sem vínculo próprio, não executa cenários e não altera alvo. Sem declarações, não fabrica aprovação nem not_found.
+
+PieService.functional centraliza o fluxo; CLI functional <snapshot-id> --module <caminho> --limit/offset, MCP pie_functional_review com schemas versionados e POST /v1/functional usam a mesma análise. O resultado é uma projeção das evidências, ainda sem histórico próprio de auditoria. Escopo por módulo usa fronteira de caminho, sem traversal. Páginas/endpoints não cobrem eventos, persistência, permissões, jornadas e jobs completos. Motor funcional e os demais motores continuam incompletos; aceite de defeitos semeados e runtime permanece pendente.
+
+Testes Git/SQLite cobrem prova/linha, página/módulo, paginação, escopo/política recusados e estado vazio unverified. CLI/MCP real por stdio compara respostas e valida Ajv. HTTP compara resposta ao serviço real. Rodada inicial encontrou passagem incorreta de campos de escopo ao parser estrito de paginação; corrigido o produtor para fornecer somente offset/limit. Após correção, adapters/MCP passaram; API passou após correção de setup do teste (dois testes, 3,10s). Build PIE passou; lint dos novos módulos/testes sem avisos/erros. Não há validação funcional runtime nesta entrega nem comprovação de motor completo. Goal integral ativo.
+
 ## Exportação com declarações, relações e provas — 16/10/2026
 
 Relatórios Markdown/HTML deixam de conter somente arquivos: incluem declarações de todos os adapters, relações registradas pelo mesmo buildKnowledgeGraph dos consumidores, IDs dos arquivos, contexto/linha, hashes e metadados completos das evidências, limitações e contagem de relações não resolvidas. Raiz, treeDigest, estado Git, cobertura de arquivos e bytes também são exibidos. Não reinterpreta fontes nem transforma inventário em aprovação. O relatório de snapshot informa explicitamente que não incorpora resultados VERIFY separados. JSON mantém o snapshot integral.

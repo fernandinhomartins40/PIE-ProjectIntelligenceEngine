@@ -19,7 +19,8 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
   const store = await openStore(join(root, "api.sqlite"), repo);
   const token = "fixture-api-token-only-32-characters-minimum";
   const queue = new SqliteJobQueue(join(root, "jobs.sqlite"));
-  const api = await startPieApi(new PieService(store), {
+  const service = new PieService(store);
+  const api = await startPieApi(service, {
     root: repo,
     token,
     queue,
@@ -64,6 +65,15 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
     const graph = await fetch(`${api.url}/v1/graph/${result.snapshot.id}`, {
       headers,
     });
+    const functional = await fetch(`${api.url}/v1/functional`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ snapshotId: result.snapshot.id }),
+    });
+    expect(functional.status).toBe(200);
+    expect(await functional.json()).toEqual(
+      await service.functional({ snapshotId: result.snapshot.id }),
+    );
     const graphData = (await graph.json()) as {
       nodes: { items: Array<{ id: string }> };
     };

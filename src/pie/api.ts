@@ -15,6 +15,7 @@ import { loadWebAssets, WEB_CSP } from "./webAssets.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { enqueueVerification } from "./jobs/verification.js";
 import { scopedJob } from "./jobs/access.js";
+import { functionalInput } from "./functional.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -265,6 +266,14 @@ export async function startPieApi(
           response,
           200,
           await options.queue.cancel(z.string().uuid().parse(segments[2])),
+        );
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/functional") {
+        respond(
+          response,
+          200,
+          await service.functional(functionalInput.parse(await body(request))),
         );
         return;
       }
