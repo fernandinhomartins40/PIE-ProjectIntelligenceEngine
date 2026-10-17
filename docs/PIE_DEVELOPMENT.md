@@ -266,3 +266,9 @@ Plano não autoriza execução. A classificação por nome e os imports não com
 Após Comparar snapshots, Planejamento de retestes permite selecionar Impacto registrado nas duas versões ou Todos os testes observados na versão posterior. Planejar retestes consulta o serviço; tabelas paginadas mostram motivo e prova de cada candidato. Modo consultado é exibido para distinguir o resultado dos controles ainda não submetidos. Seleção não autoriza nem executa código. Arquivos classificados como teste podem exigir outro runner; compatibilidade fica não verificada. Nenhum candidato não comprova ausência de regressão.
 
 A evidência derivada de uma diretiva com userinfo de transporte removido recebe redactionStatus=redacted e uma limitação descrevendo a transformação. O inventário sem conteúdo coletado mantém not_collected. Metadados são definidos pelo parser/coletor produtor, sem inferência posterior pelo nome da declaração; registros históricos não são reescritos.
+
+## Desenvolvimento do runner HTTP
+
+httpTransport.ts e httpProbe.ts são módulos internos em integração, sem comando público. Teste real: tests/boundary/pieHttpTransport.test.ts. Transporte permite GET/HEAD a endereço literal 127.0.0.1, porta explícita e caminho ASCII codificado; não usa DNS/proxy/cookies nem segue redirects. O workflow exige grant VERIFY separado para requisição local, snapshot, raiz autorizada, prazo/limites, status esperado, digest opcional e TTL.
+
+Resultado passed se refere apenas à asserção status/digest de resposta completa. Não prova que o processo responde pela revisão do snapshot, nem jornada/persistência/permissões. Capturas parciais nunca aprovam; corpo e headers não são retidos. Falhas preservam status/bytes/digest parcial e tag. Persistência, habilitação explícita em adaptadores públicos e isolamento/identidade do serviço alvo ainda precisam ser integrados antes de anunciar o runner completo.

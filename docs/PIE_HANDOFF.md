@@ -1,5 +1,13 @@
 # PIE — Continuidade
 
+## Base real do runner HTTP local — 17/10/2026
+
+CI 38999421398 (fa7f25986) passou. Novo transporte interno captureLocalHttp envia GET/HEAD apenas a 127.0.0.1 e porta explícita, sem DNS, proxy, pool compartilhado, cookies, autenticação ou redirects. Caminho ASCII codificado é preservado; headers limitados a 16 KiB, corpo a 10 MB e prazo a 30s por seleção. Hash incremental retém somente bytes até o limite, sem corpo/headers na saída. Falhas esperadas usam Result/tag com captura parcial: entrada inválida, cancelamento, timeout, limite ou transporte. Não publica antes de finalizar o request/socket que possui.
+
+Workflow interno probeLocalHttp exige grant VERIFY allowLocalHttpRequests explícito, snapshot/treeDigest, raiz fixa, expiração e TTL da evidência. Confere status esperado e digest opcional; parcial nunca passa. Resultado/prova são selados, preservam autorização e retornam TTL/limitações. A prova registra que não foi demonstrado que o processo respondente executa os bytes do snapshot, e que a asserção HTTP não comprova jornada, permissão ou persistência. Nenhum código do alvo é iniciado ou isolado por esse workflow. Não está registrado na CLI/API/MCP/UI: habilitação pública, armazenamento atômico, identificação do alvo e integração aos jobs ainda pendentes. Não apresentar como runner HTTP completo ou motor funcional pronto.
+
+Testes com servidores HTTP reais e snapshot Git real (sem mocks) passaram: três testes, 2,53s. Cobrem GET/HEAD, caminho/query preservados, redirect não seguido, sem retenção de corpo/cookie, host e Unicode inválidos, limite, timeout, resposta interrompida, cancelamento com sockets drenados, grant expirado/snapshot divergente, digest/status incorretos, integridade e TTL. Build PIE passou; lint dos módulos/teste sem avisos/erros. Testes acrescentados à CI PIE. Sem validação em aplicação real do usuário, TLS/autenticação/remotos não suportados; CPU/memória/tokens não medidos. Demais runners/motores e aceite integral pendentes; goal ativo.
+
 ## Proveniência de redação de transporte — 17/10/2026
 
 Revisão encontrou metadado incorreto: nginx-config removia userinfo de URI, mas a evidência derivada herdava redactionStatus=not_collected do inventário de bytes. Parser agora devolve notas internas de redação por declaração; collectDeclarations, dono da prova derivada, aplica redactionStatus=redacted e inclui a transformação nas limitações antes de selar o hash. Nenhum consumidor reinterpreta o nome para inferir segredo/redação. Valores não redigidos e prova do inventário preservam o estado original; hash da fonte continua identificando bytes originais. Registros históricos não são alterados nem re-selados retroativamente.
