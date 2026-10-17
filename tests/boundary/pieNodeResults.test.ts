@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 import { expect, it } from "vitest";
 import { NODE_REPORTER_SOURCE } from "../../src/pie/execution/nodeReporter.js";
+import { nodeReporterSource } from "../../src/pie/execution/nodeReporter.js";
 import {
   normalizeNodeResult,
   nodeResultSchema,
@@ -153,6 +154,79 @@ it("mantém resultados parciais sem transformar truncamento ou saída zero em ap
     false,
   );
 });
+
+it.skipIf(!process.env.PIE_NODE_COVERAGE_EXECUTABLE)(
+  "observa linhas de runtime selecionadas sem atribuir comportamento ao teste",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "pie-node-coverage-"));
+    try {
+      await writeFile(join(root, "subject.mjs"), "export const value = 1;\n");
+      const reporter = join(root, "reporter.mjs");
+      await writeFile(
+        reporter,
+        nodeReporterSource({
+          coverageFocus: [{ sourcePath: "subject.mjs", line: 1 }],
+        }),
+      );
+      await writeFile(
+        join(root, "case.test.mjs"),
+        "import { test } from 'node:test'; import './subject.mjs'; test('loads source', () => {});\n",
+      );
+      const nodeExecutable = process.env.PIE_NODE_COVERAGE_EXECUTABLE!;
+      const output = await new Promise<{ stdout: Buffer; exitCode: number }>(
+        (accept, reject) => {
+          execFile(
+            nodeExecutable,
+            [
+              "--test",
+              "--experimental-test-coverage",
+              "--test-concurrency=1",
+              `--test-reporter=${pathToFileURL(reporter).href}`,
+              join(root, "case.test.mjs"),
+            ],
+            {
+              encoding: "buffer",
+              timeout: 10_000,
+              maxBuffer: limits.bytes,
+              windowsHide: true,
+              env: {
+                PATH: process.env.PATH,
+                ...(process.env.SystemRoot
+                  ? { SystemRoot: process.env.SystemRoot }
+                  : {}),
+              },
+            },
+            (error, stdout) => {
+              if (error && typeof error.code !== "number") reject(error);
+              else
+                accept({
+                  stdout,
+                  exitCode: typeof error?.code === "number" ? error.code : 0,
+                });
+            },
+          );
+        },
+      );
+      const result = normalizeNodeResult(
+        output.stdout,
+        { ...completed, exitCode: output.exitCode },
+        limits,
+      );
+      expect(result.state).toBe("passed");
+      expect(result.schemaVersion).toBe(2);
+      if (result.schemaVersion === 2) {
+        expect(result.runtimeLocations.reportComplete).toBe(true);
+        expect(result.runtimeLocations.locations).toEqual([]);
+        expect(result.runtimeLocations.limitations).toContain(
+          "Nenhum caminho do runtime correspondeu exatamente ao foco autorizado.",
+        );
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  20_000,
+);
 
 it("não aprova arquivo vazio nem falha de processo sem testes", async () => {
   for (const [body, state] of [

@@ -21,7 +21,7 @@ import { prepareWorkspace, type PreparedWorkspace } from "./workspace.js";
 import { DockerCommand } from "./dockerCommand.js";
 import { DockerExecution } from "./dockerExecution.js";
 import { buildDockerPlan } from "./dockerPlan.js";
-import { NODE_REPORTER_SOURCE } from "./nodeReporter.js";
+import { NODE_REPORTER_SOURCE, nodeReporterSource } from "./nodeReporter.js";
 import { normalizeNodeResult } from "./nodeResults.js";
 import type { VerificationJournal } from "./resourceJournal.js";
 import type { Snapshot } from "../contracts.js";
@@ -77,6 +77,7 @@ export class NodeVerification {
 
   async #resources(
     admitted: AdmittedNodeTests,
+    snapshot: Snapshot,
     id: string,
     signal: AbortSignal,
   ) {
@@ -92,7 +93,27 @@ export class NodeVerification {
     this.#workspace = prepared.value;
     const reporter = join(prepared.value.controlDirectory, "reporter.mjs");
     const config = join(prepared.value.controlDirectory, "docker-config");
-    await writeFile(reporter, NODE_REPORTER_SOURCE, {
+    const coverageFocus =
+      admitted.grant.schemaVersion === 2 &&
+      admitted.grant.testFiles.length === 1
+        ? admitted.grant.testBindings.flatMap((binding) => {
+            const declaration = snapshot.declarations.find(
+              (fact) => fact.id === binding.declarationId,
+            );
+            return declaration?.source.line === null || !declaration
+              ? []
+              : [
+                  {
+                    sourcePath: declaration.source.path,
+                    line: declaration.source.line,
+                  },
+                ];
+          })
+        : [];
+    const reporterSource = coverageFocus.length
+      ? nodeReporterSource({ coverageFocus })
+      : NODE_REPORTER_SOURCE;
+    await writeFile(reporter, reporterSource, {
       flag: "wx",
       mode: 0o444,
     });
@@ -159,7 +180,12 @@ export class NodeVerification {
     );
     let failure: VerificationRun["failure"] = null;
     try {
-      const execution = await this.#resources(admission.value, id, effective);
+      const execution = await this.#resources(
+        admission.value,
+        observed,
+        id,
+        effective,
+      );
       const output = await execution.execute(effective);
       result = output.result;
       if (output.failure)

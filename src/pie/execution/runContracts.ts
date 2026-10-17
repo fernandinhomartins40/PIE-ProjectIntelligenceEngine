@@ -36,7 +36,7 @@ export const verificationHistorySchema = pagedOutput(
     snapshotId: z.string().uuid(),
     createdAt: z.iso.datetime(),
     completedAt: z.iso.datetime(),
-    state: nodeResultSchema.shape.state,
+    state: z.enum(["passed", "failed", "skipped", "blocked", "inconclusive"]),
     cleanup: verificationRunV1Schema.shape.cleanup,
     evidenceId: z.string().uuid(),
   }),

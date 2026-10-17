@@ -1,5 +1,13 @@
 # PIE — Continuidade
 
+## Continuidade atual — observação de runtime VERIFY — 17/10/2026
+
+NodeResult v2 preserva leitura v1 e carrega `runtimeLocations`; instrumentação experimental somente para grant v2 com um único teste. O reporter retorna exclusivamente paths/linhas do foco autorizado e não gera associação funcional. Validação focada: 11 testes passaram, 3 skips explícitos; typecheck/lint 2/2, format e diff check verdes. Node 24.18 no Windows reportou caminho absoluto do host; a comparação exata com caminho de container não atribuiu local, de forma segura. Docker Linux real ausente. Próximo: executar teste de cobertura na lane Docker Linux e confirmar path observado; só então considerar exposição nos bindings CLI/API/MCP. T4.1 continua parcial.
+
+## Próximo passo seguro — caminho de cobertura runtime VERIFY — 17/10/2026
+
+NodeResult v2 foi adicionado preservando schema v1; parser aceita registro de localizações estrito e limitado. Grants v2 com um único arquivo ativam coverage experimental do Node. Regressões focadas passaram para plano, persistência, verificação, regressão e testes gerais; `pieNodeResults` confirmou casos Node normais e cobertura reportada sem correspondência. O probe Node 24.18 no Windows emitiu caminhos absolutos do host, e o reporter dentro de container Linux espera `/source/<path>` exato. Isso permanece sem atribuição, corretamente. Antes de anunciar runtime locations em API/MCP ou alimentar `covers`, executar lane Docker Linux real e verificar o caminho reportado; sem Docker, ficar `unknown`/sem location. T4.1 segue parcial.
+
 ## Comparação de bindings VERIFY — 17/10/2026
 
 O comparador de execuções agora tem schema v2 e publica, nas mesmas respostas CLI/API/MCP, os bindings teste→declaração de cada grant, os fatos estáticos e Evidence de origem. Pagina cada lado; execução legada/grant v1 fica `unknown`, e v2 é `declared_unverified`. Leitura persistida verifica novamente que os arquivos pertencem ao grant e as declarações ao snapshot. Boundary `pieRegressionResults` passou 2/2 incluindo igualdade dos três adapters e registro adulterado com hash/Evidence recalculados recusado por ID ausente; `pieExecutionAdmission` 5/1 skip, `pieRunPersistence` 1/1 skip; schemas gerais MCP 15/15. `check:fast`, `pie:build` e `mcp-catalog:check` passaram. Essa associação ainda não prova cobertura runtime nem cria `covers`; seguir com uma fonte real de execução de capacidades e ampliar o motor funcional.

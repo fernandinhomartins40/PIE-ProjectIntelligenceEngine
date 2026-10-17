@@ -1,5 +1,16 @@
 # PIE — Plano mestre de implementação integral
 
+## Canal versionado para observação de linhas VERIFY — 17/10/2026
+
+- `NodeResult` agora lê schema v1 e grava v2 com `runtimeLocations`; o reporter aceita somente focos caminho/linha obtidos das declarações do snapshot e emite locais positivos por correspondência de caminho completo. O plano ativa `--experimental-test-coverage` somente para grant v2 com um arquivo. Isso registra execução da linha, não comprova que o teste validou o comportamento nem cria aresta `covers`.
+- O runner Node 24.18.0 real em Windows emitiu caminho absoluto do host incompatível com `/source/<path>`. A comparação exata deixou os locais vazios com limitação, sem sufixo heurístico; a lane Docker Linux não estava disponível. Grants com vários testes não instrumentam. T4.1 permanece parcial até identidade de caminho e projeção pública serem verificadas no Docker Linux real.
+- `npm.cmd run test:focused -- tests/boundary/pieNodeResults.test.ts tests/boundary/pieDockerPlan.test.ts tests/boundary/pieVerification.test.ts tests/boundary/pieRunPersistence.test.ts tests/boundary/pieRegressionResults.test.ts`: 11 passaram, 3 skips declarados (Docker/plataforma/PostgreSQL). O teste específico de coverage com Node 24.18 passou quando `PIE_NODE_COVERAGE_EXECUTABLE` apontou para o runtime provisionado.
+- `npm.cmd run check:fast` (typecheck/lint 2/2), `npm.cmd run format:check` (4.116 arquivos) e `git diff --check` passaram. PostgreSQL e Docker real não executados.
+
+## Observação experimental de localizações VERIFY — 17/10/2026
+
+O contrato de resultado Node avança para v2, preservando leitura de v1, e aceita registros estritos de localização runtime limitados aos pares caminho/linha autorizados. O plano Docker inclui `--experimental-test-coverage` somente para grants v2 com um arquivo de teste; a instrumentação é opt-in e escopo único reduz a ambiguidade agregada do runner. O reporter compara caminho completo exato e não cria `covers`, nem afirma que um teste validou o comportamento. Em Windows, o teste com Node 24.18 produziu caminhos absolutos do host que não coincidiram com o caminho `/source/...` do container; resultado corretamente ficou sem locations e com limitação. A lane Docker real não está disponível neste ambiente, então nenhuma linha executada foi atribuída ao snapshot. Manter T4.1 parcial; próximo passo é provar identidade dos caminhos no container Linux real antes de projetar runtime locations nos bindings de regressão/API/MCP.
+
 ## Comparação de bindings declarados por execução — 17/10/2026
 
 `verification-diff`, MCP e API agora retornam schema v2 com bindings de cada grant, detalhes da declaração e Evidence de origem, paginação e interpretação `declared_unverified`; execução antiga/grant v1 retorna estado `unknown`. Ao reler registros, os vínculos são revalidados contra arquivo autorizado e declarações do snapshot. Nenhuma associação é promovida a aresta `covers` nem a cobertura funcional. `pie:build`, `check:fast` (2/2), `pieRegressionResults` (2/2, com igualdade entre API/CLI/MCP e rejeição de payload com declaração inexistente), `pieExecutionAdmission` (5 pass/1 skip), `pieRunPersistence` (1 pass/1 skip) e `toolSchemaValidity` (15/15) passaram. T4.1 continua parcial.

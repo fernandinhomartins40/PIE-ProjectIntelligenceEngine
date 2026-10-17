@@ -1,5 +1,6 @@
 import { dockerFixture as fixture } from "./pieDockerFixture.js";
 import { expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
 import {
   buildDockerPlan,
   inspectDockerOwnership,
@@ -29,6 +30,37 @@ it("gera somente comando Node fixo, sem pull, shell, rede ou montagem do projeto
       plan.runId,
     ).ok,
   ).toBe(false);
+});
+it("habilita cobertura apenas para um grant v2 com arquivo de teste único", () => {
+  const { plan, grant } = fixture();
+  const binding = { testFile: grant.testFiles[0]!, declarationId: "decl" };
+  const single = buildDockerPlan(
+    {
+      ...grant,
+      schemaVersion: 2,
+      testBindings: [binding],
+    },
+    plan.source,
+    plan.reporter,
+    randomUUID(),
+  );
+  expect(single.ok && single.value.command).toContain(
+    "--experimental-test-coverage",
+  );
+  const multiple = buildDockerPlan(
+    {
+      ...grant,
+      schemaVersion: 2,
+      testFiles: [grant.testFiles[0]!, "test/other.test.mjs"],
+      testBindings: [binding],
+    },
+    plan.source,
+    plan.reporter,
+    randomUUID(),
+  );
+  expect(multiple.ok && multiple.value.command).not.toContain(
+    "--experimental-test-coverage",
+  );
 });
 it("separa prova de ownership da validade do isolamento e recusa deriva de configuração", () => {
   const { plan, imageId, container } = fixture();

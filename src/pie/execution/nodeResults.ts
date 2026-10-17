@@ -31,13 +31,25 @@ export const nodeSummarySchema = z.strictObject({
   durationMs: z.number().finite().nonnegative(),
   success: z.boolean(),
 });
+export const runtimeLocationSchema = z.strictObject({
+  sourcePath: z.string().min(1),
+  line: z.number().int().positive(),
+});
+const runtimeLocationRecordSchema = z.strictObject({
+  protocolVersion: z.literal(1),
+  kind: z.literal("runtime-locations"),
+  complete: z.boolean(),
+  locations: z.array(runtimeLocationSchema).max(5000),
+});
 const recordSchema = z.discriminatedUnion("kind", [
   nodeCaseSchema,
   nodeSummarySchema,
+  runtimeLocationRecordSchema,
 ]);
 export type NodeReport = {
   cases: Array<z.infer<typeof nodeCaseSchema>>;
   summary: z.infer<typeof nodeSummarySchema> | null;
+  runtimeLocations: z.infer<typeof runtimeLocationRecordSchema> | null;
 };
 type ReportFailure = { cause: AnalysisOutputError; partial: NodeReport };
 
@@ -61,7 +73,11 @@ export function parseNodeReport(
   bytes: Uint8Array,
   limits: { bytes: number; records: number },
 ): Result<NodeReport, ReportFailure> {
-  const partial: NodeReport = { cases: [], summary: null };
+  const partial: NodeReport = {
+    cases: [],
+    summary: null,
+    runtimeLocations: null,
+  };
   const fail = (reason: string): Result<never, ReportFailure> =>
     err({
       cause: new AnalysisOutputError("pie.node-results", reason),
@@ -84,6 +100,7 @@ export function parseNodeReport(
   if (!text.endsWith("\n"))
     return fail("Relatório não terminou com um registro completo.");
   let records = 0;
+  let summarySeen = false;
   for (const line of text.slice(0, -1).split("\n")) {
     if (++records > limits.records)
       return fail("Limite de registros atingido.");
@@ -96,10 +113,17 @@ export function parseNodeReport(
     const parsed = recordSchema.safeParse(input);
     if (!parsed.success)
       return fail("Registro incompatível com protocolo Node PIE v1.");
-    if (partial.summary)
+    if (summarySeen && parsed.data.kind !== "runtime-locations")
       return fail("Registros encontrados após o resumo final.");
     if (parsed.data.kind === "case") partial.cases.push(parsed.data);
-    else partial.summary = parsed.data;
+    else if (parsed.data.kind === "summary") {
+      summarySeen = true;
+      partial.summary = parsed.data;
+    } else {
+      if (partial.runtimeLocations)
+        return fail("Registro de localizaÃ§Ãµes de runtime duplicado.");
+      partial.runtimeLocations = parsed.data;
+    }
   }
   if (!partial.summary) return fail("Resumo final ausente.");
   const { counts } = partial.summary;
@@ -124,22 +148,23 @@ export function parseNodeReport(
   return ok(partial);
 }
 
-export const nodeResultSchema = z
-  .strictObject({
-    schemaVersion: z.literal(1),
-    state: testState,
-    counts: nodeCountsSchema.nullable(),
-    cases: z.array(nodeCaseSchema),
-    durationMs: z.number().nonnegative().nullable(),
-    exitCode: z.number().int().nullable(),
-    signal: z.string().nullable(),
-    coverage: z.strictObject({
-      reportComplete: z.boolean(),
-      processCompleted: z.boolean(),
-      truncated: z.boolean(),
-      limitations: z.array(z.string()),
-    }),
-  })
+const nodeResultShape = {
+  schemaVersion: z.literal(1),
+  state: testState,
+  counts: nodeCountsSchema.nullable(),
+  cases: z.array(nodeCaseSchema),
+  durationMs: z.number().nonnegative().nullable(),
+  exitCode: z.number().int().nullable(),
+  signal: z.string().nullable(),
+  coverage: z.strictObject({
+    reportComplete: z.boolean(),
+    processCompleted: z.boolean(),
+    truncated: z.boolean(),
+    limitations: z.array(z.string()),
+  }),
+};
+const nodeResultV1Schema = z
+  .strictObject(nodeResultShape)
   .refine(
     (value) =>
       value.state !== "passed" ||
@@ -164,6 +189,44 @@ export const nodeResultSchema = z
         "Aprovação exige cobertura completa e casos aprovados consistentes.",
     },
   );
+const nodeResultV2Schema = z
+  .strictObject({
+    ...nodeResultShape,
+    schemaVersion: z.literal(2),
+    runtimeLocations: z.strictObject({
+      reportComplete: z.boolean(),
+      locations: z.array(runtimeLocationSchema).max(5000),
+      limitations: z.array(z.string()),
+    }),
+  })
+  .refine(
+    (value) =>
+      value.state !== "passed" ||
+      (value.coverage.reportComplete &&
+        value.coverage.processCompleted &&
+        !value.coverage.truncated &&
+        value.exitCode === 0 &&
+        value.signal === null &&
+        value.counts !== null &&
+        value.counts.tests > 0 &&
+        value.counts.passed === value.counts.tests &&
+        value.counts.failed +
+          value.counts.cancelled +
+          value.counts.skipped +
+          value.counts.todo ===
+          0 &&
+        value.cases.filter((item) => item.category === "test").length ===
+          value.counts.tests &&
+        value.cases.every((item) => item.outcome === "passed")),
+    {
+      message:
+        "AprovaÃ§Ã£o exige cobertura completa e casos aprovados consistentes.",
+    },
+  );
+export const nodeResultSchema = z.discriminatedUnion("schemaVersion", [
+  nodeResultV1Schema,
+  nodeResultV2Schema,
+]);
 export type NodeCapture = {
   started: boolean;
   completed: boolean;
@@ -235,8 +298,9 @@ export function normalizeNodeResult(
       );
     }
   }
+  const runtimeRecord = report.runtimeLocations;
   return nodeResultSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     state,
     counts: summary?.counts ?? null,
     cases: report.cases,
@@ -248,6 +312,21 @@ export function normalizeNodeResult(
       processCompleted: capture.completed,
       truncated: capture.truncated,
       limitations,
+    },
+    runtimeLocations: {
+      reportComplete: runtimeRecord?.complete ?? false,
+      locations: runtimeRecord?.locations ?? [],
+      limitations: !runtimeRecord?.complete
+        ? [
+            "Relatório runtime ausente ou incompleto; locais não foram atribuídos.",
+          ]
+        : runtimeRecord
+          ? runtimeRecord.locations.length === 0
+            ? [
+                "Nenhum caminho do runtime correspondeu exatamente ao foco autorizado.",
+              ]
+            : []
+          : ["LocalizaÃ§Ãµes de runtime nÃ£o foram reportadas pelo runner."],
     },
   });
 }
