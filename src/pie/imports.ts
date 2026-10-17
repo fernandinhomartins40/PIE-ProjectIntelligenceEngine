@@ -6,7 +6,7 @@ export interface ImportReference {
   sourcePath: string;
   specifier: string;
   line: number;
-  syntax: "static" | "dynamic";
+  syntax: "static" | "dynamic" | "commonjs";
 }
 
 export interface DeclaredPackage {

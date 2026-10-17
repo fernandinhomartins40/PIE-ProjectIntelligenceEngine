@@ -1,5 +1,6 @@
 import { parse } from "@babel/parser";
-import { traverseFast } from "@babel/types";
+import traverse, { type NodePath } from "@babel/traverse";
+import type { Node } from "@babel/types";
 import type { ImportReference } from "./imports.js";
 import {
   readNextDeclarations,
@@ -40,7 +41,7 @@ export function readCodeFacts(
   };
 } {
   return cachedAnalysis(
-    ["pie-code-facts-v7", path, sha256(source), maxReferences, maxDeclarations],
+    ["pie-code-facts-v8", path, sha256(source), maxReferences, maxDeclarations],
     () => {
       const tree = parse(source, {
         sourceType: "unambiguous",
@@ -51,38 +52,60 @@ export function readCodeFacts(
       });
       const references: ImportReference[] = [];
       let omitted = 0;
-      traverseFast(tree, (node) => {
-        if (
-          (node.type === "ImportDeclaration" ||
-            node.type === "ExportNamedDeclaration" ||
-            node.type === "ExportAllDeclaration") &&
-          node.source
-        ) {
+      traverse(tree as unknown as Node, {
+        enter(astPath: NodePath) {
+          const node = astPath.node;
+          if (
+            (node.type === "ImportDeclaration" ||
+              node.type === "ExportNamedDeclaration" ||
+              node.type === "ExportAllDeclaration") &&
+            node.source
+          ) {
+            if (references.length < maxReferences)
+              references.push({
+                sourcePath: path,
+                specifier: node.source.value,
+                line: node.loc?.start.line ?? 1,
+                syntax: "static",
+              });
+            else omitted++;
+            return;
+          }
+          const dynamicSource =
+            node.type === "ImportExpression"
+              ? node.source
+              : node.type === "CallExpression" && node.callee.type === "Import"
+                ? node.arguments[0]
+                : undefined;
+          if (dynamicSource?.type === "StringLiteral") {
+            if (references.length < maxReferences)
+              references.push({
+                sourcePath: path,
+                specifier: dynamicSource.value,
+                line: node.loc?.start.line ?? 1,
+                syntax: "dynamic",
+              });
+            else omitted++;
+            return;
+          }
+          if (
+            node.type !== "CallExpression" ||
+            node.callee.type !== "Identifier" ||
+            node.callee.name !== "require" ||
+            astPath.scope.getBinding("require") ||
+            node.arguments.length !== 1 ||
+            node.arguments[0]?.type !== "StringLiteral"
+          )
+            return;
           if (references.length < maxReferences)
             references.push({
               sourcePath: path,
-              specifier: node.source.value,
+              specifier: node.arguments[0].value,
               line: node.loc?.start.line ?? 1,
-              syntax: "static",
+              syntax: "commonjs",
             });
           else omitted++;
-          return;
-        }
-        const dynamicSource =
-          node.type === "ImportExpression"
-            ? node.source
-            : node.type === "CallExpression" && node.callee.type === "Import"
-              ? node.arguments[0]
-              : undefined;
-        if (dynamicSource?.type !== "StringLiteral") return;
-        if (references.length < maxReferences)
-          references.push({
-            sourcePath: path,
-            specifier: dynamicSource.value,
-            line: node.loc?.start.line ?? 1,
-            syntax: "dynamic",
-          });
-        else omitted++;
+        },
       });
       const next = readNextDeclarations(path, tree, maxDeclarations);
       const nextPages = readNextPagesDeclarations(

@@ -330,6 +330,7 @@
   },
   "dependencies": {
     "@babel/parser": "8.0.4",
+    "@babel/traverse": "8.0.4",
     "@babel/types": "8.0.4",
     "@clack/prompts": "1.7.0",
     "@electron/asar": "4.2.0",

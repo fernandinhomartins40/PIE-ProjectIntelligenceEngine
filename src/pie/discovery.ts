@@ -314,7 +314,7 @@ export async function discoverProject(
   const limitations = [
     "Somente arquivos rastreados pelo Git; arquivos novos não rastreados não foram examinados.",
     "Inventário Git e imports ESM estáticos/dinâmicos literais TS/JS; relação de pacote significa somente declaração no manifest observado, sem comprovar instalação, subpath resolvido ou carregamento.",
-    "Imports dinâmicos calculados, require, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
+    "Imports dinâmicos calculados, require calculado/sombreado, composição Express cross-file por CommonJS, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
     "Conteúdo de arquivos não é retido. Não há execução do projeto auditado.",
     "A leitura não é atômica em relação a alterações concorrentes do sistema de arquivos.",
   ];

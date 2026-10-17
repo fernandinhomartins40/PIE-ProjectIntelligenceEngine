@@ -531,3 +531,10 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - `node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts tests/boundary/pieExpressCrossFile.test.ts tests/boundary/pieFoundation.test.ts`: passou, 31/31 testes.
 - Fixture com Git real comprova `import("./lazy.js")` → `lazy.ts`, aresta `depends`, Evidence na linha de origem marcada `syntax=dynamic`; specifier calculado não é resolvido. Provas de import estáticas e integridade/cross-file permanecem válidas.
 - Não houve execução de aplicação alvo nem medição de performance nesta rodada.
+
+# Validação incremental — require CommonJS literal — 17/10/2026
+
+- Build executado com Node 24.18.0 e npm 11.16.0 (`npm run pie:build`): passou após alinhar `@babel/traverse` a 8.0.4, versão de parser/types.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts tests/boundary/pieAdapters.test.ts tests/boundary/pieExpressCrossFile.test.ts`: passou, 31/31.
+- Evidência em Git/SQLite comprova `require("./lazy.js")` → `lazy.ts`; chamada dentro de função com parâmetro `require` foi excluída. Não cobre require calculado nem composição Express cross-file CommonJS.
+- `npm run licenses:refresh-notices`: 12 avisos de runtime adicionados, zero gaps, fingerprint `0218c076d58ea6b6887d57a02b0b2533bb997f0c7472d398c156fd4062e03bbf`.

@@ -2,7 +2,7 @@ REA npm dependency inventory
 Prepared from the root package-lock.json; refresh this inventory when locked dependencies change.
 License identifiers are upstream lockfile declarations, not a legal assessment.
 Runtime includes transitive and optional platform packages; development includes build, test and website tooling.
-Locked package entries: 893; runtime: 353.
+Locked package entries: 902; runtime: 365.
 Full runtime copyright/license/NOTICE texts: npm-runtime-notices.txt.
 
 @algolia/abtesting@1.25.0 | development | MIT
@@ -95,7 +95,7 @@ Full runtime copyright/license/NOTICE texts: npm-runtime-notices.txt.
   Package: https://www.npmjs.com/package/@algolia/requester-node-http/v/5.59.0
   Archive: https://registry.npmjs.org/@algolia/requester-node-http/-/requester-node-http-5.59.0.tgz
   Integrity: sha512-YYHLEs5rC6oRTFwT7bJaKBR9NSFzikeVHGAT1ffATmUQzR8XqyhHXjoieAUoR7fBU6I5cfy1FVeh5GoRgriuzA==
-@babel/code-frame@8.0.6 | development | MIT
+@babel/code-frame@8.0.6 | runtime | MIT
   Lockfile path: node_modules/@babel/code-frame
   Package: https://www.npmjs.com/package/@babel/code-frame/v/8.0.6
   Archive: https://registry.npmjs.org/@babel/code-frame/-/code-frame-8.0.6.tgz
@@ -115,6 +115,11 @@ Full runtime copyright/license/NOTICE texts: npm-runtime-notices.txt.
   Package: https://www.npmjs.com/package/@babel/parser/v/8.0.7
   Archive: https://registry.npmjs.org/@babel/parser/-/parser-8.0.7.tgz
   Integrity: sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA==
+@babel/traverse@8.0.7 | development | MIT
+  Lockfile path: node_modules/@babel/core/node_modules/@babel/traverse
+  Package: https://www.npmjs.com/package/@babel/traverse/v/8.0.7
+  Archive: https://registry.npmjs.org/@babel/traverse/-/traverse-8.0.7.tgz
+  Integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==
 @babel/types@8.0.6 | development | MIT
   Lockfile path: node_modules/@babel/core/node_modules/@babel/types
   Package: https://www.npmjs.com/package/@babel/types/v/8.0.6
@@ -125,17 +130,17 @@ obug@3.0.0 | development | MIT
   Package: https://www.npmjs.com/package/obug/v/3.0.0
   Archive: https://registry.npmjs.org/obug/-/obug-3.0.0.tgz
   Integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==
-@babel/generator@8.0.6 | development | MIT
+@babel/generator@8.0.6 | runtime | MIT
   Lockfile path: node_modules/@babel/generator
   Package: https://www.npmjs.com/package/@babel/generator/v/8.0.6
   Archive: https://registry.npmjs.org/@babel/generator/-/generator-8.0.6.tgz
   Integrity: sha512-/pcanjdRsonCexCuxgGD8fKnBLLzk2i9uM4kmcmGyyev2R5YDs+rafMYZ89RvaGY1mW8T7C5au0TyYaEeHBGng==
-@babel/parser@8.0.7 | development | MIT
+@babel/parser@8.0.7 | runtime | MIT
   Lockfile path: node_modules/@babel/generator/node_modules/@babel/parser
   Package: https://www.npmjs.com/package/@babel/parser/v/8.0.7
   Archive: https://registry.npmjs.org/@babel/parser/-/parser-8.0.7.tgz
   Integrity: sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA==
-@babel/types@8.0.6 | development | MIT
+@babel/types@8.0.6 | runtime | MIT
   Lockfile path: node_modules/@babel/generator/node_modules/@babel/types
   Package: https://www.npmjs.com/package/@babel/types/v/8.0.6
   Archive: https://registry.npmjs.org/@babel/types/-/types-8.0.6.tgz
@@ -155,7 +160,27 @@ obug@3.0.0 | development | MIT
   Package: https://www.npmjs.com/package/@babel/helper-create-class-features-plugin/v/8.0.7
   Archive: https://registry.npmjs.org/@babel/helper-create-class-features-plugin/-/helper-create-class-features-plugin-8.0.7.tgz
   Integrity: sha512-7ug3KrOhNVPPxFFLTel0/pMzimKzU/vTlNJKVL/dKguCpmNJZjjibyFbWg+Qs8QHmiIZPNuZ2UNnDGdHWGEpOg==
-@babel/helper-globals@8.0.6 | development | MIT
+@babel/parser@8.0.7 | development | MIT
+  Lockfile path: node_modules/@babel/helper-create-class-features-plugin/node_modules/@babel/parser
+  Package: https://www.npmjs.com/package/@babel/parser/v/8.0.7
+  Archive: https://registry.npmjs.org/@babel/parser/-/parser-8.0.7.tgz
+  Integrity: sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA==
+@babel/traverse@8.0.7 | development | MIT
+  Lockfile path: node_modules/@babel/helper-create-class-features-plugin/node_modules/@babel/traverse
+  Package: https://www.npmjs.com/package/@babel/traverse/v/8.0.7
+  Archive: https://registry.npmjs.org/@babel/traverse/-/traverse-8.0.7.tgz
+  Integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==
+@babel/types@8.0.6 | development | MIT
+  Lockfile path: node_modules/@babel/helper-create-class-features-plugin/node_modules/@babel/types
+  Package: https://www.npmjs.com/package/@babel/types/v/8.0.6
+  Archive: https://registry.npmjs.org/@babel/types/-/types-8.0.6.tgz
+  Integrity: sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A==
+obug@3.0.0 | development | MIT
+  Lockfile path: node_modules/@babel/helper-create-class-features-plugin/node_modules/obug
+  Package: https://www.npmjs.com/package/obug/v/3.0.0
+  Archive: https://registry.npmjs.org/obug/-/obug-3.0.0.tgz
+  Integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==
+@babel/helper-globals@8.0.6 | runtime | MIT
   Lockfile path: node_modules/@babel/helper-globals
   Package: https://www.npmjs.com/package/@babel/helper-globals/v/8.0.6
   Archive: https://registry.npmjs.org/@babel/helper-globals/-/helper-globals-8.0.6.tgz
@@ -165,11 +190,26 @@ obug@3.0.0 | development | MIT
   Package: https://www.npmjs.com/package/@babel/helper-member-expression-to-functions/v/8.0.5
   Archive: https://registry.npmjs.org/@babel/helper-member-expression-to-functions/-/helper-member-expression-to-functions-8.0.5.tgz
   Integrity: sha512-GLe05QD98BkNFTkjaqeqF9QSRoHLKrrB4tpoplyQuuPrQJ72rtmkM4wvqJLX/sjZPqkbK5MUYSsuUTqdJoOVjA==
+@babel/parser@8.0.7 | development | MIT
+  Lockfile path: node_modules/@babel/helper-member-expression-to-functions/node_modules/@babel/parser
+  Package: https://www.npmjs.com/package/@babel/parser/v/8.0.7
+  Archive: https://registry.npmjs.org/@babel/parser/-/parser-8.0.7.tgz
+  Integrity: sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA==
+@babel/traverse@8.0.7 | development | MIT
+  Lockfile path: node_modules/@babel/helper-member-expression-to-functions/node_modules/@babel/traverse
+  Package: https://www.npmjs.com/package/@babel/traverse/v/8.0.7
+  Archive: https://registry.npmjs.org/@babel/traverse/-/traverse-8.0.7.tgz
+  Integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==
 @babel/types@8.0.6 | development | MIT
   Lockfile path: node_modules/@babel/helper-member-expression-to-functions/node_modules/@babel/types
   Package: https://www.npmjs.com/package/@babel/types/v/8.0.6
   Archive: https://registry.npmjs.org/@babel/types/-/types-8.0.6.tgz
   Integrity: sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A==
+obug@3.0.0 | development | MIT
+  Lockfile path: node_modules/@babel/helper-member-expression-to-functions/node_modules/obug
+  Package: https://www.npmjs.com/package/obug/v/3.0.0
+  Archive: https://registry.npmjs.org/obug/-/obug-3.0.0.tgz
+  Integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==
 @babel/helper-module-imports@8.0.0 | development | MIT
   Lockfile path: node_modules/@babel/helper-module-imports
   Package: https://www.npmjs.com/package/@babel/helper-module-imports/v/8.0.0
@@ -180,6 +220,26 @@ obug@3.0.0 | development | MIT
   Package: https://www.npmjs.com/package/@babel/helper-module-transforms/v/8.0.6
   Archive: https://registry.npmjs.org/@babel/helper-module-transforms/-/helper-module-transforms-8.0.6.tgz
   Integrity: sha512-YUi+3X0cb0v97xKhuqkLdrwQtP6XXv1eVbhLRCFyMwG481UskbMQk4mjH7K/Jg3oJ1KLskvFwwq4kF/QnABkWQ==
+@babel/parser@8.0.7 | development | MIT
+  Lockfile path: node_modules/@babel/helper-module-transforms/node_modules/@babel/parser
+  Package: https://www.npmjs.com/package/@babel/parser/v/8.0.7
+  Archive: https://registry.npmjs.org/@babel/parser/-/parser-8.0.7.tgz
+  Integrity: sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA==
+@babel/traverse@8.0.7 | development | MIT
+  Lockfile path: node_modules/@babel/helper-module-transforms/node_modules/@babel/traverse
+  Package: https://www.npmjs.com/package/@babel/traverse/v/8.0.7
+  Archive: https://registry.npmjs.org/@babel/traverse/-/traverse-8.0.7.tgz
+  Integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==
+@babel/types@8.0.6 | development | MIT
+  Lockfile path: node_modules/@babel/helper-module-transforms/node_modules/@babel/types
+  Package: https://www.npmjs.com/package/@babel/types/v/8.0.6
+  Archive: https://registry.npmjs.org/@babel/types/-/types-8.0.6.tgz
+  Integrity: sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A==
+obug@3.0.0 | development | MIT
+  Lockfile path: node_modules/@babel/helper-module-transforms/node_modules/obug
+  Package: https://www.npmjs.com/package/obug/v/3.0.0
+  Archive: https://registry.npmjs.org/obug/-/obug-3.0.0.tgz
+  Integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==
 @babel/helper-optimise-call-expression@8.0.0 | development | MIT
   Lockfile path: node_modules/@babel/helper-optimise-call-expression
   Package: https://www.npmjs.com/package/@babel/helper-optimise-call-expression/v/8.0.0
@@ -300,31 +360,16 @@ obug@3.0.0 | development | MIT
   Package: https://www.npmjs.com/package/@babel/preset-typescript/v/8.0.7
   Archive: https://registry.npmjs.org/@babel/preset-typescript/-/preset-typescript-8.0.7.tgz
   Integrity: sha512-sUFLFphAG6YNjCnJpSKpyoNxkfyeM2KNuUjJJN0R6dZusMcK2V3Fg11MVHPFvb37AZeDNocc+xM748vdh9z82Q==
-@babel/template@8.0.0 | development | MIT
+@babel/template@8.0.0 | runtime | MIT
   Lockfile path: node_modules/@babel/template
   Package: https://www.npmjs.com/package/@babel/template/v/8.0.0
   Archive: https://registry.npmjs.org/@babel/template/-/template-8.0.0.tgz
   Integrity: sha512-eAD0QW/AlbamBbw0FeGiwasbCVPq5ncW0HNVyLP3B9czqLyh4gvw+5JTSNt6le9+ziAU7mqDZsKTHf3jTb4chQ==
-@babel/traverse@8.0.7 | development | MIT
+@babel/traverse@8.0.4 | runtime | MIT
   Lockfile path: node_modules/@babel/traverse
-  Package: https://www.npmjs.com/package/@babel/traverse/v/8.0.7
-  Archive: https://registry.npmjs.org/@babel/traverse/-/traverse-8.0.7.tgz
-  Integrity: sha512-bVV0brinsTWgc6ptSIoQo3GbITtl0VZAqEUJbHHcyfDPEu+q/fEvlYEa+6H85HoK8IdksKBFtKJbJFZ6Kff+zg==
-@babel/parser@8.0.7 | development | MIT
-  Lockfile path: node_modules/@babel/traverse/node_modules/@babel/parser
-  Package: https://www.npmjs.com/package/@babel/parser/v/8.0.7
-  Archive: https://registry.npmjs.org/@babel/parser/-/parser-8.0.7.tgz
-  Integrity: sha512-UkDwEbPO1px2JQSrdh4qIgaH1JgG7GO/pFeJkpxhDxIETkT/QvGpnigXIw75ViHYPtIgKITmVUJqLjiO+JuWjA==
-@babel/types@8.0.6 | development | MIT
-  Lockfile path: node_modules/@babel/traverse/node_modules/@babel/types
-  Package: https://www.npmjs.com/package/@babel/types/v/8.0.6
-  Archive: https://registry.npmjs.org/@babel/types/-/types-8.0.6.tgz
-  Integrity: sha512-c+xgSWboV2pdwXP67BUWDVRHi2BO5Q3KwxyFVs7taVTY+fsK47/L51ZXQoV9rozHJDNHvJ4v4WEsI/IlxV2l2A==
-obug@3.0.0 | development | MIT
-  Lockfile path: node_modules/@babel/traverse/node_modules/obug
-  Package: https://www.npmjs.com/package/obug/v/3.0.0
-  Archive: https://registry.npmjs.org/obug/-/obug-3.0.0.tgz
-  Integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==
+  Package: https://www.npmjs.com/package/@babel/traverse/v/8.0.4
+  Archive: https://registry.npmjs.org/@babel/traverse/-/traverse-8.0.4.tgz
+  Integrity: sha512-bZnmqzGG8UZneG1lLxBoWIH0G6Gr1D846Yu4/3XnY6FhCndMR49u26nTY08u/dAxWmLWF9vGQOuC+84FfIUoeg==
 @babel/types@8.0.4 | runtime | MIT
   Lockfile path: node_modules/@babel/types
   Package: https://www.npmjs.com/package/@babel/types/v/8.0.4
@@ -630,7 +675,7 @@ commander@13.1.0 | runtime | MIT
   Package: https://www.npmjs.com/package/@inquirer/type/v/4.2.0
   Archive: https://registry.npmjs.org/@inquirer/type/-/type-4.2.0.tgz
   Integrity: sha512-2rnHX8RPo4glJYqnFc/v3nQeIhDcjyRRyaT7MGcfL/8xv/8K03SXYoA2tX06WVSKywWOE/ncbG3dtuzLjR5TCQ==
-@jridgewell/gen-mapping@0.4.0-beta.0 | development | MIT
+@jridgewell/gen-mapping@0.4.0-beta.0 | runtime | MIT
   Lockfile path: node_modules/@jridgewell/gen-mapping
   Package: https://www.npmjs.com/package/@jridgewell/gen-mapping/v/0.4.0-beta.0
   Archive: https://registry.npmjs.org/@jridgewell/gen-mapping/-/gen-mapping-0.4.0-beta.0.tgz
@@ -1665,7 +1710,7 @@ std-env@3.10.0 | runtime | MIT
   Package: https://www.npmjs.com/package/@types/hast/v/3.0.5
   Archive: https://registry.npmjs.org/@types/hast/-/hast-3.0.5.tgz
   Integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==
-@types/jsesc@2.5.1 | development | MIT
+@types/jsesc@2.5.1 | runtime | MIT
   Lockfile path: node_modules/@types/jsesc
   Package: https://www.npmjs.com/package/@types/jsesc/v/2.5.1
   Archive: https://registry.npmjs.org/@types/jsesc/-/jsesc-2.5.1.tgz
@@ -3000,7 +3045,7 @@ js-md4@0.3.2 | development | MIT
   Package: https://www.npmjs.com/package/js-md4/v/0.3.2
   Archive: https://registry.npmjs.org/js-md4/-/js-md4-0.3.2.tgz
   Integrity: sha512-/GDnfQYsltsjRswQhN9fhv3EMw2sCpUdrdxyWDOUK7eyD++r3gRhzgiQgc/x4MAv2i1iuQ4lxO5mvqM3vj4bwA==
-js-tokens@10.0.0 | development | MIT
+js-tokens@10.0.0 | runtime | MIT
   Lockfile path: node_modules/js-tokens
   Package: https://www.npmjs.com/package/js-tokens/v/10.0.0
   Archive: https://registry.npmjs.org/js-tokens/-/js-tokens-10.0.0.tgz
@@ -3040,7 +3085,7 @@ jscpd-windows-x64-msvc@5.0.12 | development, optional | MIT
   Package: https://www.npmjs.com/package/jscpd-windows-x64-msvc/v/5.0.12
   Archive: https://registry.npmjs.org/jscpd-windows-x64-msvc/-/jscpd-windows-x64-msvc-5.0.12.tgz
   Integrity: sha512-01x1klKjvfzI6Of5tI9u72x7TIQZQLLG6kMdsEPJKl/BXbskdknrfCepeTXRBbdFPKs25jfcd0klZ4OdDvww5w==
-jsesc@3.1.0 | development | MIT
+jsesc@3.1.0 | runtime | MIT
   Lockfile path: node_modules/jsesc
   Package: https://www.npmjs.com/package/jsesc/v/3.1.0
   Archive: https://registry.npmjs.org/jsesc/-/jsesc-3.1.0.tgz
@@ -3385,7 +3430,7 @@ object-inspect@1.13.4 | development | MIT
   Package: https://www.npmjs.com/package/object-inspect/v/1.13.4
   Archive: https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz
   Integrity: sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==
-obug@2.2.1 | development | MIT
+obug@2.2.1 | runtime | MIT
   Lockfile path: node_modules/obug
   Package: https://www.npmjs.com/package/obug/v/2.2.1
   Archive: https://registry.npmjs.org/obug/-/obug-2.2.1.tgz

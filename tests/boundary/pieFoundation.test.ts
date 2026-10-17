@@ -325,12 +325,12 @@ describe("PIE: validação de raiz no serviço", () => {
   });
 });
 
-describe("PIE: imports dinâmicos", () => {
-  it("resolve somente specifier literal e preserva Evidence de origem", async () => {
+describe("PIE: imports dinâmicos e CommonJS", () => {
+  it("resolve somente specifiers literais não sombreados e preserva Evidence", async () => {
     const { repo, policy } = await fixture();
     await writeFile(
       join(repo, "page.ts"),
-      'void import("./lazy.js");\nvoid import("./" + "computed.js");\n',
+      'void import("./lazy.js");\nvoid import("./" + "computed.js");\nconst loaded = require("./lazy.js");\nfunction shadow(require) { require("./shadowed.js"); }\n',
     );
     await writeFile(join(repo, "lazy.ts"), "export const loaded = true;\n");
     await exec("git", ["-C", repo, "add", "page.ts", "lazy.ts"]);
@@ -348,9 +348,28 @@ describe("PIE: imports dinâmicos", () => {
       source: { path: "page.ts", line: 1 },
       observation: expect.stringContaining("syntax=dynamic"),
     });
-    expect(snapshot.edges).toHaveLength(1);
+    expect(snapshot.edges).toHaveLength(2);
+    const commonJsEdge = snapshot.edges.find(
+      (item) =>
+        item.from === source?.id &&
+        item.to === target?.id &&
+        item.evidenceIds.some(
+          (id) =>
+            snapshot.evidence.find((proofItem) => proofItem.id === id)?.source
+              .line === 3,
+        ),
+    );
+    expect(commonJsEdge).toBeDefined();
+    expect(
+      snapshot.evidence.find((item) =>
+        commonJsEdge?.evidenceIds.includes(item.id),
+      ),
+    ).toMatchObject({
+      source: { path: "page.ts", line: 3 },
+      observation: expect.stringContaining("syntax=commonjs"),
+    });
     expect(snapshot.coverage.limitations).toContain(
-      "Imports dinâmicos calculados, require, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
+      "Imports dinâmicos calculados, require calculado/sombreado, composição Express cross-file por CommonJS, aliases, exports condicionais, pacotes não declarados e manifests fora do inventário observado permanecem desconhecidos.",
     );
   });
 });
