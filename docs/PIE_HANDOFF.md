@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Continuidade atual — integração upstream REA e teste Windows — 17/10/2026
+
+Merge `rea-fork/main` está em `main` local (`f9da18125`) sem conflitos, preservando todos os commits e tornando `rea-fork/main` e `origin/main` ancestrais do checkout. `pie:build`, `check:fast`, `docs:check:built` e `format:check` passaram depois do merge. A suíte completa `check:pr` foi interrompida após um arquivo acceptance levar 434 s; Vitest parcial apontou expectativa ENAMETOOLONG incompatível com `ENOENT` observado no Windows. Corrigido o oráculo por observação `lstat`; `tests/acceptance/sqliteDatabaseCli.test.ts` passou inteiro (10/13, três skips do arquivo). Próximo: commit da correção e dos registros, push fast-forward para `origin/main` e `rea-fork/main`, e conferir CI do SHA resultante. Não registrar `check:pr` como verde.
+
 ## Continuidade atual — fork oficial REA preparado — 17/10/2026
 
 Conta autenticada verificada como `fernandinhomartins40`; fork `https://github.com/fernandinhomartins40/rea` criado da origem oficial, com parent `morluto/rea`. O `origin` existente continua sendo o projeto PIE. `upstream` e `rea-fork` são fetch-only na configuração local. O fork nasceu em HEAD upstream mais novo; `main` local está 67 commits à frente e 93 atrás, sem fast-forward. Próximo: integrar upstream com análise de conflitos e validação em `main` antes de qualquer push ao fork; não usar force nem abrir branch. T0.1 segue parcial até histórico sincronizado e reutilização upstream caracterizada. Para o SHA `476e6d6925ebb5470212d7df0e2ea599b7c2734c`, PIE integration passou; CI geral está pendente; Release falhou em Release Please e o motivo exato ainda não foi obtido.

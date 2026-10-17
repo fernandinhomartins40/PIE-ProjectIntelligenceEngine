@@ -41,6 +41,19 @@ for (const expectedErrno of ["ELOOP", "ENAMETOOLONG"] as const) {
         await symlink("cycle-b", join(root, "cycle-a"));
         await symlink("cycle-a", join(root, "cycle-b"));
       }
+      const nativePathFailure = await lstat(path).then(
+        () => null,
+        (cause: NodeJS.ErrnoException) => cause,
+      );
+      const allowedErrnos =
+        expectedErrno === "ENAMETOOLONG"
+          ? ["ENAMETOOLONG", "ENOENT"]
+          : [expectedErrno];
+      expect(allowedErrnos).toContain(nativePathFailure?.code);
+      const expectedMessage =
+        nativePathFailure?.code === "ENOENT"
+          ? expect.stringContaining("does not exist")
+          : expect.stringContaining(expectedErrno);
       const result = await cli.run({
         arguments: ["inspect-sqlite-database", path, "--json"],
         environment: { REA_LOG_LEVEL: "silent" },
@@ -53,7 +66,7 @@ for (const expectedErrno of ["ELOOP", "ENAMETOOLONG"] as const) {
             {
               path: ["path"],
               reason: "invalid_value",
-              message: expect.stringContaining(expectedErrno),
+              message: expectedMessage,
             },
           ],
         },

@@ -437,3 +437,14 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - `POST /repos/morluto/rea/forks` criou `fernandinhomartins40/rea`; resposta confirmou `fork=true`, parent `morluto/rea`, branch padrão `main`.
 - `git fetch rea-fork main` passou. `git rev-list --left-right --count main...rea-fork/main` retornou `67 93`; `git merge-base --is-ancestor rea-fork/main HEAD` retornou falso. Push ao fork não tentado porque não é fast-forward; sem force-push/merge e sem branch criada.
 - `origin` PIE ficou intacto; remotos `upstream` e `rea-fork` receberam push URL local `DISABLED`. A configuração está fora do versionamento.
+
+# Validação incremental — merge upstream e caminho SQLite Windows — 17/10/2026
+
+- Merge local `f9da18125` integrou `rea-fork/main` a `main` sem conflitos. `git merge-base --is-ancestor rea-fork/main HEAD` e o mesmo teste para `origin/main` passaram; ambos os pushes resultantes são fast-forward. A comparação da árvore indicou 391 arquivos alterados por upstream (42.572 inserções, 3.836 remoções) antes da correção de teste; `src/pie`, painel PIE, `package.json`, lockfile e Prisma não foram alterados pelo merge.
+- `npm run pie:build`: passou depois do merge.
+- `npm run check:fast`: passou depois do merge e da correção do teste (2/2 tarefas).
+- `npm run docs:check:built`, `npm run format:check` e `git diff --check`: passaram após a atualização das notas (format/diff reexecutados depois de normalizar o EOF).
+- `npm run check:pr`: iniciado na revisão do merge, mas interrompido manualmente. Typecheck, compile, format, metadata e lint built terminaram sem erro (lint: 3.733 arquivos, 0 erros, 1.676 avisos); a suíte Vitest parcial levou até 434 s em um arquivo e não chegou ao término. `test:python`, `docs:check`, `jscpd` e `scan:todos` desse gate não foram verificados como parte da execução.
+- Falha reproduzida em `tests/acceptance/sqliteDatabaseCli.test.ts`: antes da mudança, `node scripts/run-exact-tests.mjs tests/acceptance/sqliteDatabaseCli.test.ts -t 'ENAMETOOLONG'` falhou porque a asserção esperava `ENAMETOOLONG`, enquanto o Windows retornou “Selected SQLite database does not exist”. O produtor `optionalStat` trata `ENOENT` como ausência e mantém outros erros tipados; nenhuma alteração de produção foi necessária.
+- Regressão corrigida: o teste observa `lstat` no caminho exato e admite `ENOENT` apenas como semântica nativa alternativa ao `ENAMETOOLONG`; rejeição CLI/MCP continua exigida. `node scripts/run-exact-tests.mjs tests/acceptance/sqliteDatabaseCli.test.ts` passou: 10 passaram, 3 skipped entre 13. Nenhuma aplicação alvo foi executada.
+- Esta evidência é Windows x64 local; o branch mergeado ainda precisa de CI remota. O merge é local até publicação; nenhum force-push ou branch foi usado.

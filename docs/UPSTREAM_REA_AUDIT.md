@@ -1,5 +1,11 @@
 # Auditoria upstream REA e decisão de derivação PIE
 
+## Estado atualizado — fork e sincronização histórica — 17/10/2026
+
+O repositório `fernandinhomartins40/PIE-ProjectIntelligenceEngine` continua independente no GitHub (`fork=false`). Com autorização do usuário, foi criado `fernandinhomartins40/rea` pela API oficial de fork; resposta confirmou `fork=true`, parent `morluto/rea`, default branch `main`. Remotos locais: `origin` para o projeto PIE, `upstream` para `morluto/rea` e `rea-fork` para o fork da conta. Push foi desabilitado localmente em `upstream` e `rea-fork` até completar a integração, evitando escrita acidental.
+
+O HEAD mais recente de `rea-fork/main` estava 93 commits à frente e 67 atrás do PIE antes da sincronização. `main` integrou essa história por merge sem conflitos (`f9da18125`), preservando a ancestralidade e sem criar branch. O merge alterou 391 arquivos upstream, mas não alterou `src/pie`, `apps/web`, manifests ou Prisma. A publicação fast-forward da main PIE e da main do fork aguarda o boundary completo SQLite e checks locais registrados em `PIE_VALIDATION_REPORT.md`; não usar force-push.
+
 Data: 16/10/2026. Método: leitura de código local, metadados Git e GitHub; execução somente onde registrada no relatório de validação.
 
 ## Identidade e procedência

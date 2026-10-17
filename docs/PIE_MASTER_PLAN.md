@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Integração do HEAD oficial REA e regressão Windows de caminho — 17/10/2026
+
+`main` integrou `rea-fork/main` por merge sem conflitos (`f9da18125`), preservando os commits PIE anteriores e incorporando as 93 atualizações upstream sem rebase/force; a árvore de integração não altera `src/pie`, painel PIE nem manifests. `main` agora contém a história atual do fork e pode avançar ambos os remotos por fast-forward depois da validação. `pie:build`, `check:fast`, `docs:check:built` e `format:check` passaram após a integração.
+
+`check:pr` foi iniciado para o merge e interrompido manualmente depois que arquivos acceptance pesados levaram 434 s por arquivo. A execução parcial encontrou uma expectativa portátil incorreta em `sqliteDatabaseCli.test.ts`: para componente de 300 caracteres, o `lstat` do Windows retorna `ENOENT`, enquanto a suíte esperava sempre `ENAMETOOLONG`. O teste agora deriva a mensagem esperada do errno real do mesmo `lstat`, aceitando somente `ENAMETOOLONG` ou `ENOENT` nessa condição específica e preservando a verificação de rejeição pela CLI e MCP. Boundary completo passou: 10 passaram, 3 skipped declarados. Isso corrige o teste; a suíte completa e as fases posteriores de `check:pr` ainda não foram comprovadas.
+
 ## Fork oficial REA e divergência de histórico — 17/10/2026
 
 Verificação autenticada confirmou que `fernandinhomartins40/PIE-ProjectIntelligenceEngine` é repositório independente (`fork=false`), embora `upstream` esteja configurado para `morluto/rea` e o commit-base rastreado seja ancestral do PIE. Conforme autorização para preparar o fork, foi criado `fernandinhomartins40/rea` via API do GitHub; a API confirmou `fork=true`, parent `morluto/rea` e default `main`. O clone agora tem os remotos `origin` (projeto PIE), `upstream` (REA oficial) e `rea-fork` (fork oficial). Push está desabilitado localmente nos remotos REA para evitar escrita acidental.
