@@ -24,6 +24,10 @@ export type VerificationComparison = Awaited<
   ReturnType<PieService["verificationComparison"]>
 >;
 export type VerificationRun = Awaited<ReturnType<PieService["verification"]>>;
+export type UnifiedPlan = Awaited<ReturnType<PieService["plan"]>>;
+export type PlanTriageHistory = Awaited<
+  ReturnType<PieService["planTriageHistory"]>
+>;
 export type Session = {
   authenticated: boolean;
   csrfToken: string | null;

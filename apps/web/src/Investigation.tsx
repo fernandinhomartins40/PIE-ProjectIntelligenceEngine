@@ -5,6 +5,7 @@ import { FunctionalReview } from "./FunctionalReview.js";
 import { ProductReview } from "./ProductReview.js";
 import { DeclarationChanges } from "./DeclarationChanges.js";
 import { RetestPlan } from "./RetestPlan.js";
+import { PlanTriage } from "./PlanTriage.js";
 import { useEffect, useRef, useState } from "react";
 import {
   api,
@@ -534,6 +535,11 @@ export function Investigation({
       />
       <ProductReview key={`product-${snapshotId}`} snapshotId={snapshotId} />
       <VerificationQueue key={`queue-${snapshotId}`} snapshotId={snapshotId} />
+      <PlanTriage
+        key={`plan-${snapshotId}`}
+        snapshotId={snapshotId}
+        onEvidence={(id) => void showEvidence(id)}
+      />
     </>
   );
 }

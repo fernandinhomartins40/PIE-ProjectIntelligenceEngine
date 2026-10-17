@@ -277,7 +277,7 @@ A seção Lacunas de verificação funcional consulta a análise OBSERVE do snap
 
 functional-retain <snapshot-id> --module <caminho> --limit <n> --offset <n> salva explicitamente a página analisada como registro imutável. functional-record <id> lê e verifica o registro. MCP usa pie_functional_retain e pie_functional_record_get; API usa POST /v1/functional-records (mesma entrada da análise) e GET /v1/functional-records/:id. Salvar é operação distinta da consulta funcional, que continua sem gravar.
 
-Registros preservam pedido, resultado paginado, data, snapshot e hash canônico; validam fatos/evidências contra o snapshot. Não são prova runtime e não representam páginas omitidas. Mesmo ID não pode substituir conteúdo histórico. PostgreSQL precisa das migrations correspondentes antes destas operações, incluindo `202610170002_plan_contestations` e `202610170003_plan_triage_events`. Contestação e mudanças humanas de owner/status mantêm trilhas append-only; a interface de triagem continua pendente.
+Registros preservam pedido, resultado paginado, data, snapshot e hash canônico; validam fatos/evidências contra o snapshot. Não são prova runtime e não representam páginas omitidas. Mesmo ID não pode substituir conteúdo histórico. PostgreSQL precisa das migrations correspondentes antes destas operações, incluindo `202610170002_plan_contestations` e `202610170003_plan_triage_events`. Contestação e mudanças humanas de owner/status mantêm trilhas append-only; a interface web de triagem consulta essas operações reais e preserva o aviso de que concluir triagem não verifica funcionamento.
 
 ## Listar análises preservadas
 

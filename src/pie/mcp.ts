@@ -225,7 +225,7 @@ export function createPieMcp(
     "pie_plan_generate",
     {
       description:
-        "Agrega itens estáticos existentes dos motores funcional, produto, segurança e dados em um plano paginado ligado a Evidence. Responsáveis e prioridade permanecem não avaliados; não registra contestações, não autoriza execução e não cobre os motores de infraestrutura/regressão.",
+        "Agrega itens estáticos existentes dos motores funcional, produto, segurança e dados em um plano paginado ligado a Evidence, incluindo triagem humana atual de responsável e estado quando houver. Prioridade continua não avaliada; use pie_plan_triage_set para registrar alterações e pie_plan_contest para contestar com justificativa e Evidence. Não autoriza execução e não cobre os motores de infraestrutura/regressão.",
       inputSchema: planningInput,
       outputSchema: withError(unifiedPlanOutput),
       annotations: read,
