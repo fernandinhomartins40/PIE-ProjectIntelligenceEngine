@@ -41,6 +41,7 @@ function PlanHistory({
       limit: String(LIMIT),
       offset: String(offset),
     });
+    setHistory(undefined);
     setError("");
     void api<PlanTriageHistory>(`plan/triage-history?${query}`, {
       signal: controller.signal,
@@ -373,6 +374,7 @@ function PlanContestHistory({
       limit: String(LIMIT),
       offset: String(offset),
     });
+    setHistory(undefined);
     setError("");
     void api<PlanContestations>(`plan/contestations?${query}`, {
       signal: controller.signal,
