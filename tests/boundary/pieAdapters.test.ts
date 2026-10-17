@@ -12,7 +12,7 @@ import { declarationIdentity } from "../../src/pie/adapters/identity.js";
 import { openStore } from "../../src/pie/store.js";
 import { PieService } from "../../src/pie/service.js";
 import { DatabaseSync } from "node:sqlite";
-import { readCodeFacts } from "../../src/pie/codeFacts.js";
+import { readCodeFacts, readCodeFactsResult } from "../../src/pie/codeFacts.js";
 import { nginxDirectives } from "../../src/pie/adapters/nginxSyntax.js";
 import { renderSnapshot } from "../../src/pie/reports.js";
 import { assessFunctional } from "../../src/pie/functional.js";
@@ -181,6 +181,12 @@ it("Next não confunde comentários, strings, tipos e nomes parecidos com rotas"
   expect(() =>
     readCodeFacts("app/api/route.ts", "export const GET = {", 10, 10),
   ).toThrow();
+  expect(
+    readCodeFactsResult("app/api/route.ts", "export const GET = {", 10, 10),
+  ).toEqual({
+    ok: false,
+    error: { kind: "invalid_syntax", path: "app/api/route.ts" },
+  });
 });
 
 const exec = promisify(execFile);

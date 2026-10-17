@@ -311,3 +311,11 @@ Feita primeira integração cross-file com escopo explícito: imports relativos 
 ## Continuação — composição do prefixo Express — 17/10/2026
 
 Prefixo literal cross-file compõe endpoints exportados, incluindo router local aninhado, com Evidence da rota e do arquivo/linha do mount em proveniência v3 (`sourcePath`). Snapshots v1/v2 seguem aceitos. Closure cíclica não é composta; rota local é preservada com limitação. Após a guarda passaram `pie:build`, `check:fast`, `docs:check:built`, `format:check`, 21 boundaries e `pieWebTrace` (1). Medição única do código final: frio 23,897 s/19,578 s CPU; quente 12,711 s/10,688 s CPU; 4.273 enumerados/4.248 examinados, 49.999.473 bytes, parcial, 4.242 hits quentes, 16.150 arestas/372 declarações; pico RSS Node 510,6 MiB. Sem subprocessos Git/família/tokens; rodada não controlada. Sem runtime Express real; CI pendente. Alterações não commitadas/pushadas; seguir direto na `main`.
+
+CI consultada na API pública para SHA `1f4ea65c9f2e34c2f4c92c58e04b207afdef7f64`: PIE integration e Release ainda `in_progress`; CI geral `queued`. Não declarar CI aprovada. `gh` CLI não está instalado; a consulta REST funcionou.
+
+Na consulta seguinte, PIE integration terminou com falha no passo “Verify installed browser and panel”; a API pública não fornece o log detalhado sem permissão administrativa. Release Please falhou pela configuração do repositório que não permite Actions criar/aprovar pull requests; a publicação foi pulada. CI geral permanecia em fila. Não inferir a causa da falha do browser; retestar no novo SHA e manter a anterior como não resolvida.
+
+## Continuação — Result de erro de sintaxe AST — 17/10/2026
+
+`readCodeFactsResult` converte somente `BABEL_PARSER_SYNTAX_ERROR` em `Result` tagged `invalid_syntax`; falhas inesperadas relançam. `discoverProject` mantém o nó inventariado, registra limitação e não inventa relações. Build PIE, `check:fast`, `docs:check:built`, `format:check` e boundaries `pieAdapters`/`pieFoundation` (16) passaram. T1.1 continua parcial; adotar Result em todas as falhas esperadas ainda pendente.

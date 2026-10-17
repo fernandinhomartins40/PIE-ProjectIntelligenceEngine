@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Falha sintática como Result — 17/10/2026
+
+`pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram. `pieAdapters` e `pieFoundation` passaram (16 testes); a boundary integrada usa fixture em Git, mantém `invalid.ts` no inventário e confirma que a descoberta não cria relações e registra limitação. O contrato `readCodeFactsResult` converte apenas `SyntaxError` com `code=BABEL_PARSER_SYNTAX_ERROR`; falhas inesperadas são relançadas.
+
+CI do SHA anterior `1f4ea65c9f2e34c2f4c92c58e04b207afdef7f64`: [PIE integration](https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/39012738931) falhou no passo “Verify installed browser and panel”; log detalhado requer permissão administrativa segundo a API pública (403), então a causa raiz não foi verificada. [Release](https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/39012738860) falhou porque o repositório não permite que GitHub Actions crie/aprove pull requests; etapas de Release Please/publicação foram ignoradas. A CI geral estava em fila na última consulta. Nenhuma dessas falhas foi atribuída à alteração atual de parser.
+
 ## Baseline upstream CLI/MCP/pacote — 17/10/2026
 
 Validados no checkout real com Node 24.18.0 e npm 11.16.0 (`npx`). `node scripts/verify-windows-native-artifact.mjs` aprovou o addon `rea-agents@6.5.0` restaurado do tarball da versão exata: Windows x64, ABI 1, Node-API 8, SHA-256 `665c57ab90aef0712a6aafc423c7992a88bf608bea63b370cb30c695900f9aed`. `npx.cmd --yes npm@11.16.0 run build:cached` passou. `node scripts/pie.mjs --help` e `node scripts/rea.mjs --help` responderam; processo REA MCP stdio real completou initialize/tools/list, anunciando `rea@6.5.0`, protocolo 2025-03-26 e 207 tools. `tests/boundary/mcp/pieMcp.test.ts` passou (1 teste com CLI/MCP e Ajv); Evidence/Ledger upstream passou 36 testes (27+9).

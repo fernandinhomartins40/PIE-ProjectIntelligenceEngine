@@ -11,6 +11,12 @@ import {
 } from "./adapters/express.js";
 import { cachedAnalysis } from "./analysisCache.js";
 import { sha256 } from "./evidence.js";
+import { err, ok, type Result } from "../domain/result.js";
+
+export type CodeFactsFailure = {
+  kind: "invalid_syntax";
+  path: string;
+};
 /** Parse syntax only. No module resolution through project code, plugins or execution. */
 export function readCodeFacts(
   path: string,
@@ -77,4 +83,24 @@ export function readCodeFacts(
       };
     },
   );
+}
+
+/** Converts only Babel's known source-syntax rejection into a typed outcome. */
+export function readCodeFactsResult(
+  path: string,
+  source: string,
+  maxReferences: number,
+  maxDeclarations: number,
+): Result<ReturnType<typeof readCodeFacts>, CodeFactsFailure> {
+  try {
+    return ok(readCodeFacts(path, source, maxReferences, maxDeclarations));
+  } catch (cause) {
+    if (
+      cause instanceof SyntaxError &&
+      (cause as SyntaxError & { code?: unknown }).code ===
+        "BABEL_PARSER_SYNTAX_ERROR"
+    )
+      return err({ kind: "invalid_syntax", path });
+    throw cause;
+  }
 }

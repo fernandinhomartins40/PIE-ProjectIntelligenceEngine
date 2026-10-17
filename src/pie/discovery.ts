@@ -21,7 +21,7 @@ import {
 import { readInventoryFile } from "./readFile.js";
 import { collectDeclarations } from "./adapters/collect.js";
 import { readDeclarations } from "./adapters/declarations.js";
-import { readCodeFacts } from "./codeFacts.js";
+import { readCodeFactsResult } from "./codeFacts.js";
 import {
   declarationEvidenceObservation,
   derivationEvidenceObservation,
@@ -247,37 +247,37 @@ export async function discoverProject(
         policy.maxGraphEdges - declarations.length,
       );
       if (/\.[cm]?[jt]sx?$/.test(path)) {
-        try {
-          const parsed = readCodeFacts(
-            path,
-            buffer.toString("utf8"),
-            Math.max(0, policy.maxGraphEdges - imports.length),
-            declarationLimit,
-          );
-          imports.push(...parsed.references);
-          expressModules.push({
-            path,
-            mounts: parsed.express.crossFileMounts,
-            routerMounts: parsed.express.routerMounts,
-            exports: parsed.express.routerExports,
-          });
-          if (parsed.express.omittedCrossFileFacts > 0)
-            limitations.push(
-              `${parsed.express.omittedCrossFileFacts} fatos de mount/export Express usados na resolução cross-file omitidos pelo limite de análise em ${path}.`,
-            );
-          const declared = collectDeclarations(item, parsed.declarations);
-          evidence.push(...declared.evidence);
-          declarations.push(...declared.declarations);
-          limitations.push(...declared.limitations);
-          if (parsed.omitted > 0)
-            limitations.push(
-              `${parsed.omitted} declarações AST omitidas por orçamento de grafo em ${path}.`,
-            );
-        } catch {
+        const parsed = readCodeFactsResult(
+          path,
+          buffer.toString("utf8"),
+          Math.max(0, policy.maxGraphEdges - imports.length),
+          declarationLimit,
+        );
+        if (!parsed.ok) {
           limitations.push(
             `AST não analisada: ${path}. O arquivo permanece no inventário, sem relações inferidas.`,
           );
+          continue;
         }
+        imports.push(...parsed.value.references);
+        expressModules.push({
+          path,
+          mounts: parsed.value.express.crossFileMounts,
+          routerMounts: parsed.value.express.routerMounts,
+          exports: parsed.value.express.routerExports,
+        });
+        if (parsed.value.express.omittedCrossFileFacts > 0)
+          limitations.push(
+            `${parsed.value.express.omittedCrossFileFacts} fatos de mount/export Express usados na resolução cross-file omitidos pelo limite de análise em ${path}.`,
+          );
+        const declared = collectDeclarations(item, parsed.value.declarations);
+        evidence.push(...declared.evidence);
+        declarations.push(...declared.declarations);
+        limitations.push(...declared.limitations);
+        if (parsed.value.omitted > 0)
+          limitations.push(
+            `${parsed.value.omitted} declarações AST omitidas por orçamento de grafo em ${path}.`,
+          );
       } else {
         try {
           const declared = collectDeclarations(

@@ -51,61 +51,69 @@ async function fixture() {
   };
 }
 
+async function verifyPersistedSnapshot(
+  root: string,
+  repo: string,
+  policy: ReturnType<typeof policySchema.parse>,
+) {
+  const db = join(root, "state", "pie.sqlite");
+  const store = await openStore(db, repo);
+  let snapshotId: string;
+  let evidenceId: string;
+  try {
+    const output = await new PieService(store).discover(policy);
+    snapshotId = output.snapshot.id;
+    expect(output.coverage.status).toBe("partial");
+    expect(output.coverage.runtime).toBe(false);
+    const snapshot = store.snapshot(snapshotId);
+    expect(snapshot.revision).toBeNull();
+    expect(snapshot.nodes.some((node) => node.kind === "test")).toBe(true);
+    expect(snapshot.nodes.some((node) => node.kind === "manifest")).toBe(true);
+    expect(snapshot.nodes.some((node) => node.path === ".env")).toBe(false);
+    expect(JSON.stringify(snapshot)).not.toContain(
+      "fixture-secret-never-retain",
+    );
+    expect(snapshot.evidence.every((item) => item.state === "unverified")).toBe(
+      true,
+    );
+    evidenceId = snapshot.evidence[0]!.id;
+    expect(store.saveSnapshot(snapshot).id).toBe(snapshotId);
+    expect(() =>
+      store.saveSnapshot({ ...snapshot, treeDigest: "0".repeat(64) }),
+    ).toThrow("Digest");
+    expect(() => store.saveSnapshot({ ...snapshot, dirty: false })).toThrow();
+    const evidence = snapshot.evidence[0]!;
+    expect(() =>
+      verifyEvidence({ ...evidence, observation: "alterado" }),
+    ).toThrow();
+    const { sha256: originalHash, ...unsealed } = evidence;
+    expect(originalHash).toHaveLength(64);
+    const tampered = sealEvidence({ ...unsealed, projectId: randomUUID() });
+    expect(() =>
+      store.saveSnapshot({
+        ...snapshot,
+        id: randomUUID(),
+        evidence: [tampered],
+      }),
+    ).toThrow();
+  } finally {
+    store.close();
+  }
+  const reopened = await openStore(db);
+  try {
+    expect(reopened.snapshot(snapshotId!).id).toBe(snapshotId!);
+    expect(reopened.evidence(evidenceId!).id).toBe(evidenceId!);
+    expect(reopened.projects().total).toBe(1);
+  } finally {
+    reopened.close();
+  }
+}
+
 describe("PIE: fundação integrada com Git e SQLite reais", () => {
   it("descobre, persiste, reabre e verifica evidência sem executar scripts ou modificar o alvo", async () => {
     const { root, repo, policy } = await fixture();
     const before = await readFile(join(repo, "package.json"));
-    const db = join(root, "state", "pie.sqlite");
-    const store = await openStore(db, repo);
-    let snapshotId: string;
-    let evidenceId: string;
-    try {
-      const output = await new PieService(store).discover(policy);
-      snapshotId = output.snapshot.id;
-      expect(output.coverage.status).toBe("partial");
-      expect(output.coverage.runtime).toBe(false);
-      const snapshot = store.snapshot(snapshotId);
-      expect(snapshot.revision).toBeNull();
-      expect(snapshot.nodes.some((n) => n.kind === "test")).toBe(true);
-      expect(snapshot.nodes.some((n) => n.kind === "manifest")).toBe(true);
-      expect(snapshot.nodes.some((n) => n.path === ".env")).toBe(false);
-      expect(JSON.stringify(snapshot)).not.toContain(
-        "fixture-secret-never-retain",
-      );
-      expect(snapshot.evidence.every((e) => e.state === "unverified")).toBe(
-        true,
-      );
-      evidenceId = snapshot.evidence[0]!.id;
-      expect(store.saveSnapshot(snapshot).id).toBe(snapshotId);
-      expect(() =>
-        store.saveSnapshot({ ...snapshot, treeDigest: "0".repeat(64) }),
-      ).toThrow("Digest");
-      expect(() => store.saveSnapshot({ ...snapshot, dirty: false })).toThrow();
-      const evidence = snapshot.evidence[0]!;
-      expect(() =>
-        verifyEvidence({ ...evidence, observation: "alterado" }),
-      ).toThrow();
-      const { sha256: originalHash, ...unsealed } = evidence;
-      expect(originalHash).toHaveLength(64);
-      const tampered = sealEvidence({ ...unsealed, projectId: randomUUID() });
-      expect(() =>
-        store.saveSnapshot({
-          ...snapshot,
-          id: randomUUID(),
-          evidence: [tampered],
-        }),
-      ).toThrow();
-    } finally {
-      store.close();
-    }
-    const reopened = await openStore(db);
-    try {
-      expect(reopened.snapshot(snapshotId!).id).toBe(snapshotId!);
-      expect(reopened.evidence(evidenceId!).id).toBe(evidenceId!);
-      expect(reopened.projects().total).toBe(1);
-    } finally {
-      reopened.close();
-    }
+    await verifyPersistedSnapshot(root, repo, policy);
     expect(await readFile(join(repo, "package.json"))).toEqual(before);
   });
 
@@ -182,6 +190,19 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
     expect(second.treeDigest).not.toBe(first.treeDigest);
     expect(second.nodes.find((n) => n.path === "service.ts")?.id).toBe(
       target?.id,
+    );
+  });
+
+  it("mantém sintaxe TypeScript inválida no inventário sem inferir relações", async () => {
+    const { repo, policy } = await fixture();
+    await writeFile(join(repo, "invalid.ts"), "export const broken = {\n");
+    await exec("git", ["-C", repo, "add", "invalid.ts"]);
+    const snapshot = await discoverProject(policy, randomUUID());
+    expect(snapshot.nodes.some((node) => node.path === "invalid.ts")).toBe(
+      true,
+    );
+    expect(snapshot.coverage.limitations).toContain(
+      "AST não analisada: invalid.ts. O arquivo permanece no inventário, sem relações inferidas.",
     );
   });
 
