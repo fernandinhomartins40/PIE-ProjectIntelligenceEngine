@@ -29,6 +29,11 @@
 - `pieUnifiedPlan.test.ts` percorre SQLite real, CLI, API autenticada e MCP. Verifica revisão inicial, retry idempotente entre adapters, histórico/hashes, Ajv, rejeição por revisão stale, remoção de owner com estado preservado e trigger append-only. A projeção atualizada conserva `planDigest`, `state: unverified` e `executionAuthorized: false`.
 - `check:fast` e os focused `pieUnifiedPlan`, `pieDoctor`, `piePostgres` passaram; o teste Postgres foi skipped sem `PIE_TEST_DATABASE_URL`. Não houve validação runtime PostgreSQL desta migration.
 
+## Fluxo web do plano, triagem e contestação — 17/10/2026
+
+- `tests/boundary/piePlanWeb.test.ts`: 1/1 passou no Chrome instalado, contra servidor PIE autenticado, repositório Git temporário e SQLite real. Pela interface, atribuiu owner/status com justificativa, conferiu evento persistido via PieService, contestou com Evidence selecionada e confirmou histórico e hash na persistência; verificou ausência de overflow horizontal em 360 e 1440 px.
+- `npm.cmd run pie:web:typecheck`, `npm.cmd run pie:web:build`, `npm.cmd run test:focused -- tests/boundary/piePlanWeb.test.ts`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram. `PIE_TEST_DATABASE_URL` continua ausente; essa fatia não verifica PostgreSQL runtime nem priorização impacto/risco/esforço.
+
 ## Runtime pinado e plano agregado inicial — 17/10/2026
 
 - `npm.cmd exec --yes --package=node@24.18.0 -- node --version`: `v24.18.0` a partir do cache npm existente, sem instalação global. Com esse executável, `scripts/pie.mjs doctor` reportou `ready_for_observe`, Node/Git disponíveis, SQLite `not_configured` sem criar arquivo; Docker `unavailable` e PostgreSQL `not_configured`. Executado com `Join-Path $env:TEMP 'pie-doctor-absent.sqlite'`. O `node` global 22.17.1 reporta corretamente fora de `engines.node`.
