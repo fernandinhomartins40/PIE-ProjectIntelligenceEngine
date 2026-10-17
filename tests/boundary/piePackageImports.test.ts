@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { expect, it } from "vitest";
 import { discoverProject } from "../../src/pie/discovery.js";
 import { policySchema } from "../../src/pie/contracts.js";
+import { validateSnapshot } from "../../src/pie/snapshotIntegrity.js";
 
 const exec = promisify(execFile);
 
@@ -39,25 +40,42 @@ it("liga imports de pacote somente a dependências declaradas e mantém Evidence
     expect(snapshot.nodes.find((node) => node.id === edge!.to)?.path).toBe(
       "package.json",
     );
-    expect(
-      edge!.evidenceIds.map((id) =>
-        snapshot.evidence.find((item) => item.id === id),
-      ),
-    ).toEqual(
+    const linked = edge!.evidenceIds.map((id) =>
+      snapshot.evidence.find((item) => item.id === id),
+    );
+    expect(linked).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           source: { path: "page.ts", line: 1, sha256: expect.any(String) },
+          observation: expect.stringContaining(
+            '["@scope/client/subpath","declared-package","package.json"]',
+          ),
         }),
         expect.objectContaining({
           source: { path: "package.json", line: 1, sha256: expect.any(String) },
         }),
       ]),
     );
+    expect(linked[0]?.observation).not.toContain("relative-file");
     expect(
       snapshot.coverage.limitations.some((item) =>
         item.includes("não resolvidas"),
       ),
     ).toBe(true);
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    const wrongTarget = structuredClone(snapshot);
+    wrongTarget.edges[0]!.to = edge!.from;
+    expect(() => validateSnapshot(wrongTarget)).toThrow("Manifest de pacote");
+    const missingManifestEvidence = structuredClone(snapshot);
+    missingManifestEvidence.edges[0]!.evidenceIds = [edge!.evidenceIds[0]!];
+    expect(() => validateSnapshot(missingManifestEvidence)).toThrow(
+      "Import sem declaração de pacote",
+    );
+    const missingImportEvidence = structuredClone(snapshot);
+    missingImportEvidence.edges[0]!.evidenceIds = [edge!.evidenceIds[1]!];
+    expect(() => validateSnapshot(missingImportEvidence)).toThrow(
+      "sem Evidence do import",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

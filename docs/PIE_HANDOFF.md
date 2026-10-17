@@ -2,7 +2,7 @@
 
 ## Continuidade atual — imports de pacotes no grafo — 17/10/2026
 
-Implementação local relaciona imports estáticos a dependências declaradas de nome único, com Evidence do import e do manifest; pacotes ausentes ou ambiguamente declarados permanecem sem destino. Após o endurecimento para nomes duplicados, quatro arquivos boundary passaram novamente (17 testes) e `check:fast` passou. `format:check`, build PIE e `docs:check:built` passaram; próximo passo: commit/push direto em `main`. A aresta chega ao manifest e não comprova instalação, subpath runtime ou carregamento. Goal integral ativo.
+Implementação local relaciona imports estáticos a dependências declaradas de nome único, com Evidence do import vinculada a specifier/destino e do manifest; snapshotIntegrity rejeita divergência; pacotes ausentes ou ambiguamente declarados permanecem sem destino. Após o endurecimento para nomes duplicados, quatro arquivos boundary passaram novamente (17 testes) e `check:fast` passou. `format:check`, build PIE e `docs:check:built` passaram; próximo passo: commit/push direto em `main`. A aresta chega ao manifest e não comprova instalação, subpath runtime ou carregamento. Goal integral ativo.
 
 ## Histórico da continuidade — comparação VERIFY — 17/10/2026
 

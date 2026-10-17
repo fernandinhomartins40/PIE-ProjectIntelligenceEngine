@@ -13,15 +13,22 @@ export interface DeclaredPackage {
   evidenceId: string;
   manifestNodeId: string;
 }
+export type ImportResolution =
+  | { kind: "relative-file"; targetPath: string }
+  | { kind: "declared-package"; manifestPath: string };
 
 /** Bounded conventional relative resolution; aliases and conditional exports remain unknown. */
 export function resolveImports(
   nodes: readonly GraphNode[],
   references: readonly ImportReference[],
-  evidenceAt: (path: string, line: number) => string,
+  evidenceAt: (
+    reference: ImportReference,
+    resolution: ImportResolution,
+  ) => string,
   packages: readonly DeclaredPackage[] = [],
 ): { edges: GraphEdge[]; unresolved: number } {
   const byPath = new Map(nodes.map((node) => [node.path, node]));
+  const byId = new Map(nodes.map((node) => [node.id, node]));
   const packageGroups = new Map<string, DeclaredPackage[]>();
   for (const item of packages) {
     const group = packageGroups.get(item.name) ?? [];
@@ -76,7 +83,10 @@ export function resolveImports(
       declaredPackage = packageByName.get(packageName!);
     }
     if (!source || !target) {
-      if (source && declaredPackage) {
+      const manifest = declaredPackage
+        ? byId.get(declaredPackage.manifestNodeId)
+        : undefined;
+      if (source && declaredPackage && manifest) {
         edges.push({
           id: sha256(
             JSON.stringify([source.id, reference.specifier, reference.line]),
@@ -86,7 +96,10 @@ export function resolveImports(
           kind: "depends",
           confidence: "derived",
           evidenceIds: [
-            evidenceAt(reference.sourcePath, reference.line),
+            evidenceAt(reference, {
+              kind: "declared-package",
+              manifestPath: manifest.path,
+            }),
             declaredPackage.evidenceId,
           ],
         });
@@ -101,7 +114,12 @@ export function resolveImports(
       to: target.id,
       kind: "depends",
       confidence: "derived",
-      evidenceIds: [evidenceAt(reference.sourcePath, reference.line)],
+      evidenceIds: [
+        evidenceAt(reference, {
+          kind: "relative-file",
+          targetPath: target.path,
+        }),
+      ],
     });
   }
   return { edges, unresolved };

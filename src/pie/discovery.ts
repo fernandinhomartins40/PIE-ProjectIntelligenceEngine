@@ -309,17 +309,22 @@ export async function discoverProject(
   const resolved = resolveImports(
     nodes,
     imports,
-    (path, line) => {
-      const original = evidenceByPath.get(path)!;
+    (reference, resolution) => {
+      const original = evidenceByPath.get(reference.sourcePath)!;
       const { sha256: previousDigest, ...fields } = original;
       void previousDigest;
       const item = sealEvidence({
         ...fields,
         id: randomUUID(),
-        source: { ...original.source, line },
+        source: { ...original.source, line: reference.line },
         confidence: "derived",
-        observation:
-          "Declaração AST de importação ou reexportação com destino relativo resolvido convencionalmente; não comprova carregamento em runtime.",
+        observation: `Import AST ${JSON.stringify([
+          reference.specifier,
+          resolution.kind,
+          resolution.kind === "relative-file"
+            ? resolution.targetPath
+            : resolution.manifestPath,
+        ])}; não comprova carregamento em runtime.`,
       });
       evidence.push(item);
       return item.id;
