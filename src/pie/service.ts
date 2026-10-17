@@ -24,6 +24,8 @@ import {
   compareVerificationRuns,
   verificationComparisonInput,
 } from "./regressionResults.js";
+import { exportVerification as renderVerificationExport } from "./execution/runExport.js";
+import { verificationExportInput } from "./execution/runContracts.js";
 
 function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
   if (result.ok) return result.value;
@@ -231,6 +233,14 @@ export class PieService {
   }
   verification(id: string) {
     return this.#read(async () => this.store.verification(id));
+  }
+  exportVerification(input: unknown) {
+    return this.#read(async () => {
+      const request = verificationExportInput.parse(input);
+      const run = await this.store.verification(request.id);
+      const snapshot = await this.store.snapshot(run.snapshotId);
+      return renderVerificationExport(run, snapshot, request);
+    });
   }
   httpProbe(id: string) {
     return this.#read(async () => this.store.httpProbe(id));

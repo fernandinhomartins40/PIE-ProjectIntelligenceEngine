@@ -1,3 +1,9 @@
+## Exporta??o paginada de execu??es VERIFY ? 17/10/2026
+
+- `verification-export <id>`, `GET /v1/verifications/:id/export` e MCP `pie_verification_export` chamam o mesmo `PieService`. Cada p?gina inclui o JSON ?ntegro do registro retido, run/snapshot/treeDigest/Evidence e hashes do payload e artefato serializado. O run ? relido pela persist?ncia e validado contra Evidence e snapshot; n?o h? execu??o do grant.
+- `npm.cmd run test:focused -- tests/boundary/pieRunPersistence.test.ts tests/boundary/mcp/toolSchemaValidity.test.ts`: SQLite/API/MCP/CLI passou; 16 testes passaram e o caso PostgreSQL real foi skipped (sem `PIE_TEST_DATABASE_URL`). O fixture provoca bloqueio real pela aus?ncia do execut?vel Docker; o estado permanece `blocked`. Schemas MCP 2020-12 foram validados para cat?logo inteiro.
+- `npm.cmd run check:fast`, `npm.cmd run mcp-catalog:check`, `npm.cmd run docs:check`, `npm.cmd run format:check` e `git diff --check` passaram. A CI incremental segue pendente.
+
 ## Exporta??o do hist?rico funcional ? 17/10/2026
 
 - `functional-record-export <id>`, `GET /v1/functional-records/:id/export` e MCP `pie_functional_record_export` chamam o mesmo servi?o; as p?ginas carregam registro/hash, snapshot/treeDigest e hash/tamanho do JSON serializado. Revalida payload hist?rico contra snapshot; n?o recalcula o motor.

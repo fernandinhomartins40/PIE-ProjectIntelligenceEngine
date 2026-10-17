@@ -1,3 +1,7 @@
+## Exporta??o hist?rica de VERIFY ? 17/10/2026
+
+Runs VERIFY persistidos v1/v2 agora s?o exportados sem reexecu??o via `verification-export`, GET autenticado `/v1/verifications/:id/export` e MCP `pie_verification_export`. O servi?o rel? e valida run, Evidence, bindings e contexto do snapshot; p?ginas identificam run/snapshot/treeDigest/Evidence e hash de payload/artefato. O teste percorre um run real `blocked` e comprova paridade CLI/API/MCP com pagina??o de 128 bytes e digest final. T6.1: exports de snapshot e dos hist?ricos funcionais/VERIFY implementados; CI incremental ainda pendente. PostgreSQL foi skipped sem `PIE_TEST_DATABASE_URL`.
+
 ## Exporta??o paginada de hist?rico funcional ? 17/10/2026
 
 `functional_records` agora pode ser exportado como JSON paginado UTF-8 via servi?o, CLI (`functional-record-export`), API autenticada e MCP. Cada p?gina referencia registro/hash imut?veis, snapshot e treeDigest; antes de exportar, o registro ? validado novamente contra snapshot e seu escopo original, sem recomputar o motor. Boundary real prova paridade integral MCP/CLI, pagina??o API e autentica??o. T6.1 continua parcial: export de execu??es VERIFY e CI incremental faltam.

@@ -1,3 +1,7 @@
+## Pr?xima frente ? CI incremental ? 17/10/2026
+
+Export de snapshots, registros funcionais e runs VERIFY agora compartilham servi?os paginados; runs VERIFY s?o revalidados com Evidence e snapshot e preservam estados sem reexecu??o. A boundary usou SQLite real/CLI/API/MCP e um run realmente bloqueado pelo Docker ausente; PostgreSQL foi skipped por aus?ncia de `PIE_TEST_DATABASE_URL`. Pr?ximo: auditar os workflows existentes e os contratos de path/commit para adicionar uma execu??o PIE incremental reproduz?vel, sem alegar cobertura CI ainda. Depois avan?ar T6.1/T6.3 e frentes restantes da matriz.
+
 ## Pr?xima frente ? export de execu??es VERIFY e CI incremental ? 17/10/2026
 
 Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s adapters, revalidada contra snapshot, ID e hashes preservados. Testes `pieApi`, `pieMcp`, `pieFunctionalPersistence`: 4/4 passaram. Pr?ximo: auditar formato e integridade dos `verification_runs` antes de adicionar export hist?rico, depois caracterizar a CI incremental existente sem alterar workflows at? determinar gatilhos e contratos. PostgreSQL real n?o foi validado nesta entrega.

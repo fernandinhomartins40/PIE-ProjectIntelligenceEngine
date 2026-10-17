@@ -13,7 +13,7 @@ import { PieService } from "../../src/pie/service.js";
 import { NodeVerification } from "../../src/pie/execution/verification.js";
 import type { PiePersistence } from "../../src/pie/persistence.js";
 import { runEvidence } from "../../src/pie/execution/runEvidence.js";
-import { sealEvidence } from "../../src/pie/evidence.js";
+import { sealEvidence, sha256 } from "../../src/pie/evidence.js";
 import { startPieApi } from "../../src/pie/api.js";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
@@ -29,6 +29,14 @@ async function readAdapters(path: string, repo: string, run: VerificationRun) {
     path,
   ]);
   expect(JSON.parse(cli.stdout)).toEqual(run);
+  const cliExport = await promisify(execFile)(process.execPath, [
+    script,
+    "verification-export",
+    run.id,
+    "--db",
+    path,
+  ]);
+  expect(JSON.parse(cliExport.stdout)).toEqual(run);
   const token = "fixture-run-history-token-32-characters-minimum";
   const peer = await openStore(path, repo);
   const api = await startPieApi(new PieService(peer), { root: repo, token });
@@ -45,6 +53,40 @@ async function readAdapters(path: string, repo: string, run: VerificationRun) {
         await fetch(`${api.url}/v1/verification/${run.id}`, { headers })
       ).json(),
     ).toEqual(run);
+    expect(
+      (await fetch(`${api.url}/v1/verifications/${run.id}/export`)).status,
+    ).toBe(401);
+    let offset = 0;
+    let content = "";
+    let artifactHash: string | undefined;
+    do {
+      const page = await fetch(
+        `${api.url}/v1/verifications/${run.id}/export?offset=${offset}&limitBytes=128`,
+        { headers },
+      );
+      expect(page.status).toBe(200);
+      const value = (await page.json()) as {
+        runId: string;
+        snapshotId: string;
+        evidenceId: string;
+        runSha256: string;
+        sha256: string;
+        nextOffset: number | null;
+        content: string;
+      };
+      expect(value.runId).toBe(run.id);
+      expect(value.snapshotId).toBe(run.snapshotId);
+      expect(value.evidenceId).toBe(run.evidence.id);
+      expect(value.runSha256).toBe(run.evidence.source.sha256);
+      artifactHash ??= value.sha256;
+      expect(value.sha256).toBe(artifactHash);
+      expect(Buffer.byteLength(value.content, "utf8")).toBeLessThanOrEqual(128);
+      content += value.content;
+      if (value.nextOffset === null) break;
+      offset = value.nextOffset;
+    } while (true);
+    expect(JSON.parse(content)).toEqual(run);
+    expect(sha256(content)).toBe(artifactHash);
     await client.connect(transport);
     const read = await client.callTool({
       name: "pie_verification_get",
@@ -52,6 +94,30 @@ async function readAdapters(path: string, repo: string, run: VerificationRun) {
     });
     expect(read.isError).not.toBe(true);
     expect(read.structuredContent).toEqual(run);
+    let mcpOffset = 0;
+    let mcpContent = "";
+    let mcpHash: string | undefined;
+    do {
+      const page = await client.callTool({
+        name: "pie_verification_export",
+        arguments: { id: run.id, offset: mcpOffset, limitBytes: 128 },
+      });
+      expect(page.isError).not.toBe(true);
+      const value = page.structuredContent as {
+        runId: string;
+        nextOffset: number | null;
+        sha256: string;
+        content: string;
+      };
+      expect(value.runId).toBe(run.id);
+      mcpHash ??= value.sha256;
+      expect(value.sha256).toBe(mcpHash);
+      mcpContent += value.content;
+      if (value.nextOffset === null) break;
+      mcpOffset = value.nextOffset;
+    } while (true);
+    expect(JSON.parse(mcpContent)).toEqual(run);
+    expect(mcpContent).toBe(content);
     const listed = await client.callTool({
       name: "pie_verifications_list",
       arguments: { snapshotId: run.snapshotId, limit: 1 },

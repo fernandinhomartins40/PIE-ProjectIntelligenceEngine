@@ -19,6 +19,7 @@ import { functionalInput } from "./functional.js";
 import { dataReviewInput } from "./dataReview.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
 import { functionalRecordExportInput } from "./functionalRecord.js";
+import { verificationExportInput } from "./execution/runContracts.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
@@ -182,6 +183,26 @@ export async function startPieApi(
             exportSnapshotInput.parse({
               snapshotId: segments[2],
               format: url.searchParams.get("format") ?? "json",
+              offset: Number(url.searchParams.get("offset") ?? 0),
+              limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
+            }),
+          ),
+        );
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        segments.length === 4 &&
+        segments[0] === "v1" &&
+        segments[1] === "verifications" &&
+        segments[3] === "export"
+      ) {
+        respond(
+          response,
+          200,
+          await service.exportVerification(
+            verificationExportInput.parse({
+              id: segments[2],
               offset: Number(url.searchParams.get("offset") ?? 0),
               limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
             }),

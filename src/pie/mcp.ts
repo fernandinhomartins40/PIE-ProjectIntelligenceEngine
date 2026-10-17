@@ -35,6 +35,8 @@ import {
 import {
   verificationRunSchema,
   verificationHistorySchema,
+  verificationExportInput,
+  verificationExportOutput,
 } from "./execution/runContracts.js";
 import {
   discoveryOutput,
@@ -299,6 +301,17 @@ export function createPieMcp(
       annotations: read,
     },
     ({ id }) => guarded(() => service.verification(id)),
+  );
+  server.registerTool(
+    "pie_verification_export",
+    {
+      description:
+        "Exporta em páginas UTF-8 o JSON do registro VERIFY imutável, preservando grant, resultado e Evidence; inclui digest do snapshot e hash do payload vinculado à Evidence. Skipped/blocked continuam sem aprovação e nenhum teste é reexecutado.",
+      inputSchema: verificationExportInput,
+      outputSchema: withError(verificationExportOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.exportVerification(input)),
   );
   server.registerTool(
     "pie_verifications_list",
