@@ -252,3 +252,6 @@ Depois de analisar, Salvar página analisada preserva a página corrente no serv
 Cada salvamento explícito cria um novo registro. Se houver resposta incerta, consulte/atualize o histórico antes de decidir salvar novamente; o painel não repete gravações automaticamente. Registros persistidos não aprovam funcionalidade e não autorizam execução. Contestação e reteste vinculado ainda estão pendentes.
 
 A comparação de snapshots inclui declarationChanges com paginação independente: observações antes/depois e provas preservadas. source_changed indica alteração de bytes da fonte; observed_only_before/after não comprovam remoção/adição de comportamento; ambiguous preserva ocorrências sem inventar alinhamento. Não comprova regressão runtime.
+
+
+No painel, Comparar versões mostra declarações antes/depois e abre a prova de cada versão. A paginação alcança todos os arquivos e declarações da comparação. Texto traduzido mantém limitações: ausência de observação não comprova remoção, bytes alterados não comprovam mudança de comportamento e ocorrências ambíguas não são alinhadas por suposição.

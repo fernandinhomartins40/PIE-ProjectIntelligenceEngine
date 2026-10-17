@@ -2,6 +2,7 @@ import { TraceResult } from "./TraceResult.js";
 import { Verifications } from "./Verifications.js";
 import { VerificationQueue } from "./VerificationQueue.js";
 import { FunctionalReview } from "./FunctionalReview.js";
+import { DeclarationChanges } from "./DeclarationChanges.js";
 import { useEffect, useRef, useState } from "react";
 import {
   api,
@@ -443,9 +444,16 @@ export function Investigation({
                 </div>
                 <Pager
                   offset={offset}
-                  total={comparison.changes.total}
+                  total={Math.max(
+                    comparison.changes.total,
+                    comparison.declarationChanges.total,
+                  )}
                   limit={LIMIT}
                   onChange={(value) => void compare(value, comparison)}
+                />
+                <DeclarationChanges
+                  comparison={comparison}
+                  onEvidence={(id) => void showEvidence(id)}
                 />
                 <p>
                   {comparison.impact.total} arquivos no impacto registrado pelos

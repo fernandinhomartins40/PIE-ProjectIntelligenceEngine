@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Comparação de declarações no painel — 17/10/2026
+
+Painel apresenta declarationChanges com observações antes/depois, receptor/contexto, arquivo/linha e acesso à prova de cada versão. Estados traduzidos explicitam ausência de observação, mudança de bytes e ambiguidade, sem afirmar remoção de funcionalidade ou regressão runtime. Paginação compartilhada usa maior total entre arquivos e declarações; páginas de declarações não ficam inacessíveis após acabar a lista de arquivos. A coluna de contexto preserva o valor declarado, sem derivar URL ou fluxo.
+
+Teste Chrome real foi estendido com endpoint Express observado antes e ausente depois, abertura da prova anterior e comparação dos mesmos snapshots reais. Nova declaração expôs ambiguidade no seletor de teste Rastrear; corrigido para escolher a linha React explicitamente. Rodada focada passou (um teste, 8,92s); regressão ampla passou com seis testes e um Linux ignorado em três arquivos (39,17s). Build web e typecheck web passaram; lint do componente/teste sem erros. CI 38998556410 da comparação anterior 856bcba85 terminou com sucesso. Nova entrega aguarda CI. Runners e motor completo de regressão, retestes e demais motores seguem pendentes; goal integral ativo. Sem medições de desempenho novas.
+
 ## Comparação de declarações — 17/10/2026
 
 Comparação compartilhada CLI/API/MCP agora inclui declarationChanges paginado, preservando declarações e evidências dos dois snapshots. Identidade lógica usa arquivo, adapter, tipo, nome e contexto; linha/hash são observações comparadas. Estados observed_only_before/after não afirmam remoção/adição de comportamento, pois versões de parser e cobertura podem diferir. source_changed significa bytes do arquivo alterados, não handler alterado comprovadamente. Ocorrências repetidas com observações diferentes ficam ambiguous, sem alinhamento inventado. Diferença de declarações também impede status global unchanged.

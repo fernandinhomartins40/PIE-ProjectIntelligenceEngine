@@ -430,7 +430,10 @@ it.skipIf(!existsSync(executablePath))(
     const repo = join(root, "repo");
     await mkdir(repo);
     await promisify(execFile)("git", ["init", repo]);
-    await writeFile(join(repo, "index.ts"), "export const value = 1;");
+    await writeFile(
+      join(repo, "index.ts"),
+      "import express from 'express'; const app=express(); app.get('/health', handler); export const value = 1;",
+    );
     await writeFile(
       join(repo, "package.json"),
       JSON.stringify({ dependencies: { react: "18.3.1" } }),
@@ -478,7 +481,11 @@ it.skipIf(!existsSync(executablePath))(
         .getByRole("button", { name: "Declarações", exact: true })
         .click();
       await page.getByRole("cell", { name: /^react/ }).waitFor();
-      await page.getByRole("button", { name: "Rastrear", exact: true }).click();
+      await page
+        .getByRole("row")
+        .filter({ has: page.getByRole("cell", { name: /^react/ }) })
+        .getByRole("button", { name: "Rastrear", exact: true })
+        .click();
       await page.getByRole("button", { name: "Rastrear relações" }).click();
       await page
         .getByRole("table", { name: "Nós alcançados no trace" })
@@ -497,6 +504,21 @@ it.skipIf(!existsSync(executablePath))(
         .selectOption({ index: 1 });
       await page.getByRole("button", { name: "Comparar snapshots" }).click();
       await page.getByText(/1 modificados/).waitFor();
+      const declarationDiff = page.getByRole("region", {
+        name: "Mudanças de declarações",
+      });
+      await declarationDiff
+        .getByText("Observada somente antes — remoção não comprovada", {
+          exact: true,
+        })
+        .waitFor();
+      await declarationDiff.getByText(/GET \/health/).waitFor();
+      await declarationDiff
+        .getByRole("button", { name: /^Prova anterior/ })
+        .click();
+      await page
+        .getByRole("heading", { name: "Evidência observada" })
+        .waitFor();
       expect(
         await page.evaluate(() => [localStorage.length, sessionStorage.length]),
       ).toEqual([0, 0]);
