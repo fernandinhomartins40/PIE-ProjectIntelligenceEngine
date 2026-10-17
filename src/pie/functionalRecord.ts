@@ -10,6 +10,7 @@ import { PieError, type Snapshot } from "./contracts.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import { pagedOutput } from "./outputContracts.js";
+import { pageUtf8Artifact } from "./utf8Artifact.js";
 export const functionalHistorySchema = pagedOutput(
   z.strictObject({
     id: z.string().uuid(),
@@ -79,20 +80,7 @@ export function exportFunctionalRecord(
   if (request.id !== record.id)
     throw new PieError("INVALID_INPUT", "Registro da exportação diverge.");
   const content = JSON.stringify(record, null, 2);
-  const bytes = Buffer.from(content, "utf8");
-  if (request.offset > bytes.length)
-    throw new PieError("INVALID_INPUT", "Offset excede a exportação.");
-  if (request.offset < bytes.length && (bytes[request.offset]! & 0xc0) === 0x80)
-    throw new PieError("INVALID_INPUT", "Offset não inicia caractere UTF-8.");
-  let end = Math.min(bytes.length, request.offset + request.limitBytes);
-  if (end < bytes.length && (bytes[end]! & 0xc0) === 0x80) {
-    while (end > request.offset && (bytes[end]! & 0xc0) === 0x80) end--;
-    if (end === request.offset)
-      throw new PieError(
-        "INVALID_INPUT",
-        "Limite não comporta caractere UTF-8.",
-      );
-  }
+  const page = pageUtf8Artifact(content, request.offset, request.limitBytes);
   return functionalRecordExportOutput.parse({
     schemaVersion: 1,
     recordId: record.id,
@@ -101,10 +89,7 @@ export function exportFunctionalRecord(
     recordSha256: record.sha256,
     format: "json",
     offset: request.offset,
-    totalBytes: bytes.length,
-    nextOffset: end < bytes.length ? end : null,
-    sha256: sha256(bytes),
-    content: bytes.subarray(request.offset, end).toString("utf8"),
+    ...page,
   });
 }
 export function sealFunctional(

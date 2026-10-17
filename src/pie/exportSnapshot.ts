@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { sha256 } from "./evidence.js";
 import { PieError, type Snapshot } from "./contracts.js";
 import { renderSnapshot } from "./reports.js";
+import { pageUtf8Artifact } from "./utf8Artifact.js";
 
 export const exportSnapshotInput = z.strictObject({
   snapshotId: z.string().uuid(),
@@ -28,36 +28,13 @@ export function exportSnapshot(snapshot: Snapshot, rawInput: unknown) {
   if (input.snapshotId !== snapshot.id)
     throw new PieError("INVALID_INPUT", "Snapshot da exportação diverge.");
   const content = renderSnapshot(snapshot, input.format);
-  const bytes = Buffer.from(content, "utf8");
-  if (input.offset > bytes.length)
-    throw new PieError(
-      "INVALID_INPUT",
-      "Offset excede o tamanho da exportação.",
-    );
-  if (input.offset < bytes.length && (bytes[input.offset]! & 0xc0) === 0x80)
-    throw new PieError(
-      "INVALID_INPUT",
-      "Offset precisa apontar para o início de um caractere UTF-8.",
-    );
-  let end = Math.min(bytes.length, input.offset + input.limitBytes);
-  if (end < bytes.length && (bytes[end]! & 0xc0) === 0x80) {
-    while (end > input.offset && (bytes[end]! & 0xc0) === 0x80) end--;
-    if (end === input.offset)
-      throw new PieError(
-        "INVALID_INPUT",
-        "Limite da página não comporta o próximo caractere UTF-8.",
-      );
-  }
-  const nextOffset = end < bytes.length ? end : null;
+  const page = pageUtf8Artifact(content, input.offset, input.limitBytes);
   return exportSnapshotOutput.parse({
     schemaVersion: 1,
     snapshotId: snapshot.id,
     treeDigest: snapshot.treeDigest,
     format: input.format,
     offset: input.offset,
-    totalBytes: bytes.length,
-    nextOffset,
-    sha256: sha256(bytes),
-    content: bytes.subarray(input.offset, end).toString("utf8"),
+    ...page,
   });
 }
