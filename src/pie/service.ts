@@ -13,6 +13,7 @@ import {
   functionalInput,
 } from "./functional.js";
 import { dataReviewInput, reviewData } from "./dataReview.js";
+import { reviewSecurity, securityInput } from "./security.js";
 import {
   exportSnapshot as renderSnapshotExport,
   exportSnapshotInput,
@@ -373,6 +374,13 @@ export class PieService {
       const request = dataReviewInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
       return reviewData(snapshot, request);
+    });
+  }
+  security(input: unknown) {
+    return this.#read(async () => {
+      const request = securityInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      return reviewSecurity(snapshot, request);
     });
   }
   retainFunctional(input: unknown) {

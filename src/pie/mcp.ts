@@ -13,6 +13,7 @@ import {
   productOutput,
 } from "./functional.js";
 import { dataReviewInput, dataReviewOutput } from "./dataReview.js";
+import { securityInput, securityOutput } from "./security.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
 import {
@@ -117,6 +118,17 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.dataReview(input)),
+  );
+  server.registerTool(
+    "pie_security_review",
+    {
+      description:
+        "Procura padrões reconhecíveis de credenciais em arquivos estáticos cujo hash atual coincide com Evidence do snapshot. Valores nunca são retornados. Findings são suspeitas não verificadas; não valida credenciais e não cobre toda classe de segredo, autorização, runtime ou LGPD.",
+      inputSchema: securityInput,
+      outputSchema: withError(securityOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.security(input)),
   );
   server.registerTool(
     "pie_product_review",

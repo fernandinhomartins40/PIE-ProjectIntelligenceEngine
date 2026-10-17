@@ -1,0 +1,170 @@
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import type { AnySchema } from "ajv";
+import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
+import { expect, it, vi } from "vitest";
+import { startPieApi } from "../../src/pie/api.js";
+import { runPie } from "../../src/pie/cli.js";
+import { createPieMcp } from "../../src/pie/mcp.js";
+import { PieService } from "../../src/pie/service.js";
+import { openStore } from "../../src/pie/store.js";
+import { discoverProject } from "../../src/pie/discovery.js";
+import { reviewSecurity } from "../../src/pie/security.js";
+
+const exec = promisify(execFile);
+
+it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e MCP", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-security-review-"));
+  const repo = join(root, "repo");
+  const db = join(root, "pie.sqlite");
+  const canary = "ghp_123456789012345678901234567890123456";
+  await mkdir(repo);
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "config.ts"),
+    `export const token = "${canary}";\nexport const key = "AKIA1234567890ABCDEF";\n`,
+  );
+  await writeFile(join(repo, "ordinary.ts"), "export const ready = true;\n");
+  await exec("git", ["-C", repo, "add", "."]);
+
+  const store = await openStore(db, repo);
+  const service = new PieService(store);
+  const token = "fixture-security-review-api-token-with-at-least-32-characters";
+  const api = await startPieApi(service, { root: repo, token });
+  const mcp = createPieMcp(service, repo);
+  const client = new Client({ name: "pie-security-review-test", version: "1" });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  const output = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const request = { snapshotId: discovered.snapshot.id, limit: 1 };
+    const expected = await service.security(request);
+    expect(expected).toMatchObject({
+      engine: "security",
+      state: "suspected_findings",
+      findings: {
+        total: 2,
+        items: [
+          {
+            category: "credential_like_material",
+            state: "suspected",
+            kind: "github_token",
+            source: { path: "config.ts", line: 1 },
+            evidenceIds: [expect.any(String)],
+          },
+        ],
+        nextOffset: 1,
+      },
+      coverage: {
+        filesExamined: 2,
+        filesSkipped: 0,
+        runtime: false,
+      },
+    });
+    expect(JSON.stringify(expected)).not.toContain(canary);
+    const secondPage = await service.security({
+      snapshotId: discovered.snapshot.id,
+      limit: 1,
+      offset: 1,
+    });
+    expect(secondPage.findings.items[0]).toMatchObject({
+      kind: "aws_access_key_id",
+      source: { path: "config.ts", line: 2 },
+    });
+
+    await runPie([
+      "security-review",
+      discovered.snapshot.id,
+      "--limit",
+      "1",
+      "--db",
+      db,
+    ]);
+    expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toEqual(expected);
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    const response = await fetch(`${api.url}/v1/security-review`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(request),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(expected);
+
+    await Promise.all([
+      client.connect(clientTransport),
+      mcp.connect(serverTransport),
+    ]);
+    const tool = (await client.listTools()).tools.find(
+      (item) => item.name === "pie_security_review",
+    );
+    expect(tool).toBeDefined();
+    const ajv = new Ajv2020({ strict: false, validateFormats: false });
+    expect(ajv.validateSchema(tool!.inputSchema)).toBe(true);
+    expect(ajv.validateSchema(tool!.outputSchema as AnySchema)).toBe(true);
+    const result = await client.callTool({
+      name: "pie_security_review",
+      arguments: request,
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toEqual(expected);
+    expect(
+      ajv.compile(tool!.outputSchema as AnySchema)(result.structuredContent),
+    ).toBe(true);
+
+    await writeFile(
+      join(repo, "config.ts"),
+      "export const token = 'changed';\n",
+    );
+    const stale = await service.security({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(stale.findings.total).toBe(0);
+    expect(stale.state).toBe("incomplete");
+    expect(stale.coverage.filesSkipped).toBe(1);
+    expect(stale.coverage.limitations.join(" ")).toContain(
+      "mudou desde o snapshot",
+    );
+  } finally {
+    output.mockRestore();
+    await client.close();
+    await mcp.close();
+    await api.close();
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("bounds credential findings and reports incomplete coverage at the cap", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-security-cap-"));
+  const token = "ghp_123456789012345678901234567890123456";
+  try {
+    await exec("git", ["init", root]);
+    await writeFile(join(root, "tokens.txt"), `${`${token}\n`.repeat(10_001)}`);
+    await exec("git", ["-C", root, "add", "."]);
+    const snapshot = await discoverProject(
+      { repositoryRoot: root, profile: "OBSERVE", environment: "local" },
+      randomUUID(),
+    );
+    const result = await reviewSecurity(snapshot, { snapshotId: snapshot.id });
+    expect(result.findings.total).toBe(10_000);
+    expect(result.coverage.findingsTruncated).toBe(true);
+    expect(result.state).toBe("incomplete");
+    expect(JSON.stringify(result)).not.toContain(token);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

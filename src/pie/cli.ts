@@ -100,7 +100,7 @@ export async function runPie(args: string[]): Promise<void> {
       "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova e http-probes <snapshot-id> lista o histórico. Não inicia o servidor do projeto.",
     );
     console.log(
-      "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id>, ambos aceitam --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Código estático não comprova comportamento nem fricção de UX.",
+      "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id> | data-review <snapshot-id> | security-review <snapshot-id>; aceitam --limit <1–200> --offset <n>. Código estático não comprova comportamento, fricção ou segurança.",
     );
     console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
@@ -142,11 +142,12 @@ export async function runPie(args: string[]): Promise<void> {
             "recorded-graph-trace",
             "local-react-dashboard",
             "prisma-data-review",
+            "static-credential-pattern-review",
           ],
           unavailable: [
             "functional-runtime-verification",
             "product-engine",
-            "security-engine",
+            "security-runtime-and-authorization-analysis",
             "infrastructure-engine",
             "database-runtime-validation",
           ],
@@ -212,6 +213,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional-record-export",
       "functional-records",
       "data-review",
+      "security-review",
       "http-probe",
       "http-probes",
       "trace",
@@ -350,6 +352,9 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "data-review":
         result = await service.dataReview({ snapshotId: target!, ...paging });
+        break;
+      case "security-review":
+        result = await service.security({ snapshotId: target!, ...paging });
         break;
       case "functional":
         result = await service.functional({
