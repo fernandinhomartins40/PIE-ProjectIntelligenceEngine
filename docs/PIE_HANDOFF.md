@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Continuidade atual — supervisão/cancelamento Git — 17/10/2026
+
+Na descoberta, o wrapper Git convertia toda falha de `execFile` em `IO_ERROR`; abortar subprocesso ativo podia ser confundido com erro de inventário, e o timeout real Windows era `killed=true`, `signal=SIGTERM`, `code=null`. O produtor agora preserva `signal.reason` quando cancelado e representa timeout/capacidade do filho como `LIMIT_EXCEEDED`. `pieFoundation` passou 9/9 com repositório Git real, incluindo cancelamento assíncrono e timeout total de 1 ms. `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram. Próximo: publicar diretamente em `main` e conferir os workflows do novo SHA. Não ampliar a alegação para workers/jobs ou outros subprocessos; T1.1/T1.3 seguem parciais.
+
 ## Continuidade atual — caracterização do runtime upstream — 17/10/2026
 
 Node 24.18.0/npm 11.16.0; artefato Windows x64 exato de `rea-agents@6.5.0` restaurado/validado; `build:cached` passou. REA CLI help e MCP stdio real listaram 207 ferramentas; PIE MCP stdio/Ajv passou em teste real, assim como 36 testes Evidence/Ledger upstream. `verify:package` gerou tarball mas bloqueou em EPERM criando symlink de fixture no Windows antes de install/update; não comprova pacote instalado. Próxima frente segura: continuar T2.2/grafo e acompanhar lanes CI para package verification Linux; fork de rede e provedores externos continuam não confirmados.

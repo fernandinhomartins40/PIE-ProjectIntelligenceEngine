@@ -131,6 +131,27 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
     ).rejects.toThrow();
   });
 
+  it("preserva cancelamento recebido enquanto comandos Git estão ativos", async () => {
+    const { policy } = await fixture();
+    const controller = new AbortController();
+    const reason = new DOMException("cancelamento de teste", "AbortError");
+    const timer = setTimeout(() => controller.abort(reason), 10);
+    try {
+      await expect(
+        discoverProject(policy, randomUUID(), controller.signal),
+      ).rejects.toBe(reason);
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  it("classifica prazo total da descoberta como limite, não como falha de I/O", async () => {
+    const { policy } = await fixture();
+    await expect(
+      discoverProject({ ...policy, timeoutMs: 1 }, randomUUID()),
+    ).rejects.toMatchObject({ code: "LIMIT_EXCEEDED" });
+  });
+
   it("encerra aguardando descoberta cancelada e bloqueia nova admissão", async () => {
     const { root, repo, policy } = await fixture();
     const store = await openStore(join(root, "lifecycle.sqlite"), repo);

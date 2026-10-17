@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Cancelamento e limites na supervisão Git — 17/10/2026
+
+`discoverProject` agora preserva o motivo original quando um `AbortSignal` encerra um subprocesso Git. Timeout do processo e excesso do buffer de saída são classificados como `LIMIT_EXCEEDED`, em vez de `IO_ERROR` (no Node/Windows observado, timeout retorna `killed: true`, `signal: SIGTERM` e `code: null`). Isso impede que cancelamento em inventário por arquivo seja rebaixado a omissão de entrada. `IO_ERROR` permanece para falhas Git não classificadas como cancelamento ou limite. T1.1/T1.3 continuam parciais: esta entrega não implementa estados persistidos para todos os jobs nem cobre outros subprocessos.
+
+Regressão em Git real: cancelamento assíncrono preserva a mesma instância de `AbortError`; timeout total de 1 ms retorna `LIMIT_EXCEEDED`. Passaram `pie:build`, `check:fast`, `docs:check:built`, `format:check`, `git diff --check` e `pieFoundation` (9/9). Os workflows de CI do commit anterior continuam em execução; validação CI da correção depende do push. T1.1/T1.3 continuam parciais.
+
 ## Prefixos Express cross-file com proveniência — 17/10/2026
 
 Quando um import relativo resolve por exports locais ou por uma cadeia única de reexports ESM relativos até um router Express comprovado, o prefixo literal do `app.use()` compõe o caminho do endpoint. A composição inclui mounts locais do router (por exemplo, `/api` + `/v2` + `/health` → `/api/v2/health`), preserva mounts distintos e mantém `calls` para o módulo importado mais `depends` por cada reexport intermediário. Evidence da declaração composta aponta ao mount; Evidence do reexport é vinculada à aresta de import correspondente. `validateSnapshot` verifica esses vínculos. Derivações v3 registram `sourcePath`; snapshots v1/v2 seguem aceitos sem migração. Limites de recursos continuam aplicados; prefixos dinâmicos, chains ambíguas/cíclicas, namespace, CommonJS e routers aninhados sem proveniência permanecem desconhecidos.

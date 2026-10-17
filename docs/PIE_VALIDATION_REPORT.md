@@ -421,3 +421,12 @@ Validação executada: `pie:build`, `check:fast`, `docs:check:built`, `format:ch
 Dependência runtime `php-parser@3.7.0`, BSD-3-Clause, entrou no lockfile. `npm run licenses:refresh-notices` verificou integridade dos tarballs fixados e adicionou 28 notices runtime, sem gaps; `npm run licenses:check` passou (893 lockados, 353 runtime). Runtime Laravel/PHP, matrix de versões e custo desempenho continuam não medidos/verificados.
 
 Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por essa gramática não prova invalidade de sintaxe em outras versões; nenhuma rota é inferida da AST rejeitada.
+
+# Validação incremental — cancelamento e timeout Git — 17/10/2026
+
+- `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts`: 9/9 passaram. Os dois casos novos usam checkout Git temporário real; um preserva o mesmo `DOMException` `AbortError` após cancelamento assíncrono, outro confirma `LIMIT_EXCEEDED` no prazo total de 1 ms.
+- Reproduzido separadamente no host Windows que o timeout do `execFile` do Node 24 reporta `killed: true`, `signal: SIGTERM` e `code: null`; a classificação de limite inclui essa forma observada.
+- `npm run pie:build`: passou.
+- `npm run check:fast`, `npm run docs:check:built`, `npm run format:check` e `git diff --check`: passaram após a implementação e atualização documental.
+- CI do commit com a correção ainda não foi executada; os três workflows consultados são do SHA anterior e estavam `in_progress`.
+- Evidência limitada à supervisão Git de descoberta no Windows; Linux/macOS, outros processos e persistência de estados de cancelamento não verificados. Nenhum código do repositório alvo é executado.

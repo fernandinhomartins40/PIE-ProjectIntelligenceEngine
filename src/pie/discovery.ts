@@ -84,7 +84,25 @@ async function git(
       },
     );
     return result.stdout;
-  } catch {
+  } catch (cause) {
+    // Preserve lifecycle semantics from the process supervisor. In particular,
+    // an abort must not become an inventory omission, and a bounded child
+    // process must not report a timeout or output-capacity failure as I/O.
+    if (signal?.aborted) throw signal.reason ?? cause;
+    if (cause instanceof Error) {
+      const code = (cause as NodeJS.ErrnoException).code;
+      if (
+        code === "ETIMEDOUT" ||
+        code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" ||
+        ((cause as NodeJS.ErrnoException & { killed?: boolean }).killed ===
+          true &&
+          (cause as NodeJS.ErrnoException & { signal?: string }).signal != null)
+      )
+        throw new PieError(
+          "LIMIT_EXCEEDED",
+          "Comando Git excedeu o limite de tempo ou saída da descoberta.",
+        );
+    }
     throw new PieError(
       "IO_ERROR",
       "Não foi possível ler os metadados Git dentro dos limites.",
