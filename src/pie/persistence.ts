@@ -14,6 +14,8 @@ import type {
   VerificationRun,
   verificationHistorySchema,
 } from "./execution/runContracts.js";
+import type { PlanContestation } from "./planContestation.js";
+import type { planContestHistorySchema } from "./planContestation.js";
 
 type Awaitable<T> = T | Promise<T>;
 export interface ProjectRecord {
@@ -59,6 +61,12 @@ export interface PiePersistence {
     projectId: string,
     input?: unknown,
   ): Awaitable<z.infer<typeof verificationHistorySchema>>;
+  savePlanContestation(input: unknown): Awaitable<PlanContestation>;
+  planContestation(id: string): Awaitable<PlanContestation>;
+  planContestations(
+    snapshotId: string,
+    input: unknown,
+  ): Awaitable<z.infer<typeof planContestHistorySchema>>;
   history(
     projectId: string,
     input?: unknown,

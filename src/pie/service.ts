@@ -25,6 +25,11 @@ import {
 } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
 import { generateUnifiedPlan, planningInput } from "./planning.js";
+import {
+  planContestationInput,
+  planContestHistoryInput,
+  sealPlanContestation,
+} from "./planContestation.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 import {
   compareVerificationRuns,
@@ -355,6 +360,56 @@ export class PieService {
       const request = planningInput.parse(input);
       const snapshot = await this.store.snapshot(request.snapshotId);
       return generateUnifiedPlan(snapshot, request);
+    });
+  }
+  contestPlanItem(input: unknown) {
+    return this.#read(async () => {
+      const request = planContestationInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      let item: unknown;
+      for (let offset = 0; ; offset += 200) {
+        const plan = await generateUnifiedPlan(snapshot, {
+          snapshotId: snapshot.id,
+          limit: 200,
+          offset,
+        });
+        if (plan.planDigest !== request.planDigest)
+          throw new PieError(
+            "INTEGRITY_ERROR",
+            "Digest informado não corresponde ao plano atual do snapshot.",
+          );
+        item = plan.items.items.find(
+          (candidate) => candidate.id === request.itemId,
+        );
+        if (item || plan.items.nextOffset === null) break;
+      }
+      if (!item)
+        throw new PieError(
+          "NOT_FOUND",
+          "Item não pertence ao plano informado.",
+        );
+      const known = new Set(snapshot.evidence.map((entry) => entry.id));
+      if (request.evidenceIds.some((id) => !known.has(id)))
+        throw new PieError(
+          "INVALID_INPUT",
+          "Evidence de apoio deve pertencer ao snapshot.",
+        );
+      return this.store.savePlanContestation(
+        sealPlanContestation(request, item),
+      );
+    });
+  }
+  planContestation(id: string) {
+    return this.#read(async () => this.store.planContestation(id));
+  }
+  planContestations(snapshotId: string, input: unknown = {}) {
+    return this.#read(async () => {
+      const request = planContestHistoryInput.parse({
+        ...((input ?? {}) as object),
+        snapshotId,
+      });
+      await this.store.snapshot(snapshotId);
+      return this.store.planContestations(snapshotId, request);
     });
   }
   functional(input: unknown) {

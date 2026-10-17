@@ -18,6 +18,12 @@ import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
 import { planningInput, unifiedPlanOutput } from "./planning.js";
 import {
+  planContestationInput,
+  planContestationSchema,
+  planContestHistoryInput,
+  planContestHistorySchema,
+} from "./planContestation.js";
+import {
   functionalRecordSchema,
   functionalRecordExportInput,
   functionalRecordExportOutput,
@@ -219,6 +225,40 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.plan(input)),
+  );
+  server.registerTool(
+    "pie_plan_contest",
+    {
+      description:
+        "Registra contestação justificada e append-only de um item do plano atual, com Evidence de apoio e snapshot íntegro do item; não altera estado nem autoriza execução.",
+      inputSchema: planContestationInput,
+      outputSchema: withError(planContestationSchema),
+      annotations: write,
+    },
+    (input) => guarded(() => service.contestPlanItem(input)),
+  );
+  server.registerTool(
+    "pie_plan_contestation_get",
+    {
+      description:
+        "Lê uma contestação histórica e valida seu hash e vínculo ao snapshot original.",
+      inputSchema: idInput,
+      outputSchema: withError(planContestationSchema),
+      annotations: read,
+    },
+    ({ id }) => guarded(() => service.planContestation(id)),
+  );
+  server.registerTool(
+    "pie_plan_contestations_list",
+    {
+      description:
+        "Lista contestações preservadas para um digest de plano e snapshot, com histórico paginado.",
+      inputSchema: planContestHistoryInput,
+      outputSchema: withError(planContestHistorySchema),
+      annotations: read,
+    },
+    ({ snapshotId, ...paging }) =>
+      guarded(() => service.planContestations(snapshotId, paging)),
   );
   if (verifier && queue) {
     server.registerTool(

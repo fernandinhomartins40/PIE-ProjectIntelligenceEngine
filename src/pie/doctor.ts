@@ -15,6 +15,7 @@ const sqliteTables = [
   "pie_verification_runs",
   "pie_functional_records",
   "pie_http_probes",
+  "pie_plan_contestations",
 ];
 
 type Check = {
@@ -119,18 +120,18 @@ async function sqliteCheck(path: string): Promise<Check> {
               .get()?.version ?? 0,
           )
         : 0;
-      return missing.length === 0 && migrationVersion >= 4
+      return missing.length === 0 && migrationVersion >= 5
         ? {
             status: "available",
             detail:
-              "Banco existente, migração SQLite v4 e tabelas PIE reconhecidas; abertura somente leitura.",
+              "Banco existente, migração SQLite v5 e tabelas PIE reconhecidas; abertura somente leitura.",
           }
         : {
             status: "incomplete",
             detail:
               missing.length > 0
                 ? `Banco existente sem todas as tabelas PIE; faltam ${missing.length} tabela(s), nenhuma migração foi executada.`
-                : `Banco existente na migração v${migrationVersion}; esperado v4. Nenhuma migração foi executada.`,
+                : `Banco existente na migração v${migrationVersion}; esperado v5. Nenhuma migração foi executada.`,
           };
     } finally {
       db.close();

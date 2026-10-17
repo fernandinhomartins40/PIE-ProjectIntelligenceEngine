@@ -22,7 +22,7 @@ const engine = z.enum([
   "regression",
 ]);
 
-const planItemSchema = z.strictObject({
+export const planItemSchema = z.strictObject({
   id: z.string(),
   engine,
   sourceId: z.string(),

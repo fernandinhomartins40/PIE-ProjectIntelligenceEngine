@@ -59,7 +59,7 @@ Licença e atribuições: `LICENSE`, `THIRD_PARTY_NOTICES.md` e `licenses/` pres
 
 ## Comparação, relatórios e API local
 
-Plano agregado de triagem (somente leitura): `node scripts/pie.mjs plan UUID_DO_SNAPSHOT --limit 50 --offset 0`. A API usa `POST /v1/plan` e o MCP `pie_plan_generate`. Ele reúne somente os itens já emitidos pelos motores funcional, produto, segurança e dados; infraestrutura/regressão constam como não implementados. Não grava owner/status/contestação, não executa testes e não transforma suspeitas ou lacunas em conclusões.
+Plano agregado de triagem: `node scripts/pie.mjs plan UUID_DO_SNAPSHOT --limit 50 --offset 0`. A API usa `POST /v1/plan` e o MCP `pie_plan_generate`. Para contestar um item, prepare JSON com `id`, `snapshotId`, `planDigest`, `itemId`, `justification` e `evidenceIds`, e execute `node scripts/pie.mjs plan-contest request.json`. A API autenticada usa `POST /v1/plan/contest`; MCP usa `pie_plan_contest`. A leitura paginada usa `GET /v1/plan/contestations?snapshotId=UUID&planDigest=SHA256` ou `pie_plan_contestations_list`. A contestação é append-only e não altera status, owner ou autorização de execução. Infraestrutura/regressão constam como não implementados.
 
 ```powershell
 node scripts/pie.mjs compare UUID_ANTES UUID_DEPOIS --db C:/dados-pie/pie.sqlite
@@ -277,7 +277,7 @@ A seção Lacunas de verificação funcional consulta a análise OBSERVE do snap
 
 functional-retain <snapshot-id> --module <caminho> --limit <n> --offset <n> salva explicitamente a página analisada como registro imutável. functional-record <id> lê e verifica o registro. MCP usa pie_functional_retain e pie_functional_record_get; API usa POST /v1/functional-records (mesma entrada da análise) e GET /v1/functional-records/:id. Salvar é operação distinta da consulta funcional, que continua sem gravar.
 
-Registros preservam pedido, resultado paginado, data, snapshot e hash canônico; validam fatos/evidências contra o snapshot. Não são prova runtime e não representam páginas omitidas. Mesmo ID não pode substituir conteúdo histórico. PostgreSQL exige migration 202610160005 antes destas operações. Listagem paginada de análises, contestação e interface de retenção ainda estão pendentes.
+Registros preservam pedido, resultado paginado, data, snapshot e hash canônico; validam fatos/evidências contra o snapshot. Não são prova runtime e não representam páginas omitidas. Mesmo ID não pode substituir conteúdo histórico. PostgreSQL precisa das migrations correspondentes antes destas operações, incluindo `202610170002_plan_contestations`. Contestação do plano guarda o item e digest originais em trilha append-only; edição de owner/status e interface de triagem continuam pendentes.
 
 ## Listar análises preservadas
 

@@ -27,6 +27,13 @@ import {
   validateVerificationRun,
   validateStoredVerification,
 } from "./execution/runIntegrity.js";
+import {
+  planContestationSchema,
+  planContestHistoryInput,
+  planContestHistorySchema,
+  samePlanContestationIntent,
+  validateContestationSnapshot,
+} from "./planContestation.js";
 
 const json = (value: object): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -251,6 +258,68 @@ export class PostgresPieStore implements PiePersistence {
         payload: row.payload,
       },
       await this.snapshot(row.snapshot_id),
+    );
+  }
+  async savePlanContestation(input: unknown) {
+    const record = planContestationSchema.parse(input);
+    validateContestationSnapshot(
+      record,
+      await this.snapshot(record.snapshotId),
+    );
+    await this.#client
+      .$executeRaw`INSERT INTO pie_plan_contestations(id,snapshot_id,plan_digest,created_at,payload) VALUES(${record.id}::uuid,${record.snapshotId}::uuid,${record.planDigest},${new Date(record.createdAt)},${JSON.stringify(record)}::jsonb) ON CONFLICT (id) DO NOTHING`;
+    const stored = await this.planContestation(record.id);
+    if (!samePlanContestationIntent(stored, record))
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "ContestaÃ§Ã£o histÃ³rica nÃ£o pode ser substituÃ­da.",
+      );
+    return stored;
+  }
+  async planContestation(id: string) {
+    const rows = await this.#client.$queryRaw<
+      Array<{ snapshot_id: string; payload: unknown }>
+    >`SELECT snapshot_id::text,payload FROM pie_plan_contestations WHERE id=${id}::uuid`;
+    const row = rows[0];
+    if (!row) throw new PieError("NOT_FOUND", "ContestaÃ§Ã£o nÃ£o encontrada.");
+    return validateContestationSnapshot(
+      row.payload,
+      await this.snapshot(row.snapshot_id),
+    );
+  }
+  async planContestations(snapshotId: string, rawInput: unknown) {
+    const request = planContestHistoryInput.parse({
+      ...((rawInput ?? {}) as object),
+      snapshotId,
+    });
+    const snapshot = await this.snapshot(snapshotId);
+    return this.#client.$transaction(
+      async (tx) => {
+        const counts = await tx.$queryRaw<
+          Array<{ total: bigint }>
+        >`SELECT count(*) AS total FROM pie_plan_contestations WHERE snapshot_id=${snapshotId}::uuid AND plan_digest=${request.planDigest}`;
+        const rows = await tx.$queryRaw<
+          Array<{ id: string; payload: unknown }>
+        >`SELECT id::text,payload FROM pie_plan_contestations WHERE snapshot_id=${snapshotId}::uuid AND plan_digest=${request.planDigest} ORDER BY created_at,id LIMIT ${request.limit} OFFSET ${request.offset}`;
+        const total = Number(counts[0]!.total);
+        return planContestHistorySchema.parse({
+          schemaVersion: 1,
+          snapshotId,
+          planDigest: request.planDigest,
+          items: {
+            items: rows.map((row) =>
+              validateContestationSnapshot(row.payload, snapshot),
+            ),
+            total,
+            offset: request.offset,
+            nextOffset:
+              request.offset + request.limit < total
+                ? request.offset + request.limit
+                : null,
+          },
+        });
+      },
+      { isolationLevel: "RepeatableRead" },
     );
   }
   async assertOutside(_root: string): Promise<void> {

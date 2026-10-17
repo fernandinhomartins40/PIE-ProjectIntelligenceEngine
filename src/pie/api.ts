@@ -23,6 +23,7 @@ import { functionalRecordExportInput } from "./functionalRecord.js";
 import { verificationExportInput } from "./execution/runContracts.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 import { planningInput } from "./planning.js";
+import { planContestationInput } from "./planContestation.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -393,6 +394,48 @@ export async function startPieApi(
         const input = planningInput.parse(await body(request));
         await requireSnapshot(input.snapshotId);
         respond(response, 200, await service.plan(input));
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/plan/contest") {
+        const input = planContestationInput.parse(await body(request));
+        await requireSnapshot(input.snapshotId);
+        respond(response, 201, await service.contestPlanItem(input));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/plan/contestations"
+      ) {
+        const snapshotId = z
+          .string()
+          .uuid()
+          .parse(url.searchParams.get("snapshotId"));
+        const planDigest = z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .parse(url.searchParams.get("planDigest"));
+        await requireSnapshot(snapshotId);
+        respond(
+          response,
+          200,
+          await service.planContestations(snapshotId, {
+            planDigest,
+            ...paging(),
+          }),
+        );
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        segments[1] === "plan" &&
+        segments[2] === "contestations" &&
+        segments.length === 4
+      ) {
+        const record = await service.planContestation(
+          z.string().uuid().parse(segments[3]),
+        );
+        await requireSnapshot(record.snapshotId);
+        respond(response, 200, record);
         return;
       }
       if (

@@ -19,10 +19,15 @@
 
 # PIE — Registro de validação contínua
 
+## Contestação do plano — 17/10/2026
+
+- A boundary `pieUnifiedPlan`, `pieDoctor` e `piePostgres` executou 3 testes com sucesso; 1 teste Postgres foi ignorado porque `PIE_TEST_DATABASE_URL` não está configurada. SQLite/Git reais cobrem contestação justificada, hash/item histórico, retry idempotente, triggers que rejeitam UPDATE/DELETE, digest e Evidence inválidos, paginação e paridade CLI/API/MCP. Ajv valida os schemas MCP.
+- `check:fast`, `format:check`, `docs:check` e `mcp-catalog:check` passaram; Prisma Client/schema gerados, migration adicionada e catálogo MCP regenerado. PostgreSQL real não foi verificado localmente.
+
 ## Runtime pinado e plano agregado inicial — 17/10/2026
 
 - `npm.cmd exec --yes --package=node@24.18.0 -- node --version`: `v24.18.0` a partir do cache npm existente, sem instalação global. Com esse executável, `scripts/pie.mjs doctor` reportou `ready_for_observe`, Node/Git disponíveis, SQLite `not_configured` sem criar arquivo; Docker `unavailable` e PostgreSQL `not_configured`. Executado com `Join-Path $env:TEMP 'pie-doctor-absent.sqlite'`. O `node` global 22.17.1 reporta corretamente fora de `engines.node`.
-- `npm.cmd exec --yes --package=node@24.18.0 --package=npm@11.16.0 -- npm run test:focused -- tests/boundary/pieUnifiedPlan.test.ts`: 1/1 passou no toolchain pinado. Repositório Git e SQLite reais; saída de PieService, CLI, API autenticada e MCP idêntica; schema Ajv válido; Evidence presente; token canário ausente; digest estável sob paginação. Motores infraestrutura/regressão e contestação histórica seguem explicitamente ausentes.
+- `npm.cmd exec --yes --package=node@24.18.0 --package=npm@11.16.0 -- npm run test:focused -- tests/boundary/pieUnifiedPlan.test.ts`: 1/1 passou no toolchain pinado. Repositório Git e SQLite reais; teste cobre contestação justificada, hash e item histórico, repetição idempotente, rejeição de substituição/digest inválido e leitura paginada em SQLite, CLI, API autenticada e MCP. Ajv valida os schemas MCP novos. PostgreSQL real não foi executado localmente (`PIE_TEST_DATABASE_URL` ausente); migration e schema Prisma foram compilados/generados.
 - Sob Node 24.18.0/npm 11.16.0 passaram `check:fast`, `pie:build`, `docs:check`, `format:check` e `mcp-catalog:check`; `mcp-catalog:generate` incluiu a nova ferramenta e `git diff --check` passou. `docs:check` incluiu licenças e cinco testes de consistência README.
 
 ## Exportação paginada compartilhada — 17/10/2026

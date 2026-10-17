@@ -24,6 +24,13 @@ import {
   validateVerificationRun,
   validateStoredVerification,
 } from "./execution/runIntegrity.js";
+import {
+  planContestationSchema,
+  planContestHistoryInput,
+  planContestHistorySchema,
+  samePlanContestationIntent,
+  validateContestationSnapshot,
+} from "./planContestation.js";
 
 /** SQLite is the optional local persistence mode. */
 export class PieStore implements PiePersistence {
@@ -63,6 +70,12 @@ export class PieStore implements PiePersistence {
       CREATE TRIGGER IF NOT EXISTS pie_http_immutable_update BEFORE UPDATE ON pie_http_probes BEGIN SELECT RAISE(ABORT,'HTTP immutable'); END;
       CREATE TRIGGER IF NOT EXISTS pie_http_immutable_delete BEFORE DELETE ON pie_http_probes BEGIN SELECT RAISE(ABORT,'HTTP immutable'); END;
       INSERT OR IGNORE INTO pie_migrations(version) VALUES(4);`);
+    this.#db
+      .exec(`CREATE TABLE IF NOT EXISTS pie_plan_contestations(id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL REFERENCES pie_snapshots(id), plan_digest TEXT NOT NULL, created_at TEXT NOT NULL, payload TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS pie_plan_contestation_snapshot ON pie_plan_contestations(snapshot_id,plan_digest,created_at,id);
+      CREATE TRIGGER IF NOT EXISTS pie_plan_contestation_immutable_update BEFORE UPDATE ON pie_plan_contestations BEGIN SELECT RAISE(ABORT,'plan contestation immutable'); END;
+      CREATE TRIGGER IF NOT EXISTS pie_plan_contestation_immutable_delete BEFORE DELETE ON pie_plan_contestations BEGIN SELECT RAISE(ABORT,'plan contestation immutable'); END;
+      INSERT OR IGNORE INTO pie_migrations(version) VALUES(5);`);
     this.#http = createHttpSqlitePersistence({
       db: this.#db,
       snapshot: (id) => this.snapshot(id),
@@ -152,6 +165,78 @@ export class PieStore implements PiePersistence {
       },
       this.snapshot(String(row.snapshot_id)),
     );
+  }
+  savePlanContestation(input: unknown) {
+    const record = planContestationSchema.parse(input);
+    validateContestationSnapshot(record, this.snapshot(record.snapshotId));
+    this.#db
+      .prepare(
+        "INSERT OR IGNORE INTO pie_plan_contestations(id,snapshot_id,plan_digest,created_at,payload) VALUES(?,?,?,?,?)",
+      )
+      .run(
+        record.id,
+        record.snapshotId,
+        record.planDigest,
+        record.createdAt,
+        JSON.stringify(record),
+      );
+    const stored = this.planContestation(record.id);
+    if (!samePlanContestationIntent(stored, record))
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "ContestaÃ§Ã£o histÃ³rica nÃ£o pode ser substituÃ­da.",
+      );
+    return stored;
+  }
+  planContestation(id: string) {
+    const row = this.#db
+      .prepare(
+        "SELECT snapshot_id,payload FROM pie_plan_contestations WHERE id=?",
+      )
+      .get(id);
+    if (!row) throw new PieError("NOT_FOUND", "ContestaÃ§Ã£o nÃ£o encontrada.");
+    return validateContestationSnapshot(
+      JSON.parse(String(row.payload)),
+      this.snapshot(String(row.snapshot_id)),
+    );
+  }
+  planContestations(snapshotId: string, rawInput: unknown) {
+    const request = planContestHistoryInput.parse({
+      ...((rawInput ?? {}) as object),
+      snapshotId,
+    });
+    const snapshot = this.snapshot(snapshotId);
+    const total = Number(
+      this.#db
+        .prepare(
+          "SELECT count(*) AS total FROM pie_plan_contestations WHERE snapshot_id=? AND plan_digest=?",
+        )
+        .get(snapshotId, request.planDigest)!.total,
+    );
+    const rows = this.#db
+      .prepare(
+        "SELECT id FROM pie_plan_contestations WHERE snapshot_id=? AND plan_digest=? ORDER BY created_at,id LIMIT ? OFFSET ?",
+      )
+      .all(snapshotId, request.planDigest, request.limit, request.offset);
+    return planContestHistorySchema.parse({
+      schemaVersion: 1,
+      snapshotId,
+      planDigest: request.planDigest,
+      items: {
+        items: rows.map((row) =>
+          validateContestationSnapshot(
+            this.planContestation(String(row.id)),
+            snapshot,
+          ),
+        ),
+        total,
+        offset: request.offset,
+        nextOffset:
+          request.offset + request.limit < total
+            ? request.offset + request.limit
+            : null,
+      },
+    });
   }
 
   async assertOutside(targetRoot: string): Promise<void> {
