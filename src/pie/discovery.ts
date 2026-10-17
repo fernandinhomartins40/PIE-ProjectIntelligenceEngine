@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
+import { z } from "zod";
 import {
   PieError,
   policySchema,
@@ -22,6 +23,7 @@ import { readInventoryFile } from "./readFile.js";
 import { collectDeclarations } from "./adapters/collect.js";
 import { readDeclarationsResult } from "./adapters/declarations.js";
 import { readCodeFactsResult } from "./codeFacts.js";
+import { err, ok, type Result } from "../domain/result.js";
 import {
   declarationEvidenceObservation,
   derivationEvidenceObservation,
@@ -1041,6 +1043,47 @@ export async function discoverProject(
       limitations,
     },
   });
+}
+
+export type DiscoveryFailure =
+  | { kind: "invalid_input" }
+  | { kind: "policy_denied" }
+  | { kind: "limit_exceeded" }
+  | { kind: "io_error" }
+  | { kind: "integrity_error" }
+  | { kind: "cancelled" };
+
+/** Tagged expected failures at the discovery boundary; unexpected faults escape. */
+export async function discoverProjectResult(
+  input: unknown,
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<Result<Snapshot, DiscoveryFailure>> {
+  try {
+    return ok(await discoverProject(input, projectId, signal));
+  } catch (cause) {
+    if (signal?.aborted) return err({ kind: "cancelled" });
+    if (cause instanceof z.ZodError) return err({ kind: "invalid_input" });
+    if (cause instanceof PieError) {
+      switch (cause.code) {
+        case "INVALID_INPUT":
+          return err({ kind: "invalid_input" });
+        case "POLICY_DENIED":
+          return err({ kind: "policy_denied" });
+        case "LIMIT_EXCEEDED":
+          return err({ kind: "limit_exceeded" });
+        case "IO_ERROR":
+          return err({ kind: "io_error" });
+        case "INTEGRITY_ERROR":
+          return err({ kind: "integrity_error" });
+        default:
+          throw cause;
+      }
+    }
+    if (expectedInventoryFailure(cause) === "io_error")
+      return err({ kind: "io_error" });
+    throw cause;
+  }
 }
 
 export const projectName = (root: string): string => basename(root);

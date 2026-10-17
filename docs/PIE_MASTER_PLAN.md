@@ -332,3 +332,9 @@ Validação real de Git/SQLite: `node scripts/run-exact-tests.mjs tests/boundary
 Dependência registrada no inventário e avisos de terceiros; `npm run licenses:refresh-notices` validou integridade dos tarballs e adicionou 28 avisos runtime sem gaps (`runtime_dependency_fingerprint` `f0890c884edb8110e47e297ada9cd9c4d1de913bf0d6e554a7bea3d24827b794`). `licenses:check` passou com 893 pacotes lockados e 353 runtime, incluindo peers `devOptional` do lockfile npm.
 
 Limite do parser: gramática PHP 8.4 configurada. Rejeição sintática significa não aceito por esta gramática e não comprova invalidade em uma versão diferente do PHP; a AST inválida não gera fatos.
+
+## Continuação — Result tagged na descoberta — 17/10/2026
+
+`discoverProjectResult` retorna falhas esperadas como `invalid_input`, `policy_denied`, `limit_exceeded`, `io_error`, `integrity_error` ou `cancelled`; erros fora do contrato conhecido continuam propagando. `PieService` consome essa fronteira e converte as tags para os códigos de erro estáveis do serviço. Se o sinal foi cancelado, o serviço relança a razão original do `AbortSignal`.
+
+Validação Windows: `npm run pie:build` passou e `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts` passou (11 testes), incluindo input inválido, caminho ausente e cancelamento anterior à descoberta. Esta mudança uniformiza somente a fronteira central de descoberta; demais serviços, estados e runners permanecem pendentes, então T1.1 continua parcial. Falhas inesperadas não foram injetadas nesta rodada.

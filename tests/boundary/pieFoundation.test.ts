@@ -6,7 +6,10 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 import { policySchema } from "../../src/pie/contracts.js";
-import { discoverProject } from "../../src/pie/discovery.js";
+import {
+  discoverProject,
+  discoverProjectResult,
+} from "../../src/pie/discovery.js";
 import { sealEvidence, verifyEvidence } from "../../src/pie/evidence.js";
 import { impactedNodes, page } from "../../src/pie/graph.js";
 import { admitOperation, containedPath } from "../../src/pie/policy.js";
@@ -49,6 +52,26 @@ async function fixture() {
       repositoryRoot: repo,
     }),
   };
+}
+
+async function verifyDiscoveryResultFailures() {
+  const { policy, repo } = await fixture();
+  expect(
+    await discoverProjectResult({ profile: "invalido" }, randomUUID()),
+  ).toEqual({ ok: false, error: { kind: "invalid_input" } });
+  expect(
+    await discoverProjectResult(
+      { ...policy, repositoryRoot: join(repo, "ausente") },
+      randomUUID(),
+    ),
+  ).toEqual({ ok: false, error: { kind: "io_error" } });
+  expect(
+    await discoverProjectResult(
+      policy,
+      randomUUID(),
+      AbortSignal.abort(new DOMException("cancelado", "AbortError")),
+    ),
+  ).toEqual({ ok: false, error: { kind: "cancelled" } });
 }
 
 async function verifyPersistedSnapshot(
@@ -129,6 +152,10 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
     await expect(
       discoverProject(policy, randomUUID(), AbortSignal.abort()),
     ).rejects.toThrow();
+  });
+
+  it("classifica falhas esperadas da descoberta sem mascarar falhas inesperadas", async () => {
+    await verifyDiscoveryResultFailures();
   });
 
   it("preserva cancelamento recebido enquanto comandos Git estão ativos", async () => {

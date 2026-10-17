@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import { PieError, policySchema } from "./contracts.js";
-import { discoverProject, projectName } from "./discovery.js";
+import { discoverProjectResult, projectName } from "./discovery.js";
 import { page } from "./graph.js";
 import type { PiePersistence } from "./persistence.js";
 import { compareSnapshots, comparisonInput } from "./compare.js";
@@ -33,6 +33,24 @@ function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
       ? "Módulo deve ser caminho relativo canônico, sem segmentos vazios ou traversal."
       : "Entrada funcional inválida.",
   );
+}
+
+function discoveryValue(
+  result: Awaited<ReturnType<typeof discoverProjectResult>>,
+  signal: AbortSignal,
+) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "cancelled") signal.throwIfAborted();
+  const failures = {
+    invalid_input: ["INVALID_INPUT", "Política de descoberta inválida."],
+    policy_denied: ["POLICY_DENIED", "Descoberta não permitida pela política."],
+    limit_exceeded: ["LIMIT_EXCEEDED", "Limite da descoberta excedido."],
+    io_error: ["IO_ERROR", "Falha de I/O durante a descoberta."],
+    integrity_error: ["INTEGRITY_ERROR", "Integridade da descoberta inválida."],
+    cancelled: ["POLICY_DENIED", "Descoberta cancelada."],
+  } as const;
+  const [code, message] = failures[result.error.kind];
+  throw new PieError(code, message);
 }
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
@@ -128,9 +146,12 @@ export class PieService {
       root,
       projectName(root),
     );
-    const snapshot = await discoverProject(
-      { ...policy, repositoryRoot: root },
-      project.id,
+    const snapshot = discoveryValue(
+      await discoverProjectResult(
+        { ...policy, repositoryRoot: root },
+        project.id,
+        signal,
+      ),
       signal,
     );
     // Cancellation cutoff: synchronous transaction commits a complete publication.

@@ -503,3 +503,10 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - Falha reproduzida em `tests/acceptance/sqliteDatabaseCli.test.ts`: antes da mudança, `node scripts/run-exact-tests.mjs tests/acceptance/sqliteDatabaseCli.test.ts -t 'ENAMETOOLONG'` falhou porque a asserção esperava `ENAMETOOLONG`, enquanto o Windows retornou “Selected SQLite database does not exist”. O produtor `optionalStat` trata `ENOENT` como ausência e mantém outros erros tipados; nenhuma alteração de produção foi necessária.
 - Regressão corrigida: o teste observa `lstat` no caminho exato e admite `ENOENT` apenas como semântica nativa alternativa ao `ENAMETOOLONG`; rejeição CLI/MCP continua exigida. `node scripts/run-exact-tests.mjs tests/acceptance/sqliteDatabaseCli.test.ts` passou: 10 passaram, 3 skipped entre 13. Nenhuma aplicação alvo foi executada.
 - Esta evidência é Windows x64 local; o branch mergeado ainda precisa de CI remota. O merge é local até publicação; nenhum force-push ou branch foi usado.
+
+# Validação incremental — fronteira tagged de descoberta — 17/10/2026
+
+- `npm run pie:build`: passou.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts`: passou, 11/11 testes. Inclui Git/SQLite reais, input inválido, caminho ausente e sinal já cancelado; o boundary não executa scripts do repositório-fixture.
+- Falhas inesperadas não foram injetadas; Linux/macOS e demais boundaries não fazem parte desta rodada ainda.
+- O serviço preserva a razão de cancelamento chamando `throwIfAborted()` quando recebe a tag `cancelled`.
