@@ -2,8 +2,8 @@
 
 ## Relações Prisma e chaves estrangeiras estáticas — 17/10/2026
 
-- Discovery reconhece relações entre models pelo tipo do field e FKs por `REFERENCES` nas migrations, tanto em `CREATE TABLE` quanto em `ALTER TABLE ADD`. `data-review` compara nomes físicos em qualquer direção, considera `@@map` literal e mantém resultados `unverified`; mapping não literal, alvo ambíguo e cobertura parcial não viram ausência confirmada. Evidence inclui a relação Prisma, models e FKs SQL encontradas. Contrato público schemaVersion 3.
-- Fixture Git/SQLite cobre FK observada em `CREATE TABLE` e `ALTER TABLE`, relação inversa, FK ausente, mapping resolvido/não literal, Evidence, paridade CLI/API/MCP e Ajv 2020-12. Executado: boundaries `pieAdapters`/`pieDataReview` 11/11, `pie:build`, `check:fast` 2/2, `docs:check:built` (902 lock/365 runtime), `format:check` (4.113 arquivos) e `git diff --check`. PostgreSQL runtime não foi executado.
+- Discovery reconhece relações entre models, arrays Prisma `fields`/`references` e colunas de FKs em migrations (`CREATE TABLE` e `ALTER TABLE ADD`). `data-review` aplica `@@map`/`@map` literais, distinguindo colunas alinhadas, mismatch estático e alinhamento não comparável. Incompletude não vira ausência confirmada; Evidence inclui relation, fields, mappings e SQL. Contrato público schemaVersion 4.
+- Fixture Git/SQLite cobre FK via ambas as formas DDL, `@map` alinhado, mismatch, relação inversa não comparável, FK ausente, FK composta, Evidence, paridade CLI/API/MCP e Ajv 2020-12. Executado: boundaries `pieAdapters`/`pieDataReview` 11/11, `pie:build`, `check:fast` (2/2), `docs:check:built` (licenses:check: 902 lock/365 runtime), `format:check` (4.113 arquivos) e `git diff --check`. PostgreSQL runtime não foi executado; T4.5 permanece parcial.
 
 ## Comparação de migrations PostgreSQL declarativas — 17/10/2026
 

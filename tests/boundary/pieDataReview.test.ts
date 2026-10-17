@@ -59,6 +59,36 @@ function expectPrismaSelectors(
         name: "@@map",
         parent: "UnresolvedMap",
       }),
+      expect.objectContaining({
+        adapter: "prisma-schema",
+        kind: "config_directive",
+        name: "@map",
+        parent: "Account.ownerId.owner_id",
+      }),
+      expect.objectContaining({
+        adapter: "prisma-schema",
+        provenanceVersion: 4,
+        kind: "schema_relation",
+        name: "Owner",
+        parent: "Account",
+        relation: {
+          field: "owner",
+          sourceFields: ["ownerId"],
+          targetFields: ["id"],
+        },
+      }),
+      expect.objectContaining({
+        adapter: "prisma-schema",
+        provenanceVersion: 4,
+        kind: "schema_relation",
+        name: "TenantUser",
+        parent: "CompositeChild",
+        relation: {
+          field: "parent",
+          sourceFields: ["tenantId", "parentId"],
+          targetFields: ["tenantId", "id"],
+        },
+      }),
     ]),
   );
   expect(snapshot.declarations.some((fact) => fact.name === "Commented")).toBe(
@@ -101,20 +131,42 @@ async function writeDataReviewFixture(repo: string) {
       "}",
       "model Account {",
       "  id String @id",
-      "  ownerId String",
+      '  ownerId String @map("owner_id")',
       "  owner Owner @relation(fields: [ownerId], references: [id])",
       "}",
       "model Owner {",
       "  id String @id",
       "  accounts Account[]",
+      "  logEntries LogEntry[]",
+      "  auditEntries AuditEntry[]",
+      "  orphanEntries OrphanEntry[]",
       "}",
       "model LogEntry {",
       "  id String @id",
-      "  actor Owner",
+      "  actorId String",
+      "  actor Owner @relation(fields: [actorId], references: [id])",
       "}",
       "model AuditEntry {",
       "  id String @id",
-      "  actor Owner",
+      "  actorId String",
+      "  actor Owner @relation(fields: [actorId], references: [id])",
+      "}",
+      "model OrphanEntry {",
+      "  id String @id",
+      "  actorId String",
+      "  actor Owner @relation(fields: [actorId], references: [id])",
+      "}",
+      "model TenantUser {",
+      "  tenantId String",
+      "  id String",
+      "  children CompositeChild[]",
+      "  @@id([tenantId, id])",
+      "}",
+      "model CompositeChild {",
+      "  id String @id",
+      "  tenantId String",
+      "  parentId String",
+      "  parent TenantUser @relation(fields: [tenantId, parentId], references: [tenantId, id])",
       "}",
       "// model Commented { id String @id }",
     ].join("\n"),
@@ -134,10 +186,13 @@ async function writeDataReviewFixture(repo: string) {
       'ALTER TABLE "Pair" ADD CONSTRAINT "Pair_pkey" PRIMARY KEY ("left", "right");',
       'CREATE TABLE "CompoundUnique" ("left" TEXT, "right" TEXT, UNIQUE ("left", "right"));',
       'CREATE TABLE "Owner" ("id" TEXT PRIMARY KEY);',
-      'CREATE TABLE "Account" ("id" TEXT PRIMARY KEY, "ownerId" TEXT, FOREIGN KEY ("ownerId") REFERENCES "Owner" ("id"));',
+      'CREATE TABLE "Account" ("id" TEXT PRIMARY KEY, "owner_id" TEXT, FOREIGN KEY ("owner_id") REFERENCES "Owner" ("id"));',
       'CREATE TABLE "LogEntry" ("id" TEXT PRIMARY KEY, "actorId" TEXT);',
       'ALTER TABLE "LogEntry" ADD CONSTRAINT "log_entry_actor_fk" FOREIGN KEY ("actorId") REFERENCES "Owner" ("id");',
-      'CREATE TABLE "AuditEntry" ("id" TEXT PRIMARY KEY, "actorId" TEXT);',
+      'CREATE TABLE "AuditEntry" ("id" TEXT PRIMARY KEY, "actor_ref" TEXT, FOREIGN KEY ("actor_ref") REFERENCES "Owner" ("id"));',
+      'CREATE TABLE "OrphanEntry" ("id" TEXT PRIMARY KEY, "actorId" TEXT);',
+      'CREATE TABLE "TenantUser" ("tenantId" TEXT, "id" TEXT, PRIMARY KEY ("tenantId", "id"));',
+      'CREATE TABLE "CompositeChild" ("id" TEXT PRIMARY KEY, "tenantId" TEXT, "parentId" TEXT, FOREIGN KEY ("tenantId", "parentId") REFERENCES "TenantUser" ("tenantId", "id"));',
     ].join("\n"),
   );
 }
@@ -145,7 +200,7 @@ async function writeDataReviewFixture(repo: string) {
 function expectDataReview(input: unknown) {
   const expected = dataReviewOutput.parse(input);
   expect(expected).toMatchObject({
-    schemaVersion: 3,
+    schemaVersion: 4,
     engine: "data",
     state: "unverified",
     models: {
@@ -160,11 +215,11 @@ function expectDataReview(input: unknown) {
     coverage: {
       runtime: false,
       schemaFiles: 1,
-      examinedModels: 10,
+      examinedModels: 13,
       unexaminedSchemaFiles: 0,
       migrationFiles: 1,
       unexaminedMigrationFiles: 0,
-      declaredRelations: 4,
+      declaredRelations: 10,
     },
   });
   expect(expected.migrations.items).toEqual(
@@ -195,25 +250,46 @@ function expectDataReview(input: unknown) {
     expect.arrayContaining([
       expect.objectContaining({
         relation: expect.objectContaining({ parent: "Account", name: "Owner" }),
-        state: "foreign_key_observed",
+        state: "foreign_key_columns_observed",
       }),
       expect.objectContaining({
         relation: expect.objectContaining({ parent: "Owner", name: "Account" }),
-        state: "foreign_key_observed",
+        state: "foreign_key_columns_unverified",
       }),
       expect.objectContaining({
         relation: expect.objectContaining({
           parent: "LogEntry",
           name: "Owner",
         }),
-        state: "foreign_key_observed",
+        state: "foreign_key_columns_observed",
       }),
       expect.objectContaining({
         relation: expect.objectContaining({
           parent: "AuditEntry",
           name: "Owner",
         }),
+        state: "foreign_key_columns_mismatch",
+      }),
+      expect.objectContaining({
+        relation: expect.objectContaining({
+          parent: "OrphanEntry",
+          name: "Owner",
+        }),
         state: "foreign_key_not_observed",
+      }),
+      expect.objectContaining({
+        relation: expect.objectContaining({
+          parent: "CompositeChild",
+          name: "TenantUser",
+        }),
+        state: "foreign_key_columns_observed",
+      }),
+      expect.objectContaining({
+        relation: expect.objectContaining({
+          parent: "TenantUser",
+          name: "CompositeChild",
+        }),
+        state: "foreign_key_columns_unverified",
       }),
     ]),
   );

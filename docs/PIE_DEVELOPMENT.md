@@ -105,14 +105,14 @@ As novas dependências têm arquivos originais de licença coletados de tarballs
 
 `node scripts/pie.mjs declarations UUID_DO_SNAPSHOT --db C:/dados-pie/pie.sqlite` consulta os fatos descobertos. API GET /v1/declarations/:snapshot e MCP pie_declarations_list oferecem a mesma paginação e as mesmas evidências. O comando discover inclui declarationCount. Snapshots antigos não são reanalisados silenciosamente: seu campo de declarações é vazio até nova descoberta.
 
-| Adaptador         | Sintaxe examinada                                                                                            | Limites                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| node-manifest     | package.json, mapas dependencies/devDependencies/peerDependencies/optionalDependencies e nomes de scripts    | Não comprova instalação/uso; não retém comandos/versões                                      |
-| composer-manifest | composer.json, require/require-dev e nomes de scripts                                                        | Declaração Laravel não é análise do código PHP                                               |
-| compose           | Arquivos compose/docker-compose YAML, services e depends_on lista/mapa                                       | Sem execução/interpolação/include/extends/profiles; valores de secrets não coletados         |
-| openapi           | Arquivos openapi/swagger JSON/YAML, versão 3.0.x/3.1.x, operações HTTP literais em paths                     | Sem $ref externo, fetch, servidores, exemplos ou validação runtime                           |
-| prisma-schema     | Arquivos .prisma, declarações model e campos em linhas próprias                                              | Lexer limitado, ignora strings/comentários; não valida relações/constraints/migrations/banco |
-| sql-migration     | `prisma/migrations/*/migration.sql`: CREATE TABLE, PRIMARY KEY, UNIQUE, índice único e REFERENCES suportados | Sem estado final, SQL dinâmico, `@map`/schema SQL ou prova de aplicação no banco             |
+| Adaptador         | Sintaxe examinada                                                                                         | Limites                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| node-manifest     | package.json, mapas dependencies/devDependencies/peerDependencies/optionalDependencies e nomes de scripts | Não comprova instalação/uso; não retém comandos/versões                                      |
+| composer-manifest | composer.json, require/require-dev e nomes de scripts                                                     | Declaração Laravel não é análise do código PHP                                               |
+| compose           | Arquivos compose/docker-compose YAML, services e depends_on lista/mapa                                    | Sem execução/interpolação/include/extends/profiles; valores de secrets não coletados         |
+| openapi           | Arquivos openapi/swagger JSON/YAML, versão 3.0.x/3.1.x, operações HTTP literais em paths                  | Sem $ref externo, fetch, servidores, exemplos ou validação runtime                           |
+| prisma-schema     | Arquivos .prisma, declarações model e campos em linhas próprias                                           | Lexer limitado, ignora strings/comentários; não valida relações/constraints/migrations/banco |
+| sql-migration     | `prisma/migrations/*/migration.sql`: CREATE TABLE, PRIMARY KEY, UNIQUE e REFERENCES com colunas literais  | Sem estado final, SQL dinâmico, schemas SQL ou prova de aplicação no banco                   |
 
 Cada fato é estático e unverified, com hash do arquivo, linha, evidência e identidade derivada da declaração. O limite usa o orçamento maxGraphEdges; ausência por falha/limite não equivale a inexistência. coverage.status continua restrito ao inventário de arquivos Git; limitações dos adaptadores devem ser lidas separadamente. Esta matriz não promete suporte universal às stacks.
 

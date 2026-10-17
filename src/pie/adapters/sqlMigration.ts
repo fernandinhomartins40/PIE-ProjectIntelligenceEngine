@@ -150,11 +150,44 @@ function hasPair(tokens: Token[], first: string, second: string): boolean {
   );
 }
 
-function referencedTables(tokens: Token[]): string[] {
+function identifierList(tokens: Token[], start: number): string[] | null {
+  if (!keyword(tokens[start], "(")) return null;
+  const values: string[] = [];
+  for (let index = start + 1; index < tokens.length; index++) {
+    if (keyword(tokens[index], ")")) return values;
+    if (keyword(tokens[index], ",")) continue;
+    const value = identifier(tokens, index);
+    if (!value) return null;
+    values.push(value);
+  }
+  return null;
+}
+
+function referencedTables(tokens: Token[]) {
   return tokens.flatMap((token, index) => {
     if (!keyword(token, "references")) return [];
     const target = qualifiedName(tokens, index + 1);
-    return target ? [target.name] : [];
+    if (!target) return [];
+    const foreignKey = tokens.findIndex(
+      (item, keyIndex) =>
+        keyIndex < index &&
+        keyword(item, "foreign") &&
+        keyword(tokens[keyIndex + 1], "key"),
+    );
+    const sourceColumns =
+      foreignKey >= 0
+        ? identifierList(tokens, foreignKey + 2)
+        : (() => {
+            const column = identifier(tokens, 0);
+            return column ? [column] : null;
+          })();
+    return [
+      {
+        target: target.name,
+        sourceFields: sourceColumns,
+        targetFields: identifierList(tokens, target.next),
+      },
+    ];
   });
 }
 
@@ -166,6 +199,7 @@ export function readSqlMigration(source: string): AdapterRead {
     name: string,
     parent: string,
     line: number,
+    relation?: Declaration["relation"],
   ) =>
     declarations.push({
       adapter: "sql-migration",
@@ -173,6 +207,7 @@ export function readSqlMigration(source: string): AdapterRead {
       name,
       parent,
       line,
+      ...(relation ? { relation } : {}),
     });
   for (const statement of statements(tokenize(source))) {
     let table: string | null = null;
@@ -225,8 +260,18 @@ export function readSqlMigration(source: string): AdapterRead {
         else if (kind === "unique")
           add("config_directive", "unique", table, statement[0]!.line);
         else if (kind === "foreign" && keyword(statement[index + 1], "key"))
-          for (const target of referencedTables(statement))
-            add("schema_relation", target, table, statement[0]!.line);
+          for (const reference of referencedTables(statement))
+            add(
+              "schema_relation",
+              reference.target,
+              table,
+              statement[0]!.line,
+              {
+                field: null,
+                sourceFields: reference.sourceFields,
+                targetFields: reference.targetFields,
+              },
+            );
       }
       continue;
     } else continue;
@@ -256,14 +301,18 @@ export function readSqlMigration(source: string): AdapterRead {
         add("config_directive", "primary_key", table, line);
       else if (definition.some((token) => keyword(token, "unique")))
         add("config_directive", "unique", table, line);
-      for (const target of referencedTables(definition))
-        add("schema_relation", target, table, line);
+      for (const reference of referencedTables(definition))
+        add("schema_relation", reference.target, table, line, {
+          field: null,
+          sourceFields: reference.sourceFields,
+          targetFields: reference.targetFields,
+        });
     }
   }
   return {
     declarations,
     limitations: [
-      "PostgreSQL migration: reconhece CREATE TABLE, PRIMARY KEY, UNIQUE, REFERENCES, CREATE UNIQUE INDEX e ALTER TABLE ADD destas formas estaticas; nao calcula estado final, nao interpreta SQL dinamico e nao comprova migrations aplicadas ao banco.",
+      "PostgreSQL migration: reconhece CREATE TABLE, PRIMARY KEY, UNIQUE, REFERENCES com colunas literais, CREATE UNIQUE INDEX e ALTER TABLE ADD destas formas estaticas; nao calcula estado final, nao interpreta SQL dinamico e nao comprova migrations aplicadas ao banco.",
     ],
   };
 }

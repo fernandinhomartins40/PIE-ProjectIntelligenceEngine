@@ -2,7 +2,9 @@ import { sha256 } from "../evidence.js";
 import type { AdapterFact } from "./contracts.js";
 
 export const declarationIdentity = (
-  fact: Pick<AdapterFact, "source" | "adapter" | "kind" | "name" | "parent">,
+  fact: Pick<AdapterFact, "source" | "adapter" | "kind" | "name" | "parent"> & {
+    relation?: AdapterFact["relation"];
+  },
 ): string =>
   sha256(
     JSON.stringify([
@@ -12,5 +14,6 @@ export const declarationIdentity = (
       fact.name,
       fact.parent,
       fact.source.line,
+      ...(fact.relation ? [fact.relation] : []),
     ]),
   );

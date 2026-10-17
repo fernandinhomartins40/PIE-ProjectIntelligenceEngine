@@ -41,7 +41,9 @@ const relationFindingSchema = z.strictObject({
   state: z.enum([
     "no_migration_files_observed",
     "foreign_key_not_observed",
-    "foreign_key_observed",
+    "foreign_key_columns_observed",
+    "foreign_key_columns_mismatch",
+    "foreign_key_columns_unverified",
     "migration_inventory_incomplete",
   ]),
   evidenceIds: z.array(z.string().uuid()).min(1),
@@ -50,7 +52,7 @@ const relationFindingSchema = z.strictObject({
 });
 
 export const dataReviewOutput = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   engine: z.literal("data"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
@@ -210,7 +212,7 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
                 ? "Nenhum arquivo de migration Prisma foi observado no snapshot."
                 : "A cobertura de migrations esta incompleta para determinar as observacoes estaticas deste modelo.",
       uncertainty: [
-        "A comparacao usa nomes exatos, aplicando @@map de modelo quando observado; @map de coluna, schemas SQL e renames entre migrations nao sao resolvidos.",
+        "A comparacao de FKs aplica @@map/@map literais nas colunas associadas; schemas SQL, renames entre migrations e validacao semantica do DDL nao sao resolvidos.",
         "A analise nao calcula o estado final, nao executa migrations e nao comprova constraints aplicadas ao banco.",
       ],
     };
@@ -222,6 +224,39 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
   const prismaRelations = declarations.filter(
     (fact) => fact.kind === "schema_relation",
   );
+  const mappedColumn = (
+    model: (typeof models)[number] | undefined,
+    field: string,
+  ) => {
+    if (
+      !model ||
+      !declarations.some(
+        (fact) =>
+          fact.kind === "field" &&
+          fact.name === field &&
+          fact.parent === model.name &&
+          fact.source.path === model.source.path,
+      )
+    )
+      return { name: null, evidenceId: undefined, unresolved: true };
+    const prefix = `${model.name}.${field}`;
+    const mapping = declarations.find(
+      (fact) =>
+        fact.kind === "config_directive" &&
+        fact.name === "@map" &&
+        fact.source.path === model.source.path &&
+        (fact.parent === prefix || fact.parent?.startsWith(`${prefix}.`)),
+    );
+    if (!mapping)
+      return { name: field, evidenceId: undefined, unresolved: false };
+    if (!mapping.parent?.startsWith(`${prefix}.`))
+      return { name: null, evidenceId: mapping.evidenceId, unresolved: true };
+    return {
+      name: mapping.parent.slice(prefix.length + 1),
+      evidenceId: mapping.evidenceId,
+      unresolved: false,
+    };
+  };
   const relationFindings = prismaRelations.map((relation) => {
     const sourceModel = models.find(
       (model) =>
@@ -263,6 +298,44 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
         ((fact.parent === sourceTable.name && fact.name === targetTable.name) ||
           (fact.parent === targetTable.name && fact.name === sourceTable.name)),
     );
+    const sourceColumns = relation.relation?.sourceFields?.map((field) =>
+      mappedColumn(sourceModel, field),
+    );
+    const targetColumns = relation.relation?.targetFields?.map((field) =>
+      mappedColumn(targetModel, field),
+    );
+    const columnMappings = [...(sourceColumns ?? []), ...(targetColumns ?? [])];
+    const columnsComplete =
+      Boolean(sourceColumns?.length) &&
+      Boolean(targetColumns?.length) &&
+      sourceColumns!.length === targetColumns!.length &&
+      columnMappings.every((column) => !column.unresolved);
+    const alignedForeignKey = observed.some((fact) => {
+      const sqlRelation = fact.relation;
+      if (
+        !columnsComplete ||
+        !sqlRelation?.sourceFields?.length ||
+        !sqlRelation.targetFields?.length
+      )
+        return false;
+      const sourceNames = sourceColumns!.map((column) => column.name);
+      const targetNames = targetColumns!.map((column) => column.name);
+      return (
+        (JSON.stringify(sqlRelation.sourceFields) ===
+          JSON.stringify(sourceNames) &&
+          JSON.stringify(sqlRelation.targetFields) ===
+            JSON.stringify(targetNames)) ||
+        (JSON.stringify(sqlRelation.sourceFields) ===
+          JSON.stringify(targetNames) &&
+          JSON.stringify(sqlRelation.targetFields) ===
+            JSON.stringify(sourceNames))
+      );
+    });
+    const allObservedColumnsComparable = observed.every(
+      (fact) =>
+        Boolean(fact.relation?.sourceFields?.length) &&
+        Boolean(fact.relation?.targetFields?.length),
+    );
     const incomplete =
       snapshot.coverage.status === "partial" ||
       incompleteMigrationPaths.size > 0 ||
@@ -277,15 +350,22 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
       ? "migration_inventory_incomplete"
       : migrationFiles.length === 0
         ? "no_migration_files_observed"
-        : observed.length > 0
-          ? "foreign_key_observed"
-          : "foreign_key_not_observed";
+        : observed.length === 0
+          ? "foreign_key_not_observed"
+          : !columnsComplete || !allObservedColumnsComparable
+            ? "foreign_key_columns_unverified"
+            : alignedForeignKey
+              ? "foreign_key_columns_observed"
+              : "foreign_key_columns_mismatch";
     const evidenceIds = [
       relation.evidenceId,
       ...(sourceModel ? [sourceModel.evidenceId] : []),
       ...(targetModel ? [targetModel.evidenceId] : []),
       ...(sourceTable.evidenceId ? [sourceTable.evidenceId] : []),
       ...(targetTable.evidenceId ? [targetTable.evidenceId] : []),
+      ...columnMappings.flatMap((column) =>
+        column.evidenceId ? [column.evidenceId] : [],
+      ),
       ...observed.map((fact) => fact.evidenceId),
     ];
     return {
@@ -294,15 +374,19 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
       state,
       evidenceIds: [...new Set(evidenceIds)],
       observation:
-        state === "foreign_key_observed"
-          ? "Uma declaracao FOREIGN KEY REFERENCES entre as tabelas associadas foi observada nas migrations analisadas."
-          : state === "foreign_key_not_observed"
-            ? "Nenhuma declaracao FOREIGN KEY REFERENCES entre as tabelas associadas foi observada nas migrations analisadas."
-            : state === "no_migration_files_observed"
-              ? "Nenhum arquivo de migration Prisma foi observado para comparar esta relacao."
-              : "A cobertura de schema ou migrations nao permite comparar esta relacao com seguranca.",
+        state === "foreign_key_columns_observed"
+          ? "FOREIGN KEY REFERENCES e suas colunas foram observadas e alinhadas aos fields/references Prisma explicitos, incluindo @@map/@map literais."
+          : state === "foreign_key_columns_mismatch"
+            ? "FOREIGN KEY REFERENCES foi observada entre as tabelas, mas as colunas nao correspondem aos fields/references Prisma explicitos."
+            : state === "foreign_key_columns_unverified"
+              ? "FOREIGN KEY REFERENCES foi observada entre as tabelas, mas a cobertura das colunas nao permite confirmar alinhamento."
+              : state === "foreign_key_not_observed"
+                ? "Nenhuma declaracao FOREIGN KEY REFERENCES entre as tabelas associadas foi observada nas migrations analisadas."
+                : state === "no_migration_files_observed"
+                  ? "Nenhum arquivo de migration Prisma foi observado para comparar esta relacao."
+                  : "A cobertura de schema ou migrations nao permite comparar esta relacao com seguranca.",
       uncertainty: [
-        "Relacoes Prisma e FOREIGN KEY estaticas nao comprovam integridade dos dados nem constraint efetiva no banco.",
+        "Relacoes Prisma e FOREIGN KEY estaticas nao comprovam integridade dos dados nem constraint efetiva no banco; diferenca de colunas e observacional, nao prova de runtime.",
         "Nomes SQL sao comparados sem schemas e sem calcular migrations posteriores; uma FK em qualquer direcao conta como relacao observada.",
       ],
     };
@@ -312,7 +396,7 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
     limit: input.limit,
   });
   return dataReviewOutput.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     engine: "data",
     snapshotId: snapshot.id,
     state: "unverified",
@@ -336,12 +420,13 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
         [
           "migration_inventory_incomplete",
           "no_migration_files_observed",
+          "foreign_key_columns_unverified",
         ].includes(finding.state),
       ).length,
       limitations: [
         "A analise consome fatos estaticos do snapshot; nao conecta nem consulta banco.",
         "Diretivas reconhecidas: @id, @@id, @unique e @@unique. Ausencia observada gera item informativo unverified, nunca defeito confirmado.",
-        "Migrations: reconhece um subconjunto de PostgreSQL e aplica @@map de modelo; nao calcula estado final, renames, @map de coluna, schemas SQL, SQL dinamico ou aplicacao no banco.",
+        "Migrations: reconhece um subconjunto de PostgreSQL e compara colunas de FKs quando Prisma/SQL as declaram literalmente; unique constraints sao apenas observadas por tabela. Nao calcula estado final, renames, schemas SQL, SQL dinamico ou aplicacao no banco.",
         ...snapshot.coverage.limitations,
       ],
     },

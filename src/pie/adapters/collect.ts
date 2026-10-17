@@ -41,6 +41,7 @@ export function collectDeclarations(
       kind: declaration.kind,
       name: declaration.name,
       parent: declaration.parent,
+      relation: declaration.relation ?? null,
     };
     const source = { ...file.source, line: declaration.line };
     const id = declarationIdentity({ ...value, source });
@@ -90,7 +91,7 @@ export function collectDeclarations(
       ...value,
       source: proof.source,
       id,
-      provenanceVersion: 3,
+      provenanceVersion: declaration.relation ? 4 : 3,
       evidenceId: proof.id,
       derivations: derivationProofs.map(({ proof: _proof, ...item }) => item),
       method: "static",

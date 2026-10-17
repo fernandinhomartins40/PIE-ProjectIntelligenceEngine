@@ -192,6 +192,55 @@ function prismaTokens(source: string) {
   return tokens;
 }
 
+function prismaRelationColumns(
+  tokens: Array<{ value: string; line: number; literal?: boolean }>,
+  line: number,
+) {
+  const attribute = tokens.findIndex(
+    (token, index) =>
+      !token.literal &&
+      token.value === "@" &&
+      token.line === line &&
+      !tokens[index + 1]?.literal &&
+      tokens[index + 1]?.value === "relation",
+  );
+  const open = tokens.findIndex(
+    (token, index) =>
+      index > attribute + 1 && token.line === line && token.value === "(",
+  );
+  if (attribute < 0 || open < 0)
+    return { sourceFields: null, targetFields: null };
+  const readList = (key: string): string[] | null => {
+    for (let index = open + 1; index < tokens.length; index++) {
+      const token = tokens[index]!;
+      if (token.value === ")") break;
+      if (
+        token.literal ||
+        token.value !== key ||
+        tokens[index + 1]?.value !== ":"
+      )
+        continue;
+      let cursor = index + 2;
+      while (tokens[cursor]?.value === "\n") cursor++;
+      if (tokens[cursor]?.value !== "[") return null;
+      const names: string[] = [];
+      for (cursor++; cursor < tokens.length; cursor++) {
+        const item = tokens[cursor]!;
+        if (item.value === "]") return names;
+        if (item.value === "," || item.value === "\n") continue;
+        if (item.literal || !/^[A-Za-z_]\w*$/.test(item.value)) return null;
+        names.push(item.value);
+      }
+      return null;
+    }
+    return null;
+  };
+  return {
+    sourceFields: readList("fields"),
+    targetFields: readList("references"),
+  };
+}
+
 function prisma(source: string): AdapterRead {
   const tokens = prismaTokens(source);
   const declarations: Declaration[] = [];
@@ -205,7 +254,13 @@ function prisma(source: string): AdapterRead {
         : [],
     ),
   );
-  const fieldAttributes = new Set(["@id", "@unique", "@relation", "@default"]);
+  const fieldAttributes = new Set([
+    "@id",
+    "@unique",
+    "@relation",
+    "@default",
+    "@map",
+  ]);
   const modelAttributes = new Set(["@@id", "@@unique", "@@map"]);
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
@@ -229,6 +284,10 @@ function prisma(source: string): AdapterRead {
     let depth = 1;
     let previousLine = -1;
     const fieldsByLine = new Map<number, string>();
+    const relationFieldsByLine = new Map<
+      number,
+      { field: string; target: string }
+    >();
     const modelTokens: typeof tokens = [];
     for (; i < tokens.length && depth > 0; i++) {
       const field = tokens[i]!;
@@ -257,12 +316,9 @@ function prisma(source: string): AdapterRead {
         });
         const targetModel = tokens[i + 1]!.value;
         if (modelNames.has(targetModel))
-          declarations.push({
-            adapter: "prisma-schema",
-            kind: "schema_relation",
-            name: targetModel,
-            parent: model,
-            line: field.line,
+          relationFieldsByLine.set(field.line, {
+            field: field.value,
+            target: targetModel,
           });
       }
       if (field.value !== "\n") previousLine = field.line;
@@ -285,12 +341,51 @@ function prisma(source: string): AdapterRead {
       const name = `@${next.value}`;
       if (!fieldAttributes.has(name)) continue;
       const fieldName = fieldsByLine.get(attribute.line);
+      if (name === "@map" && fieldName) {
+        let targetIndex = tokenIndex + 3;
+        while (modelTokens[targetIndex]?.value === "\n") targetIndex++;
+        const target = modelTokens[targetIndex];
+        let closeIndex = targetIndex + 1;
+        while (modelTokens[closeIndex]?.value === "\n") closeIndex++;
+        const close = modelTokens[closeIndex];
+        const mappedColumn =
+          modelTokens[tokenIndex + 2]?.value === "(" &&
+          target?.literal &&
+          target.value.length > 0 &&
+          close?.value === ")"
+            ? `${model}.${fieldName}.${target.value}`
+            : `${model}.${fieldName}`;
+        declarations.push({
+          adapter: "prisma-schema",
+          kind: "config_directive",
+          name,
+          parent:
+            mappedColumn.length <= 1000
+              ? mappedColumn
+              : `${model}.${fieldName}`,
+          line: attribute.line,
+        });
+        continue;
+      }
       declarations.push({
         adapter: "prisma-schema",
         kind: "config_directive",
         name,
         parent: fieldName ? `${model}.${fieldName}` : model,
         line: attribute.line,
+      });
+    }
+    for (const [line, relation] of relationFieldsByLine) {
+      declarations.push({
+        adapter: "prisma-schema",
+        kind: "schema_relation",
+        name: relation.target,
+        parent: model,
+        relation: {
+          field: relation.field,
+          ...prismaRelationColumns(modelTokens, line),
+        },
+        line,
       });
     }
     for (let tokenIndex = 0; tokenIndex < modelTokens.length; tokenIndex++) {

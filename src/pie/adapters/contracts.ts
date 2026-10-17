@@ -1,9 +1,15 @@
 import { z } from "zod";
 import { sourceSchema } from "../source.js";
 
+export const relationShapeSchema = z.strictObject({
+  field: z.string().max(1000).nullable(),
+  sourceFields: z.array(z.string().min(1).max(1000)).nullable(),
+  targetFields: z.array(z.string().min(1).max(1000)).nullable(),
+});
+
 export const adapterFactSchema = z.strictObject({
   provenanceVersion: z
-    .union([z.literal(1), z.literal(2), z.literal(3)])
+    .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
     .default(1),
   id: z.string(),
   adapter: z.enum([
@@ -34,6 +40,7 @@ export const adapterFactSchema = z.strictObject({
   ]),
   name: z.string().min(1).max(1000),
   parent: z.string().max(1000).nullable(),
+  relation: relationShapeSchema.nullable().default(null),
   source: sourceSchema,
   evidenceId: z.string().uuid(),
   derivations: z
@@ -63,14 +70,18 @@ export type Declaration = Pick<
   "adapter" | "kind" | "name" | "parent"
 > & {
   line: number;
+  relation?: z.infer<typeof relationShapeSchema> | null;
   redactions?: string[];
   derivedFrom?: DeclarationDerivation[];
 };
 
 export function declarationEvidenceObservation(
-  fact: Pick<AdapterFact, "adapter" | "kind" | "name" | "parent">,
+  fact: Pick<AdapterFact, "adapter" | "kind" | "name" | "parent"> & {
+    relation?: AdapterFact["relation"];
+  },
 ) {
-  return `Fato declarativo estático ${JSON.stringify([fact.adapter, fact.kind, fact.name, fact.parent])}; execução não verificada.`;
+  const detail = fact.relation ? ` ${JSON.stringify(fact.relation)}` : "";
+  return `Fato declarativo estático ${JSON.stringify([fact.adapter, fact.kind, fact.name, fact.parent])}${detail}; execução não verificada.`;
 }
 
 export function derivationEvidenceObservation(
