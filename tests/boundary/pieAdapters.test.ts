@@ -170,6 +170,13 @@ it("Nginx mantém limites de tokens, aspas, comentários, variáveis e blocos", 
   ).toThrow();
   expect(readDeclarations("unrelated.conf", source, 10)).toBeNull();
   expect(
+    [...nginxDirectives("proxy_pass http://backend/path};")][0]?.words,
+  ).toEqual(["proxy_pass", "http://backend/path}"]);
+  expect(
+    [...nginxDirectives('if ($uri = "/a") { proxy_pass http://backend; }')][0]
+      ?.words,
+  ).toEqual(["if", "($uri", "=", "/a", ")"]);
+  expect(
     readDeclarations(
       "nginx.conf",
       "proxy_pass http://user:password@backend:3000/path?choice=1;",

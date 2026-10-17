@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Correção estrutural do lexer Nginx — 16/10/2026
+
+Revisão do produtor identificou recusa incorreta de } dentro de token e de ) após argumento entre aspas. Lexer agora mantém um dono explícito do estado de token, escape, aspas, comentários, posições e blocos; fechamento de bloco ocorre somente em fronteira de token. Parêntese após aspas é preservado como token separado conforme o comportamento da fonte Nginx consultada. Sem reparos nos consumidores e sem representação antiga mantida. Os avisos anteriores de tamanho/complexidade do lexer foram eliminados pela separação do estado, com lint focado sem avisos/erros.
+
+Novos casos verificam caminho literal contendo }, condição if com argumento entre aspas e contexto posterior. Regressão adapters/trace: dez testes passaram (5,39s), incluindo persistência e prova reais Git/SQLite. Build PIE e typecheck completo passaram. Limites de módulos: 2053 fontes; descoberta: 1463 testes. Nginx real/nginx -t não executados; não há nova alegação de compatibilidade completa ou configuração efetiva. CI 38990965656 da entrega anterior 08d8ccbe0 terminou com sucesso, incluindo as trilhas existentes de Docker/PostgreSQL/navegador. Correção atual aguarda nova CI. Runners, motores e aceite integral continuam pendentes; goal ativo.
+
 ## Configuração Nginx com proveniência — 16/10/2026
 
 CI 38987902054 (94d0c77ea) passou, incluindo Express, PostgreSQL, Docker e navegador nas trilhas existentes. Novo adapter nginx-config reconhece nginx.conf, nginx.*.conf e arquivos .conf sob diretório nginx. Lexer iterativo próprio respeita comentários, aspas, escapes e variáveis ${...}; blocos têm limite de profundidade 128. location e diretivas listen/server_name/proxy_pass/fastcgi_pass/grpc_pass/include são preservadas com argumentos em array JSON, sem colapsar limites entre tokens, e contexto ancestral por diretiva/linha. Fatos persistidos usam location/config_directive e prova selada do arquivo; declared_in já integra trace/CLI/MCP/API/painel.
