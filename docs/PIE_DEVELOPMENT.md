@@ -59,6 +59,8 @@ Licença e atribuições: `LICENSE`, `THIRD_PARTY_NOTICES.md` e `licenses/` pres
 
 ## Comparação, relatórios e API local
 
+Plano agregado de triagem (somente leitura): `node scripts/pie.mjs plan UUID_DO_SNAPSHOT --limit 50 --offset 0`. A API usa `POST /v1/plan` e o MCP `pie_plan_generate`. Ele reúne somente os itens já emitidos pelos motores funcional, produto, segurança e dados; infraestrutura/regressão constam como não implementados. Não grava owner/status/contestação, não executa testes e não transforma suspeitas ou lacunas em conclusões.
+
 ```powershell
 node scripts/pie.mjs compare UUID_ANTES UUID_DEPOIS --db C:/dados-pie/pie.sqlite
 node scripts/pie.mjs export UUID_DO_SNAPSHOT --format md --db C:/dados-pie/pie.sqlite

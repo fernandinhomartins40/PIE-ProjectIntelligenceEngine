@@ -19,6 +19,12 @@
 
 # PIE — Registro de validação contínua
 
+## Runtime pinado e plano agregado inicial — 17/10/2026
+
+- `npm.cmd exec --yes --package=node@24.18.0 -- node --version`: `v24.18.0` a partir do cache npm existente, sem instalação global. Com esse executável, `scripts/pie.mjs doctor` reportou `ready_for_observe`, Node/Git disponíveis, SQLite `not_configured` sem criar arquivo; Docker `unavailable` e PostgreSQL `not_configured`. Executado com `Join-Path $env:TEMP 'pie-doctor-absent.sqlite'`. O `node` global 22.17.1 reporta corretamente fora de `engines.node`.
+- `npm.cmd run test:focused -- tests/boundary/pieUnifiedPlan.test.ts`: 1/1 passou. Repositório Git e SQLite reais; saída de PieService, CLI, API autenticada e MCP idêntica; schema Ajv válido; Evidence presente; token canário ausente; digest estável sob paginação. Motores infraestrutura/regressão e contestação histórica seguem explicitamente ausentes.
+- `npm.cmd run mcp-catalog:generate` e `mcp-catalog:check` passaram; a nova ferramenta MCP está registrada. `npm.cmd run check:fast`, `pie:build`, `docs:check`, `format:check` e `git diff --check` passaram. `docs:check` incluiu licenças e cinco testes de consistência README.
+
 ## Exportação paginada compartilhada — 17/10/2026
 
 - `GET /v1/snapshots/:id/export` e MCP `pie_snapshot_export` agora chamam `PieService.exportSnapshot`; CLI também consome o serviço e concatena páginas até o fim. Formato JSON/MD/HTML, offset/limite em bytes UTF-8, `nextOffset`, tamanho total, digest da árvore e SHA-256 do artefato ficam no contrato v1.

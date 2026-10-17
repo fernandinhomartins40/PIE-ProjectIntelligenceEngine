@@ -16,6 +16,7 @@ import { dataReviewInput, dataReviewOutput } from "./dataReview.js";
 import { securityInput, securityOutput } from "./security.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
+import { planningInput, unifiedPlanOutput } from "./planning.js";
 import {
   functionalRecordSchema,
   functionalRecordExportInput,
@@ -207,6 +208,17 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.retestPlan(input)),
+  );
+  server.registerTool(
+    "pie_plan_generate",
+    {
+      description:
+        "Agrega itens estáticos existentes dos motores funcional, produto, segurança e dados em um plano paginado ligado a Evidence. Responsáveis e prioridade permanecem não avaliados; não registra contestações, não autoriza execução e não cobre os motores de infraestrutura/regressão.",
+      inputSchema: planningInput,
+      outputSchema: withError(unifiedPlanOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.plan(input)),
   );
   if (verifier && queue) {
     server.registerTool(

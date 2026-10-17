@@ -24,6 +24,7 @@ import {
   sealFunctional,
 } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
+import { generateUnifiedPlan, planningInput } from "./planning.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 import {
   compareVerificationRuns,
@@ -347,6 +348,13 @@ export class PieService {
         this.store.snapshot(request.afterId),
       ]);
       return planRetests(before, after, request);
+    });
+  }
+  plan(input: unknown) {
+    return this.#read(async () => {
+      const request = planningInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      return generateUnifiedPlan(snapshot, request);
     });
   }
   functional(input: unknown) {

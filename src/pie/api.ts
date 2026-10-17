@@ -22,6 +22,7 @@ import { exportSnapshotInput } from "./exportSnapshot.js";
 import { functionalRecordExportInput } from "./functionalRecord.js";
 import { verificationExportInput } from "./execution/runContracts.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
+import { planningInput } from "./planning.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -386,6 +387,12 @@ export async function startPieApi(
           requireSnapshot(ids.afterId),
         ]);
         respond(response, 200, await service.retestPlan(input));
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/plan") {
+        const input = planningInput.parse(await body(request));
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.plan(input));
         return;
       }
       if (

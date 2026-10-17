@@ -105,6 +105,7 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
+      "Plano unificado: plan <snapshot-id> --limit <1–200> --offset <n>. Agrega propostas dos motores parciais; não persiste triagem, não autoriza execução e não confirma achados.",
     );
     console.log(
       "Candidatos a reteste: retest-plan <antes-id> <depois-id> --mode affected|full --limit <1–200> --offset <n>. Plano não autoriza execução nem comprova cobertura.",
@@ -184,6 +185,7 @@ export async function runPie(args: string[]): Promise<void> {
       "mcp",
       "compare",
       "retest-plan",
+      "plan",
       "serve",
       "enqueue",
       "job",
@@ -386,6 +388,12 @@ export async function runPie(args: string[]): Promise<void> {
           beforeId: target!,
           afterId: parsed.positionals[2],
           mode: parsed.values.mode ?? "affected",
+          ...paging,
+        });
+        break;
+      case "plan":
+        result = await service.plan({
+          snapshotId: target,
           ...paging,
         });
         break;

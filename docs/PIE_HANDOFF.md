@@ -495,3 +495,7 @@ O painel consome o relatório `product` de forma real, com seleção de módulo 
 # Doctor operacional PIE — 17/10/2026
 
 `doctor` executa sondagens read-only de Node/Git, SQLite existente, daemon Docker e PostgreSQL configurado, sem listar capacidades fixas como se fossem verificações. Boundary `pieDoctor.test.ts`: 2/2; banco válido manteve tamanho e mtime, caminho inexistente não foi criado e URL/credenciais PostgreSQL foram omitidas. PostgreSQL sem `PIE_TEST_DATABASE_URL` não foi exercitado como backend real nesta máquina; a boundary usa endpoint local indisponível somente para provar redação. O resultado PostgreSQL positivo ainda verifica apenas conexão e `pie_projects`. Compose, migrations completas, Windows/Linux/macOS e rollback continuam pendentes; T6.2 segue parcial.
+
+# Plano unificado inicial — 17/10/2026
+
+`PieService.plan`, CLI `plan`, POST `/v1/plan` e MCP `pie_plan_generate` compõem itens paginados dos resultados atuais dos motores funcional, produto, segurança e dados, cada um com referência à Evidence, aceite proposto, owner desconhecido e prioridade não avaliada. A boundary `pieUnifiedPlan.test.ts` passou (1/1), com paridade dos quatro adapters, schema Ajv e digest independente da página. Infra/regressão aparecem como `not_implemented`; nada é aceito, executado ou persistido. T5.1 é parcial: falta persistir alterações de owner/status, contestações fundamentadas e histórico append-only. A cobertura global não foi executada nesta etapa.
