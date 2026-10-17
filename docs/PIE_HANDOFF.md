@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Interpretação conservadora de mudanças funcionais — 17/10/2026
+
+O diff por snapshot agora expõe `interpretation` para separar mudança observada de lacuna de cobertura: inventário completo permite `observed_change`; snapshot parcial produz `unknown_before`/`unknown_after`; alinhamento duplicado fica `ambiguous`. Isso não declara remoção de funcionalidade nem regressão runtime. `pieComparison` passou 3/3, além de `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check`. Próximo passo: produzir relações de cobertura entre testes executados e capacidades apenas quando houver origem verificável; T4.1 e o goal integral seguem abertos.
+
 ## Next.js Pages Router por AST — 17/10/2026
 
 O coletor Next agora cobre `pages/**` na AST TS/JS já parseada. Páginas com export default viram `page`; `pages/api/**` vira `endpoint` `API handler` sem inferir método. `index` e segmentos dinâmicos são preservados; `_app`/`_document`/`_error`, `.d.ts` e módulo API sem default não são contados. Limites de orçamento viram limitation. Boundary `pieAdapters` passou 10/10 com integração Git/SQLite, Evidence e validação do snapshot. Ainda sem runtime Next; T2.2 parcial. Próximo trabalho deve cobrir mais semântica cross-file sem inferir disponibilidade HTTP.

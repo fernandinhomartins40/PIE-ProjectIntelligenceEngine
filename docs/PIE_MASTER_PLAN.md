@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Interpretação de mudanças de declarações — 17/10/2026
+
+O diff de declarações agora registra `interpretation` por item. Declarações observadas somente de um lado em snapshots completos são `observed_change`; quando o outro snapshot tem cobertura parcial, são `unknown_before`/`unknown_after`; duplicidades com mudança são `ambiguous`. O campo `state` preserva a observação bruta (`observed_only_*`) para compatibilidade semântica, e nenhuma classe prova remoção de comportamento, defeito ou funcionamento. `pieComparison` passou 3/3; `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` e `git diff --check` passaram em Windows. T4.1 continua parcial: falta relacionar testes a capacidades por arestas de cobertura comprovadas e executar jornadas autorizadas com persistência/permissões/reload.
+
 ## Next.js Pages Router no inventário e Evidence — 17/10/2026
 
 `readCodeFacts` agora reconhece convenções `pages/**` usando a mesma AST Babel já analisada para imports/Express/App Router: páginas com export default produzem `page`; `pages/api/**` produz `endpoint` nomeado como `API handler`, sem inventar método HTTP. `index` é normalizado, segmentos dinâmicos permanecem literais, arquivos especiais `_app`/`_document`/`_error`, declarações TS e handlers sem export default não viram páginas/endpoints. A origem/linha segue pelo coletor existente e pela validação de snapshot. Fixture Git/SQLite comprova proveniência; 10/10 `pieAdapters` passaram, com casos de orçamento. `pie:build`, `check:fast`, docs e formatação em execução para esta entrega; nenhuma aplicação Next foi executada. T2.2 permanece parcial.

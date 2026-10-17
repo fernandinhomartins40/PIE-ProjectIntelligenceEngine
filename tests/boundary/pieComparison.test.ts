@@ -158,10 +158,24 @@ it("regressão compara declarações com provas dos dois snapshots sem afirmar e
     });
     expect(
       changes.find((item) => item.before[0]?.name === "POST /api"),
-    ).toMatchObject({ state: "observed_only_before", after: [] });
+    ).toMatchObject({
+      state: "observed_only_before",
+      interpretation: "observed_change",
+      after: [],
+    });
     expect(
       changes.find((item) => item.after[0]?.name === "PUT /api"),
-    ).toMatchObject({ state: "observed_only_after", before: [] });
+    ).toMatchObject({
+      state: "observed_only_after",
+      interpretation: "observed_change",
+      before: [],
+    });
+    expect(changes.find((item) => item.state === "ambiguous")).toMatchObject({
+      interpretation: "ambiguous",
+    });
+    expect(
+      changes.find((item) => item.state === "source_changed"),
+    ).toMatchObject({ interpretation: "observed_change" });
     for (const item of changes)
       for (const fact of [...item.before, ...item.after])
         expect((await service.evidence(fact.evidenceId)).source).toEqual(
@@ -174,7 +188,9 @@ it("regressão compara declarações com provas dos dois snapshots sem afirmar e
     });
     expect(
       incomplete.declarationChanges.items.every(
-        (item) => item.state === "observed_only_before",
+        (item) =>
+          item.state === "observed_only_before" &&
+          item.interpretation === "unknown_after",
       ),
     ).toBe(true);
     expect(incomplete.runtimeVerified).toBe(false);

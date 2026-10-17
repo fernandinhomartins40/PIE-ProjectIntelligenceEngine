@@ -15,6 +15,12 @@ export const declarationChangeSchema = z.strictObject({
   ]),
   before: z.array(adapterFactSchema),
   after: z.array(adapterFactSchema),
+  interpretation: z.enum([
+    "observed_change",
+    "unknown_before",
+    "unknown_after",
+    "ambiguous",
+  ]),
 });
 export const declarationChangesSchema = pagedOutput(declarationChangeSchema);
 
@@ -54,6 +60,10 @@ export function compareDeclarations(
         state: "observed_only_after",
         before: old,
         after: current,
+        interpretation:
+          before.coverage.status === "complete"
+            ? "observed_change"
+            : "unknown_before",
       });
     else if (current.length === 0)
       changes.push({
@@ -61,6 +71,10 @@ export function compareDeclarations(
         state: "observed_only_before",
         before: old,
         after: current,
+        interpretation:
+          after.coverage.status === "complete"
+            ? "observed_change"
+            : "unknown_after",
       });
     else if (old.length > 1 || current.length > 1) {
       const signature = (facts: AdapterFact[]) =>
@@ -68,16 +82,29 @@ export function compareDeclarations(
           facts.map((fact) => [fact.source.line, fact.source.sha256]).sort(),
         );
       if (signature(old) !== signature(current))
-        changes.push({ key, state: "ambiguous", before: old, after: current });
+        changes.push({
+          key,
+          state: "ambiguous",
+          before: old,
+          after: current,
+          interpretation: "ambiguous",
+        });
     } else if (old[0]!.source.sha256 !== current[0]!.source.sha256)
       changes.push({
         key,
         state: "source_changed",
         before: old,
         after: current,
+        interpretation: "observed_change",
       });
     else if (old[0]!.source.line !== current[0]!.source.line)
-      changes.push({ key, state: "relocated", before: old, after: current });
+      changes.push({
+        key,
+        state: "relocated",
+        before: old,
+        after: current,
+        interpretation: "observed_change",
+      });
   }
   return declarationChangesSchema.parse(page(changes, paging));
 }

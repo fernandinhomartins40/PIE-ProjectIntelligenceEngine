@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Interpretação de mudanças de declarações por cobertura — 17/10/2026
+
+- `compareDeclarations` retorna interpretação explícita: mudança observada quando a declaração aparece só de um lado e o snapshot oposto tem enumeração completa; desconhecido quando esse snapshot é parcial; ambíguo para identidades duplicadas alteradas. O estado observacional original permanece e nada disso comprova runtime.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieComparison.test.ts`: 3/3 passaram. `npm run pie:build`, `npm run check:fast` (2/2), `npm run docs:check:built` (inclui `licenses:check`, 902 pacotes lockfile/365 runtime, fingerprint `0218c076d58ea6b6887d57a02b0b2533bb997f0c7472d398c156fd4062e03bbf`), `npm run format:check` (4.110 arquivos) e `git diff --check` passaram no Windows com Node 24.18.0/npm 11.16.0.
+- Limite preservado: execução de teste não está ligada a endpoints/páginas por relações de cobertura verificáveis; semelhança de caminho/nome não prova que o teste valida a capacidade. T4.1 permanece parcial; não houve execução do sistema cliente.
+
 ## Next.js Pages Router por AST — 17/10/2026
 
 - O mesmo parse AST agora produz declarações Pages Router com Evidence por arquivo/linha: páginas export default, API handlers sem método inferido, `index`, segmentos dinâmicos e prefixos em monorepo. Exclui tipos, arquivos especiais e APIs sem default; respeita limite de declarações.
