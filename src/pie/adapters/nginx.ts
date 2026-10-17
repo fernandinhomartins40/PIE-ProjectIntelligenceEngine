@@ -11,8 +11,11 @@ const selected = new Set([
 ]);
 
 /** Transport userinfo is authentication; retain the remaining URI without URL normalization. */
-const redactTransport = (value: string) =>
-  value.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/i, "$1[REDACTED]@");
+const transportAuthentication = /^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/i;
+const redactTransport = (value: string) => ({
+  value: value.replace(transportAuthentication, "$1[REDACTED]@"),
+  redacted: transportAuthentication.test(value),
+});
 
 export function readNginx(source: string, limit: number): AdapterRead {
   const declarations: Declaration[] = [];
@@ -32,9 +35,12 @@ export function readNginx(source: string, limit: number): AdapterRead {
     const transport = ["proxy_pass", "grpc_pass", "fastcgi_pass"].includes(
       command!,
     );
+    const sanitized = args.map((value) =>
+      transport ? redactTransport(value) : { value, redacted: false },
+    );
     const name = JSON.stringify([
       command,
-      ...(transport ? args.map(redactTransport) : args),
+      ...sanitized.map((item) => item.value),
     ]);
     const parent = JSON.stringify(
       directive.ancestors.map((item) => ({
@@ -56,6 +62,13 @@ export function readNginx(source: string, limit: number): AdapterRead {
       name,
       parent,
       line: directive.line,
+      ...(sanitized.some((item) => item.redacted)
+        ? {
+            redactions: [
+              "Userinfo de autenticação da URI de transporte substituído por [REDACTED]; demais componentes preservados.",
+            ],
+          }
+        : {}),
     });
   }
   return {

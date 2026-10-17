@@ -36,7 +36,7 @@ export type AdapterFact = z.infer<typeof adapterFactSchema>;
 export type Declaration = Pick<
   AdapterFact,
   "adapter" | "kind" | "name" | "parent"
-> & { line: number };
+> & { line: number; redactions?: string[] };
 export interface AdapterRead {
   declarations: Declaration[];
   limitations: string[];

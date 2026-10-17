@@ -1,5 +1,11 @@
 # PIE — Continuidade
 
+## Proveniência de redação de transporte — 17/10/2026
+
+Revisão encontrou metadado incorreto: nginx-config removia userinfo de URI, mas a evidência derivada herdava redactionStatus=not_collected do inventário de bytes. Parser agora devolve notas internas de redação por declaração; collectDeclarations, dono da prova derivada, aplica redactionStatus=redacted e inclui a transformação nas limitações antes de selar o hash. Nenhum consumidor reinterpreta o nome para inferir segredo/redação. Valores não redigidos e prova do inventário preservam o estado original; hash da fonte continua identificando bytes originais. Registros históricos não são alterados nem re-selados retroativamente.
+
+Teste Git/SQLite Nginx real como fonte comprova URI redigida com caminho/query preservados, linha/contexto e prova redacted selada, ausência de usuário/senha no snapshot e inventário not_collected. Registros e relatórios seguem validando integridade. Adapters/comparação: 12 testes passaram em dois arquivos (9,39s). Build PIE e typecheck completo passaram, lint focado sem avisos/erros. Limites de módulos: 2057 fontes; descoberta: 1464 testes. Nenhum servidor Nginx executado. CI 38999252899 da entrega anterior 811998e13 terminou com sucesso. Correção atual aguarda CI. Não representa política completa de dados sensíveis nem motor de segurança/LGPD concluído. Goal integral ativo; demais runners/motores e aceite integral pendentes.
+
 ## Candidatos a reteste no painel — 17/10/2026
 
 Comparar versões agora inclui Planejamento de retestes com modo por impacto ou inventário completo observado. Consulta usa antes/depois da comparação aceita, não os controles ainda não submetidos. Resultado mostra arquivo candidato, motivo, compatibilidade não verificada, prova do snapshot posterior, testes anteriores removidos/não observados e limitações. Paginação é independente das mudanças de arquivo/declaração. Não produz grant nem inicia worker ou teste; autorização VERIFY continua separada. Nova comparação remonta o componente e cancela leituras anteriores.

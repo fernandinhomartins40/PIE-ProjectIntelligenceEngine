@@ -267,7 +267,7 @@ it("Nginx integra inventário Git, evidência e trace sem ler include externo", 
     await exec("git", ["init", root]);
     await writeFile(
       join(root, "nginx.conf"),
-      "http { server {\nlisten 8080;\nlocation /api { proxy_pass http://backend:3000; }\ninclude /outside/not-available.conf;\n} }",
+      "http { server {\nlisten 8080;\nlocation /api { proxy_pass http://backend:3000; }\ninclude /outside/not-available.conf;\nlocation /private { proxy_pass http://fixture-user:fixture-password@backend:3000/path?choice=1; }\n} }",
     );
     await exec("git", ["-C", root, "add", "."]);
     const observed = await service.discover({
@@ -276,6 +276,26 @@ it("Nginx integra inventário Git, evidência e trace sem ler include externo", 
       environment: "local",
     });
     const snapshot = store.snapshot(observed.snapshot.id);
+    const redacted = snapshot.declarations.find((item) =>
+      item.name.includes("[REDACTED]"),
+    )!;
+    expect(redacted.name).toBe(
+      '["proxy_pass","http://[REDACTED]@backend:3000/path?choice=1"]',
+    );
+    const redactedProof = await service.evidence(redacted.evidenceId);
+    expect(redactedProof).toMatchObject({
+      redactionStatus: "redacted",
+      source: { path: "nginx.conf", line: 5 },
+      limitations: expect.arrayContaining([
+        expect.stringContaining("Userinfo de autenticação"),
+      ]),
+    });
+    expect(JSON.stringify(snapshot)).not.toContain("fixture-user");
+    expect(JSON.stringify(snapshot)).not.toContain("fixture-password");
+    expect(
+      snapshot.evidence.find((item) => item.source.line === null)
+        ?.redactionStatus,
+    ).toBe("not_collected");
     const proxy = snapshot.declarations.find((item) =>
       item.name.includes("proxy_pass"),
     )!;

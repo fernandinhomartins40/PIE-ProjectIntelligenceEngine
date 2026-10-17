@@ -23,6 +23,10 @@ export function collectDeclarations(
         id: randomUUID(),
         source: { ...file.source, line: declaration.line },
         confidence: "derived",
+        redactionStatus: declaration.redactions?.length
+          ? "redacted"
+          : fields.redactionStatus,
+        limitations: [...fields.limitations, ...(declaration.redactions ?? [])],
         observation: `Declaração estática ${declaration.kind} identificada por ${declaration.adapter}; não verificada em execução.`,
       });
       const value = {

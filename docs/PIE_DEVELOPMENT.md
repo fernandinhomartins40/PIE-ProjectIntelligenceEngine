@@ -264,3 +264,5 @@ Plano não autoriza execução. A classificação por nome e os imports não com
 ## Candidatos a reteste no painel
 
 Após Comparar snapshots, Planejamento de retestes permite selecionar Impacto registrado nas duas versões ou Todos os testes observados na versão posterior. Planejar retestes consulta o serviço; tabelas paginadas mostram motivo e prova de cada candidato. Modo consultado é exibido para distinguir o resultado dos controles ainda não submetidos. Seleção não autoriza nem executa código. Arquivos classificados como teste podem exigir outro runner; compatibilidade fica não verificada. Nenhum candidato não comprova ausência de regressão.
+
+A evidência derivada de uma diretiva com userinfo de transporte removido recebe redactionStatus=redacted e uma limitação descrevendo a transformação. O inventário sem conteúdo coletado mantém not_collected. Metadados são definidos pelo parser/coletor produtor, sem inferência posterior pelo nome da declaração; registros históricos não são reescritos.
