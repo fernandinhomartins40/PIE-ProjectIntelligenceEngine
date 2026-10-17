@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Merge do upstream corrente — 17/10/2026
+
+- `git fetch upstream main`: atualizou `upstream/main` de `4838f4449` para `926e18b3f`. A diferença para `rea-fork/main` era 54 commits upstream-only e 70 PIE/fork-only.
+- `git merge-tree --write-tree --name-only HEAD upstream/main` retornou árvore candidata sem conflito. `git merge --no-ff --no-edit upstream/main` criou merge local `734f5d20c`; a árvore do merge toca 268 arquivos (16.796 inserções, 3.083 remoções), sem tocar PIE, SQLite, manifests ou Prisma. `upstream/main` é ancestral de `HEAD`.
+- `npm run pie:build`: passou depois desse segundo merge.
+- `node scripts/run-exact-tests.mjs tests/boundary/filesystem/ciPortableBuildCache.test.ts tests/boundary/filesystem/windowsTargetSeparators.test.ts`: 5 passaram, 1 skipped; dois arquivos boundary passaram.
+- Esse merge ainda não foi publicado no momento deste registro; validação/push pendentes.
+
 ## Falha sintática como Result — 17/10/2026
 
 `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram. `pieAdapters` e `pieFoundation` passaram (16 testes); a boundary integrada usa fixture em Git, mantém `invalid.ts` no inventário e confirma que a descoberta não cria relações e registra limitação. O contrato `readCodeFactsResult` converte apenas `SyntaxError` com `code=BABEL_PARSER_SYNTAX_ERROR`; falhas inesperadas são relançadas.

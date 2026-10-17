@@ -1,8 +1,12 @@
 # PIE — Continuidade
 
+## Continuidade atual — novo avanço upstream — 17/10/2026
+
+Após atualizar o fork oficial para `744c44c1d`, `upstream/main` avançou para `926e18b3f`. Merge local `734f5d20c` o integrou sem conflitos; preserva os 71 commits PIE e não altera `src/pie`, painel, testes SQLite ou manifests. `pie:build` passou; boundaries `ciPortableBuildCache` e `windowsTargetSeparators` passaram (5 pass, 1 skip). Próximo: `check:fast`, docs e formatação; depois publicar por fast-forward em `origin/main` e `rea-fork/main`, e acompanhar CI do novo SHA.
+
 ## Continuidade atual — integração upstream REA e teste Windows — 17/10/2026
 
-Merge `rea-fork/main` está em `main` local (`f9da18125`) sem conflitos, preservando todos os commits e tornando `rea-fork/main` e `origin/main` ancestrais do checkout. `pie:build`, `check:fast`, `docs:check:built` e `format:check` passaram depois do merge. A suíte completa `check:pr` foi interrompida após um arquivo acceptance levar 434 s; Vitest parcial apontou expectativa ENAMETOOLONG incompatível com `ENOENT` observado no Windows. Corrigido o oráculo por observação `lstat`; `tests/acceptance/sqliteDatabaseCli.test.ts` passou inteiro (10/13, três skips do arquivo). Próximo: commit da correção e dos registros, push fast-forward para `origin/main` e `rea-fork/main`, e conferir CI do SHA resultante. Não registrar `check:pr` como verde.
+Merge `rea-fork/main` está em `main` local (`f9da18125`) sem conflitos, preservando todos os commits. A correção SQLite e os registros foram publicados em ambos os remotos no SHA `744c44c1d`; após isso, upstream avançou para `926e18b3f`, integrado localmente em `734f5d20c`. A suíte completa `check:pr` foi interrompida após um arquivo acceptance levar 434 s; Vitest parcial apontou expectativa ENAMETOOLONG incompatível com `ENOENT` observado no Windows. Corrigido o oráculo por observação `lstat`; `tests/acceptance/sqliteDatabaseCli.test.ts` passou inteiro (10/13, três skips do arquivo). Próximo: `check:fast`/docs/formato e publicar fast-forward em ambos os remotos. Não registrar `check:pr` como verde.
 
 ## Continuidade atual — fork oficial REA preparado — 17/10/2026
 
