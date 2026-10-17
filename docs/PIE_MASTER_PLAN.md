@@ -1,6 +1,6 @@
 ## Sele??o incremental conservadora da su?te PIE ? 17/10/2026
 
-O workflow `PIE integration` agora calcula `git diff` entre a base/head do evento. Somente quando todos os arquivos alterados s?o testes existentes da allowlist principal reduz esse grupo ?s boundaries alteradas; fonte, configura??o, teste desconhecido, diff ausente e `workflow_dispatch` executam o grupo completo. Builds, migra??es, PostgreSQL, Docker, browser e grupos dedicados permanecem inalterados; logo o ganho ? limitado ao grupo principal e n?o elimina valida??o de produ??o. Dois testes de sele??o cobrem redu??o e fallback completo. A execu??o CI remota desse caminho ainda precisa ser observada; T6.1/T6.3 permanecem parciais.
+O workflow `PIE integration` agora calcula `git diff` entre a base/head do evento. Somente quando todos os arquivos alterados s?o testes existentes da allowlist principal reduz esse grupo ?s boundaries alteradas; fonte, configura??o, teste desconhecido, diff ausente e `workflow_dispatch` executam o grupo completo. Builds, migra??es, PostgreSQL, Docker, browser e grupos dedicados permanecem inalterados; logo o ganho ? limitado ao grupo principal e n?o elimina valida??o de produ??o. Dois testes de sele??o cobrem redu??o e fallback completo. GitHub Actions `PIE integration` #91 concluiu com sucesso para `35e3c5445`; como o diff inclu?a workflow e script, o caminho foi full fallback, n?o prova ainda o modo focused. CI geral do mesmo SHA estava pendente na consulta. T6.1/T6.3 permanecem parciais.
 
 ## Exporta??o hist?rica de VERIFY ? 17/10/2026
 
