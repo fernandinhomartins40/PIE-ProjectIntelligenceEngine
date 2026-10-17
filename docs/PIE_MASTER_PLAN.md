@@ -1,3 +1,7 @@
+## Sele??o incremental conservadora da su?te PIE ? 17/10/2026
+
+O workflow `PIE integration` agora calcula `git diff` entre a base/head do evento. Somente quando todos os arquivos alterados s?o testes existentes da allowlist principal reduz esse grupo ?s boundaries alteradas; fonte, configura??o, teste desconhecido, diff ausente e `workflow_dispatch` executam o grupo completo. Builds, migra??es, PostgreSQL, Docker, browser e grupos dedicados permanecem inalterados; logo o ganho ? limitado ao grupo principal e n?o elimina valida??o de produ??o. Dois testes de sele??o cobrem redu??o e fallback completo. A execu??o CI remota desse caminho ainda precisa ser observada; T6.1/T6.3 permanecem parciais.
+
 ## Exporta??o hist?rica de VERIFY ? 17/10/2026
 
 Runs VERIFY persistidos v1/v2 agora s?o exportados sem reexecu??o via `verification-export`, GET autenticado `/v1/verifications/:id/export` e MCP `pie_verification_export`. O servi?o rel? e valida run, Evidence, bindings e contexto do snapshot; p?ginas identificam run/snapshot/treeDigest/Evidence e hash de payload/artefato. O teste percorre um run real `blocked` e comprova paridade CLI/API/MCP com pagina??o de 128 bytes e digest final. T6.1: exports de snapshot e dos hist?ricos funcionais/VERIFY implementados; CI incremental ainda pendente. PostgreSQL foi skipped sem `PIE_TEST_DATABASE_URL`.

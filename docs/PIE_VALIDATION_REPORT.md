@@ -1,3 +1,9 @@
+## Sele??o incremental da integra??o PIE ? 17/10/2026
+
+- `scripts/ci/pie-tests.mjs` permite modo focused apenas para diff n?o vazio composto exclusivamente por testes existentes na allowlist; diffs desconhecidos, dispatch manual e source/config seguem no conjunto completo. A su?te ? invocada por `spawnSync` com argumentos, sem interpolar paths no shell. Etapas PostgreSQL/Docker/browser e demais grupos continuam sempre executadas.
+- `tests/conformance/pieCiSelection.test.ts`: 2/2; `workflowActionPinning` + `ciRequiredLanes`: 22/22. Parser YAML aceitou `.github/workflows/pie.yml`; `check:fast` passou ap?s adicionar declara??o `.d.mts` ao script ESM. O workflow inclui checkout completo para compara??o, fixa SHA base/head e executa sempre a regress?o do seletor. Actionlint n?o est? instalado neste Windows (comando `go` ausente); o CI geral executar? essa valida??o ap?s o push.
+- Nenhuma execu??o remota dessa nova sele??o foi observada nesta entrega; o ganho de runtime n?o foi medido. O fallback ? conservador e o escopo de redu??o cobre apenas o grupo principal de 14 boundaries.
+
 ## Exporta??o paginada de execu??es VERIFY ? 17/10/2026
 
 - `verification-export <id>`, `GET /v1/verifications/:id/export` e MCP `pie_verification_export` chamam o mesmo `PieService`. Cada p?gina inclui o JSON ?ntegro do registro retido, run/snapshot/treeDigest/Evidence e hashes do payload e artefato serializado. O run ? relido pela persist?ncia e validado contra Evidence e snapshot; n?o h? execu??o do grant.

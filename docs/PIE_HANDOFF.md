@@ -1,3 +1,7 @@
+## Pr?xima frente ? comprovar workflow PIE incremental e ampliar sele??o ? 17/10/2026
+
+Seletor incremental cobre apenas o conjunto principal: quando o diff muda exclusivamente boundaries existentes da allowlist, roda os testes modificados; fonte/config/dispatch/diff desconhecido rodam o conjunto completo. As demais etapas PostgreSQL/Docker/browser seguem completas em todos os eventos. 2 testes de sele??o e 22 guards de workflow passaram; parser YAML e `check:fast` tamb?m passaram. Actionlint n?o est? dispon?vel neste Windows porque `go` n?o est? instalado; CI remota dever? comprovar o workflow no pr?ximo push. Ap?s observar resultado, medir ganho e decidir expans?o para os grupos dedicados sem retirar cobertura.
+
 ## Pr?xima frente ? CI incremental ? 17/10/2026
 
 Export de snapshots, registros funcionais e runs VERIFY agora compartilham servi?os paginados; runs VERIFY s?o revalidados com Evidence e snapshot e preservam estados sem reexecu??o. A boundary usou SQLite real/CLI/API/MCP e um run realmente bloqueado pelo Docker ausente; PostgreSQL foi skipped por aus?ncia de `PIE_TEST_DATABASE_URL`. Pr?ximo: auditar os workflows existentes e os contratos de path/commit para adicionar uma execu??o PIE incremental reproduz?vel, sem alegar cobertura CI ainda. Depois avan?ar T6.1/T6.3 e frentes restantes da matriz.

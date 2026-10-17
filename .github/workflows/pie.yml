@@ -12,6 +12,8 @@ on:
         "scripts/pie.mjs",
         "tests/boundary/pie*.test.ts",
         "tests/boundary/mcp/pie*.test.ts",
+        "tests/conformance/pieCiSelection.test.ts",
+        "scripts/ci/pie-tests.mjs",
         "package*.json",
         ".github/workflows/pie.yml",
       ]
@@ -26,6 +28,8 @@ on:
         "scripts/pie.mjs",
         "tests/boundary/pie*.test.ts",
         "tests/boundary/mcp/pie*.test.ts",
+        "tests/conformance/pieCiSelection.test.ts",
+        "scripts/ci/pie-tests.mjs",
         "package*.json",
         ".github/workflows/pie.yml",
       ]
@@ -49,6 +53,8 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version-file: .nvmrc
@@ -63,6 +69,7 @@ jobs:
         env:
           PIE_TEST_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
       - run: npm run typecheck
+      - run: npm run test:local -- tests/conformance/pieCiSelection.test.ts
       - run: node scripts/generate-third-party-inventory.mjs --check
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieNodeResults.test.ts
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieResourceJournal.test.ts
@@ -81,6 +88,10 @@ jobs:
           node node_modules/vitest/vitest.mjs run tests/boundary/pieBrowserAuth.test.ts tests/boundary/pieWeb.test.ts tests/boundary/pieWebTrace.test.ts
         env:
           PIE_BROWSER_EXECUTABLE: /usr/bin/google-chrome
-      - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieHttpTransport.test.ts tests/boundary/pieHttpPersistence.test.ts tests/boundary/pieFunctionalPersistence.test.ts tests/boundary/pieExecutionAdmission.test.ts tests/boundary/piePostgres.test.ts tests/boundary/pieJobs.test.ts tests/boundary/pieAdapters.test.ts tests/boundary/pieTrace.test.ts tests/boundary/pieFoundation.test.ts tests/boundary/pieComparison.test.ts tests/boundary/pieRetestAdmission.test.ts tests/boundary/pieRegressionResults.test.ts tests/boundary/pieApi.test.ts tests/boundary/mcp/pieMcp.test.ts
+      - name: Select safe incremental PIE test lane
         env:
+          PIE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PIE_HEAD_SHA: ${{ github.sha }}
+          PIE_EVENT_NAME: ${{ github.event_name }}
           PIE_TEST_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
+        run: node scripts/ci/pie-tests.mjs
