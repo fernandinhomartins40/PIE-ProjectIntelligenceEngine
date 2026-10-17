@@ -1,7 +1,10 @@
 import { parse } from "@babel/parser";
 import { traverseFast } from "@babel/types";
 import type { ImportReference } from "./imports.js";
-import { readNextDeclarations } from "./adapters/next.js";
+import {
+  readNextDeclarations,
+  readNextPagesDeclarations,
+} from "./adapters/next.js";
 import type { AdapterRead } from "./adapters/contracts.js";
 import {
   readExpressDeclarations,
@@ -37,7 +40,7 @@ export function readCodeFacts(
   };
 } {
   return cachedAnalysis(
-    ["pie-code-facts-v5", path, sha256(source), maxReferences, maxDeclarations],
+    ["pie-code-facts-v6", path, sha256(source), maxReferences, maxDeclarations],
     () => {
       const tree = parse(source, {
         sourceType: "unambiguous",
@@ -65,9 +68,19 @@ export function readCodeFacts(
         }
       });
       const next = readNextDeclarations(path, tree, maxDeclarations);
-      const express = readExpressDeclarations(
+      const nextPages = readNextPagesDeclarations(
+        path,
         tree,
         Math.max(0, maxDeclarations - next.declarations.length),
+      );
+      const express = readExpressDeclarations(
+        tree,
+        Math.max(
+          0,
+          maxDeclarations -
+            next.declarations.length -
+            nextPages.declarations.length,
+        ),
       );
       return {
         references,
@@ -80,8 +93,16 @@ export function readCodeFacts(
           omittedCrossFileFacts: express.omittedCrossFileFacts,
         },
         declarations: {
-          declarations: [...next.declarations, ...express.declarations],
-          limitations: [...next.limitations, ...express.limitations],
+          declarations: [
+            ...next.declarations,
+            ...nextPages.declarations,
+            ...express.declarations,
+          ],
+          limitations: [
+            ...next.limitations,
+            ...nextPages.limitations,
+            ...express.limitations,
+          ],
         },
       };
     },

@@ -1,5 +1,10 @@
 # PIE — Registro de validação contínua
 
+## Next.js Pages Router por AST — 17/10/2026
+
+- O mesmo parse AST agora produz declarações Pages Router com Evidence por arquivo/linha: páginas export default, API handlers sem método inferido, `index`, segmentos dinâmicos e prefixos em monorepo. Exclui tipos, arquivos especiais e APIs sem default; respeita limite de declarações.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts`: 10/10 passou. Fixture usa Git/SQLite reais; valida snapshot, proveniência e ausência de `_app`/handler sem default. `npm.cmd run pie:build`, `npm.cmd run check:fast` (2/2), `npm.cmd run docs:check:built`, `npm.cmd run format:check` e `git diff --check` passaram no Windows. Nenhum runtime Next foi executado; suporte permanece estático e parcial.
+
 ## Result tagged do motor funcional — 17/10/2026
 
 - `assessFunctionalResult` distingue rejeição de input, caminho não canônico, escopo/política e snapshot inválido por schema ou integridade. Não captura falhas inesperadas. O serviço aplica a tradução uma vez e a reutiliza em review e persistência funcional.

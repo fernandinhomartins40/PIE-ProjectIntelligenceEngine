@@ -59,6 +59,53 @@ function functionalResultFailures(snapshot: Snapshot) {
   ).toEqual({ ok: false, error: { kind: "invalid_snapshot" } });
 }
 
+function expectNextDeclarations(snapshot: Snapshot) {
+  expect(snapshot.declarations).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        adapter: "next-app-convention",
+        kind: "endpoint",
+        name: "POST /orders/[id]",
+        source: expect.objectContaining({ line: 3 }),
+      }),
+      expect.objectContaining({
+        kind: "endpoint",
+        name: "GET /orders/[id]",
+        source: expect.objectContaining({ line: 4 }),
+      }),
+      expect.objectContaining({ kind: "page", name: "/" }),
+      expect.objectContaining({
+        adapter: "next-pages-convention",
+        kind: "page",
+        name: "/home",
+        source: expect.objectContaining({ path: "pages/home.tsx" }),
+      }),
+      expect.objectContaining({
+        adapter: "next-pages-convention",
+        kind: "endpoint",
+        name: "API handler /api/orders",
+        source: expect.objectContaining({ path: "pages/api/orders.ts" }),
+      }),
+      expect.objectContaining({
+        adapter: "next-pages-convention",
+        kind: "page",
+        name: "/products/[id]",
+        source: expect.objectContaining({
+          path: "pages/products/[id]/index.tsx",
+        }),
+      }),
+    ]),
+  );
+  expect(snapshot.declarations).toHaveLength(6);
+  expect(
+    snapshot.declarations.some(
+      (item) =>
+        item.source.path === "pages/_app.tsx" ||
+        item.source.path === "pages/api/missing.ts",
+    ),
+  ).toBe(false);
+}
+
 it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-next-"));
   const external = await mkdtemp(join(tmpdir(), "pie-next-history-"));
@@ -68,6 +115,10 @@ it("Next App Router usa exports AST, uma árvore e prova rastreável sem executa
     await exec("git", ["init", root]);
     const directory = join(root, "src", "app", "(shop)", "orders", "[id]");
     await mkdir(directory, { recursive: true });
+    await mkdir(join(root, "pages", "api"), { recursive: true });
+    await mkdir(join(root, "pages", "products", "[id]"), {
+      recursive: true,
+    });
     await writeFile(
       join(directory, "route.ts"),
       "import {handler} from './handler';\n// export function DELETE() {}\nexport { handler as POST };\nexport async function GET() { throw new Error('não executar'); }\n",
@@ -80,6 +131,23 @@ it("Next App Router usa exports AST, uma árvore e prova rastreável sem executa
       join(root, "src", "app", "page.tsx"),
       "export default function Page(){return <main>Real source fixture</main>}",
     );
+    await writeFile(
+      join(root, "pages", "home.tsx"),
+      "export default function Home(){return null}",
+    );
+    await writeFile(
+      join(root, "pages", "api", "orders.ts"),
+      "export default function handler() { return null; }",
+    );
+    await writeFile(
+      join(root, "pages", "products", "[id]", "index.tsx"),
+      "export default function Product(){return null}",
+    );
+    await writeFile(
+      join(root, "pages", "_app.tsx"),
+      "export default function App(){return null}",
+    );
+    await writeFile(join(root, "pages", "api", "missing.ts"), "export {};");
     await exec("git", ["-C", root, "add", "."]);
     const observed = await service.discover({
       repositoryRoot: root,
@@ -87,23 +155,7 @@ it("Next App Router usa exports AST, uma árvore e prova rastreável sem executa
       environment: "local",
     });
     const snapshot = store.snapshot(observed.snapshot.id);
-    expect(snapshot.declarations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          adapter: "next-app-convention",
-          kind: "endpoint",
-          name: "POST /orders/[id]",
-          source: expect.objectContaining({ line: 3 }),
-        }),
-        expect.objectContaining({
-          kind: "endpoint",
-          name: "GET /orders/[id]",
-          source: expect.objectContaining({ line: 4 }),
-        }),
-        expect.objectContaining({ kind: "page", name: "/" }),
-      ]),
-    );
-    expect(snapshot.declarations).toHaveLength(3);
+    expectNextDeclarations(snapshot);
     expect(snapshot.edges).toHaveLength(1);
     expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
     const endpoint = snapshot.declarations.find((item) =>
@@ -217,6 +269,39 @@ it("Next não confunde comentários, strings, tipos e nomes parecidos com rotas"
   expect(
     readCodeFacts("app/page.tsx", "export default interface Example {}", 10, 10)
       .declarations.declarations,
+  ).toEqual([]);
+  expect(
+    readCodeFacts(
+      "pages/api/limited.ts",
+      "export default function handler() {}",
+      10,
+      0,
+    ).declarations,
+  ).toMatchObject({
+    declarations: [],
+    limitations: expect.arrayContaining([expect.stringContaining("omitida")]),
+  });
+  expect(
+    readCodeFacts(
+      "packages/web/pages/api/[...slug].mts",
+      "export default function handler() {}",
+      10,
+      10,
+    ).declarations.declarations,
+  ).toMatchObject([
+    {
+      adapter: "next-pages-convention",
+      kind: "endpoint",
+      name: "API handler /api/[...slug]",
+    },
+  ]);
+  expect(
+    readCodeFacts(
+      "pages/types.d.cts",
+      "export default function handler() {}",
+      10,
+      10,
+    ).declarations.declarations,
   ).toEqual([]);
   for (const path of [
     "app/_private/route.ts",

@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Next.js Pages Router por AST — 17/10/2026
+
+O coletor Next agora cobre `pages/**` na AST TS/JS já parseada. Páginas com export default viram `page`; `pages/api/**` vira `endpoint` `API handler` sem inferir método. `index` e segmentos dinâmicos são preservados; `_app`/`_document`/`_error`, `.d.ts` e módulo API sem default não são contados. Limites de orçamento viram limitation. Boundary `pieAdapters` passou 10/10 com integração Git/SQLite, Evidence e validação do snapshot. Ainda sem runtime Next; T2.2 parcial. Próximo trabalho deve cobrir mais semântica cross-file sem inferir disponibilidade HTTP.
+
 ## Erros esperados tagged no motor funcional — 17/10/2026
 
 `assessFunctionalResult` tipa input/schema inválido, module path inválido, escopo/política recusados e snapshot inválido pelo schema/integridade; falhas inesperadas não são capturadas. `PieService` converte falhas esperadas ao erro compartilhado usado pelos adaptadores CLI/MCP/API, tanto em review quanto em retenção. Boundary funcional/persistência 11/11, `pie:build` e `check:fast` passaram. T1.1 permanece parcial; aplicar o padrão nas demais fronteiras é trabalho restante. Próximo eixo: T1.2 retenção/expiração e redação com ownership no produtor, preservando evidências históricas imutáveis.

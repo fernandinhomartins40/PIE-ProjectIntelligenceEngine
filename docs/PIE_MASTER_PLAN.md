@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Next.js Pages Router no inventário e Evidence — 17/10/2026
+
+`readCodeFacts` agora reconhece convenções `pages/**` usando a mesma AST Babel já analisada para imports/Express/App Router: páginas com export default produzem `page`; `pages/api/**` produz `endpoint` nomeado como `API handler`, sem inventar método HTTP. `index` é normalizado, segmentos dinâmicos permanecem literais, arquivos especiais `_app`/`_document`/`_error`, declarações TS e handlers sem export default não viram páginas/endpoints. A origem/linha segue pelo coletor existente e pela validação de snapshot. Fixture Git/SQLite comprova proveniência; 10/10 `pieAdapters` passaram, com casos de orçamento. `pie:build`, `check:fast`, docs e formatação em execução para esta entrega; nenhuma aplicação Next foi executada. T2.2 permanece parcial.
+
 ## Result esperado no motor funcional — 17/10/2026
 
 `assessFunctionalResult` agora retorna falhas tagged para schema inválido, caminho de módulo não canônico, policy fora do escopo e snapshot rejeitado pelo schema ou por integridade, sem capturar erros internos inesperados. O serviço compartilhado traduz essas falhas para `PieError` e usa o mesmo caminho tanto na leitura quanto na retenção histórica. Mantidos estados `unverified`, formato público e política OBSERVE. `pieAdapters` + `pieFunctionalPersistence`: 11/11; `pie:build` e `check:fast` passaram. Ainda não é Result uniforme em discovery, demais engines/adapters, persistência ou runners; T1.1 continua parcial.

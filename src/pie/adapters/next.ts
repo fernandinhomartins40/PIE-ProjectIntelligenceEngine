@@ -128,3 +128,66 @@ export function readNextDeclarations(
     ],
   };
 }
+
+/** Interprets Pages Router file paths with the same parsed module tree as App Router. */
+export function readNextPagesDeclarations(
+  path: string,
+  tree: File,
+  limit: number,
+): AdapterRead {
+  const match =
+    /^((?:[^/]+\/)*)pages\/((?:[^/]+\/)*)([^/]+)\.(?:[cm]?[jt]sx?)$/.exec(path);
+  if (
+    !match ||
+    path.endsWith(".d.ts") ||
+    path.endsWith(".d.mts") ||
+    path.endsWith(".d.cts")
+  )
+    return { declarations: [], limitations: [] };
+  const nested = match[2]!.split("/").filter(Boolean);
+  const file = match[3]!;
+  const isApi = nested[0] === "api";
+  if (
+    !isApi &&
+    nested.length === 0 &&
+    ["_app", "_document", "_error"].includes(file)
+  )
+    return { declarations: [], limitations: [] };
+  const routeParts = [...nested, file === "index" ? "" : file].filter(Boolean);
+  const publicParts = isApi ? routeParts.slice(1) : routeParts;
+  const route =
+    "/" +
+    (isApi ? ["api", ...publicParts] : publicParts)
+      .filter((part) => !/^\([^()]+\)$/.test(part))
+      .join("/");
+  let defaultExportLine: number | undefined;
+  for (const statement of tree.program.body) {
+    if (
+      statement.type === "ExportDefaultDeclaration" &&
+      statement.declaration.type !== "TSInterfaceDeclaration" &&
+      statement.declaration.type !== "TSDeclareFunction"
+    )
+      defaultExportLine = statement.loc?.start.line ?? 1;
+  }
+  if (defaultExportLine === undefined)
+    return { declarations: [], limitations: [] };
+  const kind = isApi ? "endpoint" : "page";
+  const declarations: Declaration[] = [];
+  if (limit > 0)
+    declarations.push({
+      adapter: "next-pages-convention",
+      kind,
+      name: isApi ? `API handler ${route}` : route,
+      parent: null,
+      line: defaultExportLine,
+    });
+  return {
+    declarations,
+    limitations: [
+      "Convenção Next Pages Router; não confirma framework instalado, build, rewrites/basePath, conflitos, export default executável ou disponibilidade HTTP.",
+      ...(limit < 1
+        ? ["Declaração Pages Router omitida por limite de recursos."]
+        : []),
+    ],
+  };
+}

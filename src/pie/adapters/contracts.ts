@@ -13,6 +13,7 @@ export const adapterFactSchema = z.strictObject({
     "openapi",
     "prisma-schema",
     "next-app-convention",
+    "next-pages-convention",
     "express-ast",
     "laravel-php",
     "nginx-config",
