@@ -218,6 +218,145 @@ async function verifyRankedPlanAdapters(input: {
   }
 }
 
+async function verifyPlanItemHistoryExportAdapters(input: {
+  service: PieService;
+  snapshotId: string;
+  planDigest: string;
+  itemId: string;
+  apiUrl: string;
+  token: string;
+  database: string;
+  root: string;
+}) {
+  const exported = await input.service.exportPlanItemHistory({
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    format: "json",
+    offset: 0,
+    limitBytes: 241,
+  });
+  expect(exported.triageEvents).toBeGreaterThan(0);
+  expect(exported.contestations).toBeGreaterThan(0);
+  const markdown = await input.service.exportPlanItemHistory({
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    format: "md",
+  });
+  expect(markdown.content).toContain("# Histórico do item");
+  const html = await input.service.exportPlanItemHistory({
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    format: "html",
+  });
+  expect(html.content).toContain('<html lang="pt-BR">');
+  const chunks = [exported.content];
+  for (let offset = exported.nextOffset; offset !== null;) {
+    const next = await input.service.exportPlanItemHistory({
+      snapshotId: input.snapshotId,
+      planDigest: input.planDigest,
+      itemId: input.itemId,
+      format: "json",
+      offset,
+      limitBytes: 241,
+    });
+    expect(next.sha256).toBe(exported.sha256);
+    chunks.push(next.content);
+    offset = next.nextOffset;
+  }
+  const fullHistory = JSON.parse(chunks.join("")) as {
+    triage: unknown[];
+    contestations: unknown[];
+  };
+  expect(fullHistory.triage).toHaveLength(exported.triageEvents);
+  expect(fullHistory.contestations).toHaveLength(exported.contestations);
+  const apiUrl = new URL("/v1/plan/item-history/export", input.apiUrl);
+  apiUrl.search = new URLSearchParams({
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    format: "json",
+    limitBytes: "241",
+  }).toString();
+  const response = await fetch(apiUrl, {
+    headers: { Authorization: `Bearer ${input.token}` },
+  });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(exported);
+
+  const mcp = createPieMcp(input.service, input.root);
+  const client = new Client({
+    name: "pie-item-history-export-test",
+    version: "1",
+  });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await Promise.all([
+    client.connect(clientTransport),
+    mcp.connect(serverTransport),
+  ]);
+  try {
+    const tool = (await client.listTools()).tools.find(
+      (candidate) => candidate.name === "pie_plan_item_history_export",
+    );
+    expect(tool).toBeDefined();
+    const ajv = new Ajv2020({ strict: false, validateFormats: false });
+    expect(ajv.validateSchema(tool!.inputSchema)).toBe(true);
+    expect(ajv.validateSchema(tool!.outputSchema as AnySchema)).toBe(true);
+    const result = await client.callTool({
+      name: "pie_plan_item_history_export",
+      arguments: {
+        snapshotId: input.snapshotId,
+        planDigest: input.planDigest,
+        itemId: input.itemId,
+        format: "json",
+        limitBytes: 241,
+      },
+    });
+    expect(result.structuredContent).toEqual(exported);
+    const output = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    try {
+      await runPie([
+        "plan-item-history-export",
+        input.snapshotId,
+        input.planDigest,
+        input.itemId,
+        "--db",
+        input.database,
+      ]);
+      const cliRecord = JSON.parse(
+        String(output.mock.calls.map((call) => call[0]).join("")),
+      ) as { triage: unknown[]; contestations: unknown[] };
+      expect(cliRecord.triage).toHaveLength(exported.triageEvents);
+      expect(cliRecord.contestations).toHaveLength(exported.contestations);
+    } finally {
+      output.mockRestore();
+    }
+  } finally {
+    await client.close();
+    await mcp.close();
+  }
+}
+
+async function verifyPlanExportWorkflows(input: {
+  service: PieService;
+  snapshotId: string;
+  planDigest: string;
+  itemId: string;
+  expected: Awaited<ReturnType<PieService["plan"]>>;
+  apiUrl: string;
+  token: string;
+  database: string;
+  root: string;
+}) {
+  await verifyPlanExportAdapters(input);
+  await verifyPlanItemHistoryExportAdapters(input);
+}
+
 async function verifyContestAdapters(input: {
   request: Record<string, unknown>;
   expected: unknown;
@@ -749,9 +888,11 @@ it("agrega propostas de motores com Evidence e sem promover verificação", asyn
       result.planDigest,
       result.items.items,
     );
-    await verifyPlanExportAdapters({
+    await verifyPlanExportWorkflows({
       service,
       snapshotId: discovered.snapshot.id,
+      planDigest: result.planDigest,
+      itemId: result.items.items[0]!.id,
       expected: prioritized,
       apiUrl: api.url,
       token,

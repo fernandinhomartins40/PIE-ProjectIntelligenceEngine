@@ -19,6 +19,10 @@ import { retestInput, retestOutput } from "./retestPlan.js";
 import { planningInput, unifiedPlanOutput } from "./planning.js";
 import { planExportInput, planExportOutput } from "./planExport.js";
 import {
+  planItemHistoryExportInput,
+  planItemHistoryExportOutput,
+} from "./planItemHistoryExport.js";
+import {
   planContestationInput,
   planContestationSchema,
   planContestHistoryInput,
@@ -243,6 +247,17 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.exportPlan(input)),
+  );
+  server.registerTool(
+    "pie_plan_item_history_export",
+    {
+      description:
+        "Exporta o histórico append-only de triagem e contestações de um item do plano. Revalida hashes, Evidence e vínculo ao snapshot; suporta JSON, Markdown e HTML paginados em UTF-8.",
+      inputSchema: planItemHistoryExportInput,
+      outputSchema: withError(planItemHistoryExportOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.exportPlanItemHistory(input)),
   );
   server.registerTool(
     "pie_plan_contest",

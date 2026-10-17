@@ -106,7 +106,7 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
-      "Plano: plan <snapshot-id>; plan-export <snapshot-id> --format json|md|html; plan-contest <request.json>; plan-triage <request.json>; plan-triage-history <snapshot-id> <digest> <item-id>. completed não significa verificado.",
+      "Plano: plan <snapshot-id>; plan-export <snapshot-id> --format json|md|html; plan-item-history-export <snapshot-id> <digest> <item-id> --format json|md|html; plan-contest <request.json>; plan-triage <request.json>; plan-triage-history <snapshot-id> <digest> <item-id>. completed não significa verificado.",
     );
     console.log(
       "Candidatos a reteste: retest-plan <antes-id> <depois-id> --mode affected|full --limit <1–200> --offset <n>. Plano não autoriza execução nem comprova cobertura.",
@@ -188,6 +188,7 @@ export async function runPie(args: string[]): Promise<void> {
       "retest-plan",
       "plan",
       "plan-export",
+      "plan-item-history-export",
       "plan-contest",
       "plan-triage",
       "plan-triage-history",
@@ -409,6 +410,28 @@ export async function runPie(args: string[]): Promise<void> {
           do {
             const exported = await service.exportPlan({
               snapshotId: z.string().uuid().parse(target!),
+              format: z
+                .enum(["json", "md", "html"])
+                .parse(parsed.values.format ?? "json"),
+              offset,
+              limitBytes: 1_000_000,
+            });
+            report += exported.content;
+            if (exported.nextOffset === null) break;
+            offset = exported.nextOffset;
+          } while (true);
+          process.stdout.write(`${report}\n`);
+        }
+        return;
+      case "plan-item-history-export":
+        {
+          let offset = 0;
+          let report = "";
+          do {
+            const exported = await service.exportPlanItemHistory({
+              snapshotId: z.string().uuid().parse(target!),
+              planDigest: parsed.positionals[2],
+              itemId: parsed.positionals[3],
               format: z
                 .enum(["json", "md", "html"])
                 .parse(parsed.values.format ?? "json"),

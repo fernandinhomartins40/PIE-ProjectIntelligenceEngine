@@ -56,6 +56,10 @@ import {
 import { exportVerification as renderVerificationExport } from "./execution/runExport.js";
 import { verificationExportInput } from "./execution/runContracts.js";
 import { exportPlan as renderPlanExport } from "./planExport.js";
+import {
+  planItemHistoryExportInput,
+  renderPlanItemHistoryExport,
+} from "./planItemHistoryExport.js";
 
 function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
   if (result.ok) return result.value;
@@ -452,6 +456,89 @@ export class PieService {
   }
   exportPlan(input: unknown) {
     return renderPlanExport(this, input);
+  }
+  exportPlanItemHistory(input: unknown) {
+    return this.#read(async () => {
+      const request = planItemHistoryExportInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      const { output: plan, allItems } = await generateUnifiedPlanData(
+        snapshot,
+        { snapshotId: snapshot.id, limit: 200, offset: 0 },
+      );
+      if (plan.planDigest !== request.planDigest)
+        throw new PieError(
+          "INVALID_INPUT",
+          "Digest do plano diverge do snapshot.",
+        );
+      const baseItem = allItems.find((item) => item.id === request.itemId);
+      if (!baseItem)
+        throw new PieError(
+          "NOT_FOUND",
+          "Item não pertence ao plano informado.",
+        );
+
+      const rawTriage = await this.store.planTriageEvents(
+        snapshot.id,
+        plan.planDigest,
+        baseItem.id,
+      );
+      const triage: PlanTriageEvent[] = [];
+      for (let offset = 0; ; offset += 200) {
+        const history = validatePlanTriageHistory(rawTriage, snapshot, {
+          snapshotId: snapshot.id,
+          planDigest: plan.planDigest,
+          itemId: baseItem.id,
+          offset,
+          limit: 200,
+        });
+        triage.push(...history.items.items);
+        if (history.items.nextOffset === null) break;
+      }
+      const item = applyLatestPlanTriage(baseItem, triage.at(-1));
+
+      const allContestations = [];
+      const contestations = [];
+      let total: number | undefined;
+      for (let offset = 0; ; offset += 200) {
+        const history = await this.store.planContestations(snapshot.id, {
+          snapshotId: snapshot.id,
+          planDigest: plan.planDigest,
+          offset,
+          limit: 200,
+        });
+        if (total !== undefined && total !== history.items.total)
+          throw new PieError(
+            "BUSY",
+            "Contestações mudaram durante a exportação.",
+          );
+        total = history.items.total;
+        allContestations.push(...history.items.items);
+        contestations.push(
+          ...history.items.items.filter((event) => event.itemId === item.id),
+        );
+        if (history.items.nextOffset === null) break;
+      }
+      if (
+        allContestations.length !== total ||
+        new Set(allContestations.map((event) => event.id)).size !== total
+      )
+        throw new PieError(
+          "BUSY",
+          "Histórico de contestações incompleto durante a exportação.",
+        );
+      return renderPlanItemHistoryExport(
+        {
+          schemaVersion: 1,
+          snapshotId: snapshot.id,
+          treeDigest: snapshot.treeDigest,
+          planDigest: plan.planDigest,
+          item,
+          triage,
+          contestations,
+        },
+        request,
+      );
+    });
   }
   contestPlanItem(input: unknown) {
     return this.#read(async () => {

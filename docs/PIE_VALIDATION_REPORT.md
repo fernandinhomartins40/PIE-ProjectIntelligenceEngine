@@ -686,3 +686,10 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - `npm.cmd exec -- vitest run --project boundary tests/boundary/pieUnifiedPlan.test.ts`: 2/2 passou, com SQLite/Git reais; verifica JSON UTF-8 paginado (257 bytes), continuidade e SHA-256, `planDigest` preservado, triagem ordenada e nota humana no conteúdo exportado, paridade API/MCP/CLI, schema Ajv e rejeição da API sem token.
 - `npm.cmd run check:fast`: passou após lint/typecheck (2 tarefas); duração Turbo 1m47s.
 - PostgreSQL não executado: `PIE_TEST_DATABASE_URL` indisponível. Exportação de artefatos além do plano permanece fora desta fatia; T6.1 parcial.
+
+## Exportação dos históricos append-only do plano — 17/10/2026
+
+- `npm.cmd run pie:build`: passou.
+- `npm.cmd exec -- vitest run --project boundary tests/boundary/pieUnifiedPlan.test.ts`: 2/2 passou. Com SQLite/Git reais, verifica cadeia de triagem com prioridade humana, contestação, JSON dividido em páginas de 241 bytes, hash/concatenação, paridade API/MCP/CLI e schema Ajv.
+- `npm.cmd run check:fast`: typecheck e lint passaram (2 tarefas; 1m25s). `npm.cmd run mcp-catalog:check`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
+- PostgreSQL não executado: `PIE_TEST_DATABASE_URL` indisponível. Exports restantes e CI geral mantêm T6.1 parcial.
