@@ -44,3 +44,30 @@ export async function readInventoryFile(
     await handle.close();
   }
 }
+
+/** Parses bounded caller-supplied JSON once at the file boundary. */
+export async function readBoundedJsonFile(
+  path: string,
+  maxBytes: number,
+  label: string,
+): Promise<unknown> {
+  const bytes = await readInventoryFile(path, maxBytes, () => 1);
+  if (!bytes)
+    throw new PieError(
+      "INVALID_INPUT",
+      `${label} excede o limite permitido ou não é arquivo regular.`,
+    );
+  let source: string;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (cause) {
+    if (!(cause instanceof TypeError)) throw cause;
+    throw new PieError("INVALID_INPUT", `${label} não contém UTF-8 válido.`);
+  }
+  try {
+    return JSON.parse(source) as unknown;
+  } catch (cause) {
+    if (!(cause instanceof SyntaxError)) throw cause;
+    throw new PieError("INVALID_INPUT", `${label} não contém JSON válido.`);
+  }
+}

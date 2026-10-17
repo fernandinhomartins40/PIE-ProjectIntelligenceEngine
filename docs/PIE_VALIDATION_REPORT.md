@@ -1,13 +1,13 @@
 # PIE — Registro de validação contínua## Leitura limitada do grant HTTP pela CLI — 17/10/2026
 
-- Entrada de autorização limitada a 1 MB, UTF-8 fatal e schema estrito antes de abrir o banco. Rejeita arquivo acima do limite e diretório; o grant é fixture de teste.
-- `node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/mcp/pieMcp.test.ts`: 2/2. Inclui caminho positivo CLI/MCP com persistência local real.
+- Leitor compartilhado HTTP/Node limita a 1 MB, exige UTF-8/JSON válidos e ambos os schemas mapeiam entrada inválida para `INVALID_INPUT` antes de abrir banco ou runner. Rejeita arquivo acima do limite e diretório; o grant é fixture de teste.
+- `NODE_NO_WARNINGS=1 node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/pieVerifyCli.test.ts tests/boundary/mcp/pieMcp.test.ts`: 3 passaram, 2 skipped Linux/Docker. Inclui caminho positivo CLI/MCP com persistência local real.
 - `npm.cmd run pie:build`, `npm.cmd run check:fast` (2/2), `npm.cmd run format:check` (4.115 arquivos), `npm.cmd run docs:check:built` e `git diff --check` passaram. `PIE_TEST_DATABASE_URL` ausente; PostgreSQL não executado nesta rodada.
 
 ## Leitura segura de grant HTTP pela CLI — 17/10/2026
 
 - Grant JSON limitado a 1 MB, UTF-8 fatal e schema estrito antes de abrir o banco; entrada inválida não chega ao runner.
-- `node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/mcp/pieMcp.test.ts`: 2/2. Inclui tamanho excessivo e caminho para diretório, além do fluxo positivo real CLI/MCP.
+- `NODE_NO_WARNINGS=1 node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/pieVerifyCli.test.ts tests/boundary/mcp/pieMcp.test.ts`: 3 passaram, 2 skipped Linux/Docker. Inclui UTF-8/JSON/schema inválidos, tamanho excessivo, diretório e fluxo positivo real dos CLIs HTTP/Node e MCP.
 - `npm.cmd run pie:build` passou antes de ajuste somente no tipo de asserção do teste; depois, `npm.cmd run check:fast` (2/2), `npm.cmd run format:check`, `npm.cmd run docs:check:built` e `git diff --check` passaram. Sem PostgreSQL ou execução do alvo nesta validação.
 
 ## Cutoff de cancelamento na publicação HTTP — 17/10/2026

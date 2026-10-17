@@ -6,7 +6,7 @@ O CLI `http-probe-run` agora usa leitura limitada a 1 MB, UTF-8 estrito e schema
 
 ## Entrada de grant HTTP limitada — 17/10/2026
 
-O CLI `http-probe-run` agora lê grant por descritor com limite de 1 MB, UTF-8 estrito e schema fechado antes de abrir persistência. Testes cobrem válido, oversized, diretório, UTF-8/JSON inválidos e campo desconhecido, além do fluxo CLI/MCP real. `pie:build`, testes focados (2/2) e `check:fast` (2/2) passaram. `PIE_TEST_DATABASE_URL` não está configurada; a integração PostgreSQL existente não foi executada. Esta proteção não comprova runtime nem identidade do servidor respondente.
+Grants HTTP e Node agora compartilham leitor JSON limitado a 1 MB, UTF-8/JSON estritos e erros esperados `INVALID_INPUT`; cada schema valida sua autoridade antes de abrir persistência/runner. Testes cobrem válido, oversized, diretório, UTF-8/JSON inválidos e campo desconhecido, além do fluxo CLI/MCP real. `pie:build`, testes focados (2/2) e `check:fast` (2/2) passaram. `PIE_TEST_DATABASE_URL` não está configurada; a integração PostgreSQL existente não foi executada. Esta proteção não comprova runtime nem identidade do servidor respondente.
 
 ## Cutoff de cancelamento na publicação HTTP — 17/10/2026
 
