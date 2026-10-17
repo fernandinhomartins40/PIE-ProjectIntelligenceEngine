@@ -1,5 +1,13 @@
 # PIE — Plano mestre de implementação integral
 
+## Endpoints Express derivados da AST — 16/10/2026
+
+CI 38987552370 (428180d4a) passou, comprovando correção NDJSON da CLI contínua com SIGTERM e rotas Next. readExpressDeclarations agora consome a mesma árvore Babel de readCodeFacts, sem nova dependência/parser ou execução. Produz endpoint express-ast com método, padrão literal, receptor local em parent, linha e evidência selada. Reconhece imports de valor/default/Router e const require express, construtores app/Router; chamadas diretas no escopo superior somente. require sombreado por declaração/import/desestruturação é recusado; atribuições diretas invalidam o receptor. Métodos em objetos estranhos ou em escopos aninhados não viram endpoints.
+
+Parent não é prefixo público: montagem use(), cadeias route(), aliases mutáveis, callbacks/factories, caminhos dinâmicos/arrays/regex e efeitos de código chamado permanecem não examinados. Não confirma handler válido, instalação, autenticação, listen, HTTP ou relação UI→API→DB. Não declarar T2.2 nem motor funcional completos.
+
+Testes Git/SQLite reais comprovam persistência, linha, hash/prova, trace declared_in e ausência de prefixos fabricados. Casos negativos/limites incluem CommonJS, aliases, tipos, shadowing e mutação. Rodada adapters/fundação/trace: 14 passaram (5,53s). Build PIE passou; lint dos parsers/testes sem avisos/erros. Custos comparativos de tokens/CPU/memória e tarefas completas ainda não medidos; não há alegação de ganho de desempenho. Runners HTTP/Playwright, Laravel/PHP/Nginx, seis motores e aceite integral permanecem pendentes; goal ativo.
+
 ## Correção do protocolo contínuo e estado da CI — 16/10/2026
 
 CI 38987122505 (8b4e9af13) falhou no teste POSIX da CLI contínua. Log autenticado confirmou consumo do job e exit 0 antes da falha; JSON.parse rejeitou o resumo final porque a CLI combinava um registro inicial de uma linha com JSON final indentado. Corrigido o produtor: no modo continuous, a resposta final também usa uma única linha, mantendo NDJSON consistente. Comandos de um job continuam com JSON indentado. Correção por inspeção da causa no produtor, sem relaxar o teste. Validação positiva dessa correção exige a próxima CI Linux; não registrar a execução anterior como verde. Typecheck completo e limites de módulos (2050 fontes), descoberta de 1463 testes passaram na entrega de rotas. Goal integral permanece ativo.

@@ -3,6 +3,7 @@ import { traverseFast } from "@babel/types";
 import type { ImportReference } from "./imports.js";
 import { readNextDeclarations } from "./adapters/next.js";
 import type { AdapterRead } from "./adapters/contracts.js";
+import { readExpressDeclarations } from "./adapters/express.js";
 /** Parse syntax only. No module resolution through project code, plugins or execution. */
 export function readCodeFacts(
   path: string,
@@ -39,9 +40,17 @@ export function readCodeFacts(
       else omitted++;
     }
   });
+  const next = readNextDeclarations(path, tree, maxDeclarations);
+  const express = readExpressDeclarations(
+    tree,
+    Math.max(0, maxDeclarations - next.declarations.length),
+  );
   return {
     references,
     omitted,
-    declarations: readNextDeclarations(path, tree, maxDeclarations),
+    declarations: {
+      declarations: [...next.declarations, ...express.declarations],
+      limitations: [...next.limitations, ...express.limitations],
+    },
   };
 }

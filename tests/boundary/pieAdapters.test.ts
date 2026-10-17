@@ -124,6 +124,113 @@ it("Next não confunde comentários, strings, tipos e nomes parecidos com rotas"
 
 const exec = promisify(execFile);
 
+it("Express AST mantém receptor local, linha e prova sem fabricar prefixo público", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-express-"));
+  const external = await mkdtemp(join(tmpdir(), "pie-express-history-"));
+  const store = await openStore(join(external, "pie.sqlite"), root);
+  const service = new PieService(store);
+  try {
+    await exec("git", ["init", root]);
+    await writeFile(
+      join(root, "api.ts"),
+      "import express, {Router as makeRouter} from 'express';\nconst app = express();\nconst router = makeRouter();\napp.get('/health', handler);\nrouter.post('/orders/:id', auth, handler);\napp.use('/api', router);\nfunction shadow(app){app.delete('/fake', handler)}\nconst other = {get(){}};other.get('/fake', handler);\n",
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const observed = await service.discover({
+      repositoryRoot: root,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const snapshot = store.snapshot(observed.snapshot.id);
+    expect(snapshot.declarations).toHaveLength(2);
+    expect(snapshot.declarations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          adapter: "express-ast",
+          kind: "endpoint",
+          name: "GET /health",
+          parent: "app",
+          source: expect.objectContaining({ line: 4 }),
+        }),
+        expect.objectContaining({
+          adapter: "express-ast",
+          name: "POST /orders/:id",
+          parent: "router",
+          source: expect.objectContaining({ line: 5 }),
+        }),
+      ]),
+    );
+    const fact = snapshot.declarations[1]!;
+    expect(await service.evidence(fact.evidenceId)).toMatchObject({
+      method: "static",
+      state: "unverified",
+      source: { path: "api.ts", line: 5 },
+    });
+    const traced = await service.trace({
+      snapshotId: snapshot.id,
+      nodeId: fact.id,
+    });
+    expect(traced.edges.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "declared_in" }),
+      ]),
+    );
+    expect(snapshot.coverage.limitations.join(" ")).toContain("prefixos");
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+    await rm(external, { recursive: true, force: true });
+  }
+});
+
+it("Express distingue bindings, CommonJS, escopos, mutação e limites sem executar alvo", () => {
+  const facts = (source: string, limit = 20) =>
+    readCodeFacts("api.ts", source, 20, limit).declarations;
+  const source =
+    "const express=require('express');const app=express();app.get('/a',h);app.post('/b',h);";
+  expect(facts(source).declarations.map((item) => item.name)).toEqual([
+    "GET /a",
+    "POST /b",
+  ]);
+  expect(facts(source, 1)).toMatchObject({
+    declarations: [{ name: "GET /a" }],
+    limitations: expect.arrayContaining([expect.stringContaining("omitidas")]),
+  });
+  expect(
+    facts(
+      "const {Router: create}=require('express');const r=create();r.put('/x',h);",
+    ).declarations,
+  ).toMatchObject([{ name: "PUT /x", parent: "r" }]);
+  expect(
+    facts(
+      "import express from 'express';const r=express.Router();r.all('/x',h);",
+    ).declarations,
+  ).toMatchObject([{ name: "ALL /x", parent: "r" }]);
+  for (const prefix of [
+    "const require=fake;",
+    "function require(x){return fake}",
+    "const {require}=fake;",
+    "import require from './fake';",
+  ])
+    expect(facts(prefix + source).declarations).toEqual([]);
+  expect(
+    facts(
+      "import type {Router} from 'express';const r=Router();r.get('/fake',h);",
+    ).declarations,
+  ).toEqual([]);
+  expect(
+    facts(
+      "import express from 'express';const app=express();app.get('/a',h);app.get=other;app.get('/fake',h);",
+    ).declarations,
+  ).toMatchObject([{ name: "GET /a" }]);
+  expect(
+    facts(
+      "import express from 'express';const app=express();function shadow(app){app.get('/fake',h)};app.get(dynamic,h);app.get('env');",
+    ).declarations,
+  ).toEqual([]);
+});
+
 it("descobre stacks declaradas com fontes reais sem reter comandos, URLs ou secrets", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-adapters-"));
   const dbRoot = await mkdtemp(join(tmpdir(), "pie-adapter-db-"));

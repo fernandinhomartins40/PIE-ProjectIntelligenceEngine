@@ -10,6 +10,7 @@ export const adapterFactSchema = z.strictObject({
     "openapi",
     "prisma-schema",
     "next-app-convention",
+    "express-ast",
   ]),
   kind: z.enum([
     "dependency",

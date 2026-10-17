@@ -211,3 +211,9 @@ A descoberta usa uma única AST por arquivo TS/JS/JSX para imports e exports. Ar
 Grupos de rota não compõem o padrão; parâmetros dinâmicos são preservados como [id], sem fabricar uma URL concreta. Rotas paralelas/interceptadas/privadas permanecem sem conversão pública. A análise não resolve wildcard, configurações, métodos automáticos, instalação do framework, conflitos ou valor de handler; não confirma rota acessível, autorização, integração com banco ou funcionamento em runtime.
 
 No modo continuous, stdout usa NDJSON: um objeto JSON por linha para a abertura e o resumo final. Comandos de um job mantêm JSON indentado. Uma linha de resumo conta workflows, não testes aprovados.
+
+## Endpoints Express por AST
+
+Declarações express-ast reconhecem chamadas diretas no escopo superior a receptores const originados de import/default/Router ou require express. Método/padrão literal, receptor local, linha e prova são preservados em declarations e trace. O parent é o nome do receptor local, não uma URL pública; prefixos de app.use não são inventados. Referência: [roteamento Express](https://expressjs.com/en/guide/routing/).
+
+Somente caminhos literais começando com / ou * são examinados. Escopos aninhados, aliases mutáveis, cadeias route(), templates dinâmicos, arrays/regex, resolução de handlers e efeitos de código chamado permanecem desconhecidos. Binding require sombreado não é tratado como carregador CommonJS. Essa observação estática não confirma framework instalado, servidor ouvindo, autenticação nem funcionamento HTTP.
