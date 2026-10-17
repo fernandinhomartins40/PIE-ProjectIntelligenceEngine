@@ -838,6 +838,13 @@ it("descobre stacks declaradas com fontes reais sem reter comandos, URLs ou secr
           parent: "Order",
           source: expect.objectContaining({ line: 5 }),
         }),
+        expect.objectContaining({
+          adapter: "prisma-schema",
+          kind: "config_directive",
+          name: "@id",
+          parent: "Order.id",
+          source: expect.objectContaining({ line: 5 }),
+        }),
       ]),
     );
     expect(

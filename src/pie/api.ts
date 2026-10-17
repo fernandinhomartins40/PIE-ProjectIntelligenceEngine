@@ -16,6 +16,7 @@ import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { enqueueVerification } from "./jobs/verification.js";
 import { scopedJob } from "./jobs/access.js";
 import { functionalInput } from "./functional.js";
+import { dataReviewInput } from "./dataReview.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
@@ -318,6 +319,14 @@ export async function startPieApi(
           response,
           200,
           await service.functional(functionalInput.parse(await body(request))),
+        );
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/data-review") {
+        respond(
+          response,
+          200,
+          await service.dataReview(dataReviewInput.parse(await body(request))),
         );
         return;
       }

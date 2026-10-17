@@ -8,6 +8,7 @@ import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import { functionalInput, functionalOutput } from "./functional.js";
+import { dataReviewInput, dataReviewOutput } from "./dataReview.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
 import {
   functionalRecordSchema,
@@ -96,6 +97,17 @@ export function createPieMcp(
       return { ...result({ schemaVersion: 1, error }), isError: true };
     }
   };
+  server.registerTool(
+    "pie_data_review",
+    {
+      description:
+        "Analisa fatos de modelos/diretivas Prisma preservados no snapshot e aponta modelos sem seletor único declarado observado. Não valida migrations nem conecta ao banco; achados permanecem informativos e unverified.",
+      inputSchema: dataReviewInput,
+      outputSchema: withError(dataReviewOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.dataReview(input)),
+  );
   server.registerTool(
     "pie_functional_review",
     {

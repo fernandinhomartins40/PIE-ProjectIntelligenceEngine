@@ -145,8 +145,15 @@ export async function runPie(args: string[]): Promise<void> {
             "declarative-stack-inventory",
             "recorded-graph-trace",
             "local-react-dashboard",
+            "prisma-data-review",
           ],
-          unavailable: ["audit-engines"],
+          unavailable: [
+            "functional-runtime-verification",
+            "product-engine",
+            "security-engine",
+            "infrastructure-engine",
+            "database-runtime-validation",
+          ],
           verification: {
             supportedPlatforms: ["linux"],
             readiness: "not-probed",
@@ -206,6 +213,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional-retain",
       "functional-record",
       "functional-records",
+      "data-review",
       "http-probe",
       "http-probes",
       "trace",
@@ -340,6 +348,9 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "declarations":
         result = await service.declarations(target!, paging);
+        break;
+      case "data-review":
+        result = await service.dataReview({ snapshotId: target!, ...paging });
         break;
       case "functional":
         result = await service.functional({

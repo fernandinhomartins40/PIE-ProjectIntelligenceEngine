@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Motor Dados: seletores Prisma declarados — 17/10/2026
+
+Primeiro slice T4.5 integrado: Prisma facts registram diretivas de seletor e ownership sem persistir argumentos; análise em snapshot sinaliza somente modelos sem `@id`/`@@id`/`@unique`/`@@unique` observados, estado `unverified`, com Evidence e limite por arquivo. `PieService`, CLI, API e MCP compartilham contrato; nenhum acesso ao banco é feito. Boundary Git/SQLite e consumers: 11/11; `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` e `git diff --check` passaram. Seguir com migrations/constraints e testes PostgreSQL reais; T4.5 permanece parcial.
+
 ## Reconciliação do escopo CommonJS em T2.2 — 17/10/2026
 
 A tabela mestre agora reconhece o suporte de composição Express CommonJS top-level já validado: require literal e export default/nomeado estático em CommonJS. Permanecem pendentes reexports CommonJS, interop ESM/CJS, bindings mutáveis/sombreados, specifiers calculados e outros frameworks. Nenhuma relação `covers` é criada a partir de import; dependência estrutural não prova que um teste verifica uma capacidade.

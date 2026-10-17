@@ -1,5 +1,12 @@
 # PIE — Registro de validação contínua
 
+## Motor Dados Prisma — 17/10/2026
+
+- Parser Prisma passou a emitir Facts/Evidence para seletores e diretivas de relação/default. Strings e comentários são ignorados; argumentos não são retidos. O motor usa exclusivamente declarações e snapshot validados para reportar ausência de seletor único declarado observado como `unverified` informativo; migration e banco continuam fora da cobertura.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts tests/boundary/pieDataReview.test.ts`: 11/11 passaram. O teste cria repositório Git e SQLite reais, prova isoladamente `@id`/`@unique`/`@@id`/`@@unique`, comentário/string negativos, seleção limitada por orçamento, consulta Evidence, CLI, API autenticada, MCP/Ajv (schema e payload) e igualdade entre adapters.
+- `npm run pie:build`, `npm run check:fast` (2/2), `npm run docs:check:built` (inclui licenses:check; 902 pacotes lockfile/365 runtime), `npm run format:check` (4.112 arquivos) e `git diff --check` passaram em Node 24.18.0/npm 11.16.0. Runtime Prisma/PostgreSQL não foi acessado.
+- O contrato de saída expõe `coverage.runtime: false`; a boundary valida schema e payload MCP com Ajv 2020-12 e compara respostas equivalentes nos quatro adapters (serviço, CLI, HTTP e MCP).
+
 ## Reconciliação factual da matriz T2.2 — 17/10/2026
 
 - A linha da matriz T2.2 foi corrigida: havia uma afirmação global de CommonJS cross-file pendente apesar do suporte parcial Express CommonJS registrado e testado. O escopo validado é top-level com require literal e exports estáticos suportados; reexports CommonJS, interop ESM/CJS, mutabilidade/shadowing e specifiers calculados continuam limitações.

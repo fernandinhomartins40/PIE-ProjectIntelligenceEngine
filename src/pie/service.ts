@@ -8,6 +8,7 @@ import type { PiePersistence } from "./persistence.js";
 import { compareSnapshots, comparisonInput } from "./compare.js";
 import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
 import { assessFunctionalResult, functionalInput } from "./functional.js";
+import { dataReviewInput, reviewData } from "./dataReview.js";
 import { sealFunctional } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
@@ -318,6 +319,13 @@ export class PieService {
           repositoryRoot: snapshot.root,
         }),
       );
+    });
+  }
+  dataReview(input: unknown) {
+    return this.#read(async () => {
+      const request = dataReviewInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      return reviewData(snapshot, request);
     });
   }
   retainFunctional(input: unknown) {
