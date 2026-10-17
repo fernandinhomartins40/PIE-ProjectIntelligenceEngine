@@ -9,6 +9,7 @@ import { getBindingIdentifiers } from "@babel/types";
 import type { AdapterRead, Declaration } from "./contracts.js";
 
 type Binding = "factory" | "router-factory" | "app" | "router";
+type RouterMount = { receiver: string; prefix: string; router: string };
 const methods = new Set([
   "get",
   "head",
@@ -142,6 +143,84 @@ function endpoint(
   };
 }
 
+function mountedRouter(
+  call: CallExpression,
+  bindings: Map<string, Binding>,
+): RouterMount[] {
+  const callee = call.callee;
+  if (
+    callee.type !== "MemberExpression" ||
+    callee.object.type !== "Identifier" ||
+    (callee.computed && callee.property.type !== "StringLiteral") ||
+    memberName(callee.property) !== "use"
+  )
+    return [];
+  const receiver = callee.object.name;
+  const kind = bindings.get(receiver);
+  if (kind !== "app" && kind !== "router") return [];
+  let prefix = "";
+  let firstRouterArgument = 0;
+  const first = call.arguments[0];
+  if (first?.type === "StringLiteral") {
+    if (!first.value.startsWith("/") && first.value !== "*") return [];
+    prefix = first.value;
+    firstRouterArgument = 1;
+  }
+  return call.arguments.slice(firstRouterArgument).flatMap((argument) => {
+    if (
+      argument.type !== "Identifier" ||
+      bindings.get(argument.name) !== "router"
+    )
+      return [];
+    return [{ receiver, prefix, router: argument.name }];
+  });
+}
+
+function joinRoute(prefix: string, route: string): string | null {
+  if (prefix === "*") return null;
+  if (route === "*") return prefix ? null : "*";
+  if (prefix === "" || prefix === "/") return route;
+  return `${prefix.replace(/\/$/, "")}/${route.replace(/^\//, "")}`;
+}
+
+function routerPrefixes(mounts: readonly RouterMount[]) {
+  type Resolution = { prefixes: string[]; cyclic: boolean };
+  const parents = new Map<string, RouterMount[]>();
+  for (const mount of mounts) {
+    const items = parents.get(mount.router) ?? [];
+    items.push(mount);
+    parents.set(mount.router, items);
+  }
+  const cache = new Map<string, Resolution>();
+  const resolve: (router: string, visiting: Set<string>) => Resolution = (
+    router,
+    visiting,
+  ) => {
+    const known = cache.get(router);
+    if (known) return known;
+    if (visiting.has(router)) return { prefixes: [], cyclic: true };
+    const nextVisiting = new Set(visiting).add(router);
+    const prefixes: string[] = [];
+    let cyclic = false;
+    for (const mount of parents.get(router) ?? []) {
+      if (mount.receiver === "app") prefixes.push(mount.prefix);
+      else {
+        const ancestor = resolve(mount.receiver, nextVisiting);
+        cyclic ||= ancestor.cyclic;
+        for (const prefix of ancestor.prefixes) {
+          const joined = joinRoute(prefix, mount.prefix);
+          if (joined === null) cyclic = true;
+          else prefixes.push(joined);
+        }
+      }
+    }
+    const result = { prefixes: [...new Set(prefixes)], cyclic };
+    cache.set(router, result);
+    return result;
+  };
+  return resolve;
+}
+
 /** Top-level bindings only: nested/shadowed scopes are deliberately not interpreted. */
 export function readExpressDeclarations(
   tree: File,
@@ -157,6 +236,8 @@ export function readExpressDeclarations(
     Object.hasOwn(getBindingIdentifiers(statement, false, true), "require"),
   );
   const declarations: Declaration[] = [];
+  const routes: Declaration[] = [];
+  const mounts: RouterMount[] = [];
   let omitted = 0;
   for (const statement of body) {
     if (statement.type === "ImportDeclaration") bindImport(statement, bindings);
@@ -173,23 +254,60 @@ export function readExpressDeclarations(
         bindings.delete(left.object.name);
     }
     if (statement.expression.type !== "CallExpression") continue;
-    const fact = endpoint(statement.expression, bindings);
-    if (!fact) continue;
+    mounts.push(...mountedRouter(statement.expression, bindings));
+    const route = endpoint(statement.expression, bindings);
+    if (route) routes.push(route);
+  }
+  const resolvePrefixes = routerPrefixes(mounts);
+  let unresolvedMounts = 0;
+  for (const route of routes) {
+    const resolved =
+      route.parent === "app"
+        ? { prefixes: [""], cyclic: false }
+        : resolvePrefixes(route.parent!, new Set());
+    const separator = route.name.indexOf(" ");
+    const method = route.name.slice(0, separator);
+    const localPath = route.name.slice(separator + 1);
+    const resolvedPaths =
+      route.parent === "app"
+        ? [localPath]
+        : resolved.cyclic
+          ? []
+          : resolved.prefixes.flatMap((prefix) => {
+              const path = joinRoute(prefix, localPath);
+              return path === null ? [] : [path];
+            });
     if (
-      declarations.length >= limit ||
-      fact.name.length > 1000 ||
-      (fact.parent?.length ?? 0) > 1000
+      route.parent !== "app" &&
+      (resolved.cyclic ||
+        !resolved.prefixes.length ||
+        resolvedPaths.length < resolved.prefixes.length)
     )
-      omitted++;
-    else declarations.push(fact);
+      unresolvedMounts++;
+    const paths = resolvedPaths.length ? resolvedPaths : [localPath];
+    for (const path of paths) {
+      const fact = { ...route, name: `${method} ${path}` };
+      if (
+        declarations.length >= limit ||
+        fact.name.length > 1000 ||
+        (fact.parent?.length ?? 0) > 1000
+      )
+        omitted++;
+      else declarations.push(fact);
+    }
   }
   return {
     declarations,
     limitations:
       bindings.size || declarations.length
         ? [
-            "Express AST: somente bindings const/import e chamadas diretas no escopo superior com caminho literal. Parent identifica receptor local; prefixos de montagem de routers não resolvidos. Não comprova instalação, handler válido, autorização, listen ou disponibilidade HTTP.",
-            "Escopos aninhados, aliases mutáveis, factories, cadeias route(), caminhos dinâmicos/arrays/regex e efeitos de código chamado não examinados; ausência de fato não prova ausência de endpoint.",
+            "Express AST: somente bindings const/import e chamadas diretas no escopo superior com caminho literal; prefixos literais de app.use/router.use são compostos quando o router é alcançável por montagens estáticas. Isso não comprova instalação, handler válido, autorização, listen ou disponibilidade HTTP.",
+            "Escopos aninhados, aliases mutáveis, factories, routers importados de outros arquivos, cadeias route(), caminhos dinâmicos/arrays/regex e efeitos de código chamado não examinados; ausência de fato não prova ausência de endpoint.",
+            ...(unresolvedMounts
+              ? [
+                  `${unresolvedMounts} rotas pertencem a routers sem montagem literal resolvida, wildcard ou em ciclo; seus caminhos podem permanecer locais ao router.`,
+                ]
+              : []),
             ...(omitted
               ? [
                   `${omitted} declarações Express omitidas por limite de recursos/identificador.`,

@@ -351,7 +351,7 @@ it("Nginx integra inventário Git, evidência e trace sem ler include externo", 
   }
 });
 
-it("Express AST mantém receptor local, linha e prova sem fabricar prefixo público", async () => {
+it("Express AST compõe montagens literais e mantém prova da rota", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-express-"));
   const external = await mkdtemp(join(tmpdir(), "pie-express-history-"));
   const store = await openStore(join(external, "pie.sqlite"), root);
@@ -360,7 +360,7 @@ it("Express AST mantém receptor local, linha e prova sem fabricar prefixo públ
     await exec("git", ["init", root]);
     await writeFile(
       join(root, "api.ts"),
-      "import express, {Router as makeRouter} from 'express';\nconst app = express();\nconst router = makeRouter();\napp.get('/health', handler);\nrouter.post('/orders/:id', auth, handler);\napp.use('/api', router);\nfunction shadow(app){app.delete('/fake', handler)}\nconst other = {get(){}};other.get('/fake', handler);\n",
+      "import express, {Router as makeRouter} from 'express';\nconst app = express();\nconst router = makeRouter();\nconst nested = makeRouter();\napp.get('/health', handler);\nrouter.post('/orders/:id', auth, handler);\nnested.get('/items', handler);\nrouter.use('/v2', nested);\napp.use('/api', router);\nfunction shadow(app){app.delete('/fake', handler)}\nconst other = {get(){}};other.get('/fake', handler);\n",
     );
     await exec("git", ["-C", root, "add", "."]);
     const observed = await service.discover({
@@ -369,7 +369,7 @@ it("Express AST mantém receptor local, linha e prova sem fabricar prefixo públ
       environment: "local",
     });
     const snapshot = store.snapshot(observed.snapshot.id);
-    expect(snapshot.declarations).toHaveLength(2);
+    expect(snapshot.declarations).toHaveLength(3);
     expect(snapshot.declarations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -377,13 +377,18 @@ it("Express AST mantém receptor local, linha e prova sem fabricar prefixo públ
           kind: "endpoint",
           name: "GET /health",
           parent: "app",
-          source: expect.objectContaining({ line: 4 }),
+          source: expect.objectContaining({ line: 5 }),
         }),
         expect.objectContaining({
           adapter: "express-ast",
-          name: "POST /orders/:id",
+          name: "POST /api/orders/:id",
           parent: "router",
-          source: expect.objectContaining({ line: 5 }),
+          source: expect.objectContaining({ line: 6 }),
+        }),
+        expect.objectContaining({
+          name: "GET /api/v2/items",
+          parent: "nested",
+          source: expect.objectContaining({ line: 7 }),
         }),
       ]),
     );
@@ -391,7 +396,7 @@ it("Express AST mantém receptor local, linha e prova sem fabricar prefixo públ
     expect(await service.evidence(fact.evidenceId)).toMatchObject({
       method: "static",
       state: "unverified",
-      source: { path: "api.ts", line: 5 },
+      source: { path: "api.ts", line: 6 },
     });
     const traced = await service.trace({
       snapshotId: snapshot.id,
@@ -434,6 +439,27 @@ it("Express distingue bindings, CommonJS, escopos, mutação e limites sem execu
       "import express from 'express';const r=express.Router();r.all('/x',h);",
     ).declarations,
   ).toMatchObject([{ name: "ALL /x", parent: "r" }]);
+  expect(
+    facts(
+      "import express from 'express';const app=express();const a=express.Router();const b=express.Router();a.use('/v2',b);app.use('/api',a);b.get('/items',h);",
+    ).declarations,
+  ).toMatchObject([{ name: "GET /api/v2/items", parent: "b" }]);
+  expect(
+    facts(
+      "import express from 'express';const a=express.Router();const b=express.Router();a.use('/b',b);b.use('/a',a);a.get('/local',h);",
+    ),
+  ).toMatchObject({
+    declarations: [{ name: "GET /local", parent: "a" }],
+    limitations: expect.arrayContaining([expect.stringContaining("ciclo")]),
+  });
+  expect(
+    facts(
+      "import express from 'express';const app=express();const r=express.Router();app.use('*',r);r.get('/health',h);",
+    ),
+  ).toMatchObject({
+    declarations: [{ name: "GET /health", parent: "r" }],
+    limitations: expect.arrayContaining([expect.stringContaining("wildcard")]),
+  });
   for (const prefix of [
     "const require=fake;",
     "function require(x){return fake}",
