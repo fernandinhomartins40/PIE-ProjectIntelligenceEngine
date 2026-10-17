@@ -2,7 +2,7 @@
 
 ## Estado atual — remotos sincronizados — 17/10/2026
 
-Atualizado após commit de código `f3e979496` e atualização documental `16fc5c689`: local, `origin/main` e `rea-fork/main` sincronizados; apenas `main` local. No código: integrações PIE `39039843258`/`39039849189` ainda in_progress e CI geral cancelada pela chegada de SHA mais novo. Para o SHA atual: CI `39039941445`/`39039947388` e Release `39039941494`/`39039947399` pending. Próximo: acompanhar integrações e CI, depois continuar trilhas parciais T1.1/T1.2/T1.3/T1.4/T1.5. Não declarar aceite integral.
+Atualizado após `998485ae4`: remotos sincronizados e somente `main` local; upstream `926e18b3f` é ancestral. Integração PIE `39040260781` está in_progress; CI `39040260802` e Release `39040260851` pending. No fork: integração `39040265372` queued, CI `39040265451` e Release `39040265445` pending. Refatoração de proveniência passou 17 testes em duas boundaries, além de build/checkfast/formato/docs. Próximo: acompanhar CI e seguir contratos/Result uniforme T1.1; T1.2 (retenção/redação) e T3 (Playwright/jobs) continuam lacunas grandes. Não declarar aceite integral.
 
 `origin/main` e `rea-fork/main` estão ambos em `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `upstream/main` `926e18b3f` é ancestral e só existe a branch local `main`. Para esse SHA, CI do PIE `39038524038` e do fork `39038534862` estão pendentes; Release do PIE `39038524037` está `in_progress` e do fork `39038534901` está `queued`. Próximo: acompanhar conclusões e seguir trilhas T1.1/T1.2/T1.3/T1.4/T1.5 ainda parciais; não declarar aceite integral.
 
@@ -20,7 +20,7 @@ Na preparação inicial, a conta autenticada foi `fernandinhomartins40`; o fork 
 
 ## Continuidade atual — supervisão/cancelamento Git — 17/10/2026
 
-Outra fragilidade de ownership foi removida em `discoverProject`: a associação entre Evidence e import cross-file passa a ser capturada junto da resolução tipada, sem reparse de texto de observação. Validado por `pieExpressCrossFile` 7/7, `pieAdapters` 10/10, build PIE, `check:fast` e formatação. Esta alteração está local e precisa de commit/push direto em `main` após `docs:check:built`; próximos alvos de maior escopo seguem T1.1 (Result uniforme), T1.2 (retenção/redação) e T3.1/T3.2 (runners).
+Outra fragilidade de ownership foi removida em `discoverProject`: a associação entre Evidence e import cross-file passa a ser capturada junto da resolução tipada, sem reparse de texto de observação. Validado por `pieExpressCrossFile` 7/7, `pieAdapters` 10/10, build PIE, `check:fast`, `format:check` e `docs:check:built`. Publicada em `998485ae4` diretamente na main dos dois remotos. Próximos alvos de maior escopo seguem T1.1 (Result uniforme), T1.2 (retenção/redação) e T3.1/T3.2 (runners).
 
 Auditoria do comportamento no commit `df2a983d1` identificou que a regressão inicial aceitava qualquer `IO_ERROR`, sem provar a causa, e que `git symbolic-ref HEAD` não consegue ler uma referência cujo destino está corrompido. A leitura direta dos metadados Git foi corrigida para distinguir ref inexistente de conteúdo inválido; o teste agora exige também a mensagem tipada específica. Boundary `pieFoundation` completo: 10/10. A correção está publicada em `f3e979496` nos dois remotos.
 
