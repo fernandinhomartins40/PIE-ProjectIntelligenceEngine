@@ -7,6 +7,7 @@ import { PieService } from "./service.js";
 import { z } from "zod";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { readHttpProbeGrant } from "./execution/httpGrantFile.js";
+import { inspectPieEnvironment } from "./doctor.js";
 
 export async function runPie(args: string[]): Promise<void> {
   const parsed = parseArgs({
@@ -120,54 +121,10 @@ export async function runPie(args: string[]): Promise<void> {
     return;
   }
   if (command === "doctor") {
+    const databasePath =
+      parsed.values.db ?? join(homedir(), ".pie", "pie.sqlite");
     console.log(
-      JSON.stringify(
-        {
-          product: "PIE",
-          node: process.versions.node,
-          sqlite: process.versions.sqlite ?? null,
-          profile: "OBSERVE",
-          implemented: [
-            "git-tracked-file-inventory",
-            "hashed-evidence",
-            "sqlite-local-history",
-            "pagination",
-            "relative-import-ast",
-            "snapshot-comparison",
-            "graph-impact",
-            "json-md-html-export",
-            "persistent-discovery-queue",
-            "postgresql-prisma-adapter",
-            "declarative-stack-inventory",
-            "recorded-graph-trace",
-            "local-react-dashboard",
-            "prisma-data-review",
-            "static-credential-pattern-review",
-          ],
-          unavailable: [
-            "functional-runtime-verification",
-            "product-engine",
-            "security-runtime-and-authorization-analysis",
-            "infrastructure-engine",
-            "database-runtime-validation",
-          ],
-          verification: {
-            supportedPlatforms: ["linux"],
-            readiness: "not-probed",
-            requires: [
-              "explicit-grant",
-              "private-state-directory",
-              "local-docker",
-              "preinstalled-digest-image",
-            ],
-          },
-          upstreamProviders: "não verificados",
-          postgresqlRuntime:
-            "não verificado nesta máquina; exige PIE_DATABASE_URL e migrações",
-        },
-        null,
-        2,
-      ),
+      JSON.stringify(await inspectPieEnvironment(databasePath), null, 2),
     );
     return;
   }

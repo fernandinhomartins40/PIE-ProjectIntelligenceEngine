@@ -12,7 +12,7 @@ A identidade usa caminho relativo observado pelo reporter, nome e profundidade. 
 
 Uma sondagem é opt-in por um grant JSON explícito ligado a snapshot completo; o PIE não inicia o servidor do projeto. Somente GET/HEAD para `127.0.0.1` com porta, caminho, timeout, limite de bytes e status/digest esperados declarados. Exemplo: `node scripts/pie.mjs http-probe-run C:/dados/grant-http.json --db C:/dados-pie/pie.sqlite`. Consultar por ID com `node scripts/pie.mjs http-probe UUID --db C:/dados-pie/pie.sqlite` ou listar histórico paginado com `http-probes UUID_DO_SNAPSHOT --limit 50 --offset 0`. MCP anuncia `pie_http_probe_run`, `pie_http_probe_get` e `pie_http_probes_list`; API local usa `POST /v1/http-probes`, `GET /v1/http-probes/UUID` e `GET /v1/http-probes?snapshotId=UUID` com a autenticação existente. Resultado limitado a observação de status/digest; não prova identidade do processo respondente, jornada, autorização ou persistência.
 
-O produto está em desenvolvimento. O escopo integral permanece no plano mestre. A primeira fatia fornece inventário de arquivos rastreados por Git, classificação por nome, evidências com hash, histórico SQLite local, CLI e cinco ferramentas MCP. Não há execução do projeto auditado, análise AST, seis motores, painel ou PostgreSQL nesta fatia.
+O produto continua em desenvolvimento; o escopo integral e os estados de cada trilha estão em `docs/PIE_MASTER_PLAN.md`. O PIE já contém CLI/MCP/API/painel, persistência SQLite e PostgreSQL, discovery estática, Evidence, jobs e análises parciais; presença dessas capacidades não significa que todos os critérios dos seis motores estejam atendidos. Não trate estados `unverified`, `blocked`, `skipped` ou cobertura parcial como aprovação.
 
 ## Runtime e instalação
 
@@ -28,6 +28,8 @@ node scripts/pie.mjs projects --db C:/dados-pie/pie.sqlite
 node scripts/pie.mjs graph UUID_DO_SNAPSHOT --db C:/dados-pie/pie.sqlite --limit 50
 node scripts/pie.mjs export UUID_DO_SNAPSHOT --db C:/dados-pie/pie.sqlite
 ```
+
+`doctor` verifica runtime Node, Git, SQLite apenas se o arquivo já existir (abertura somente leitura), disponibilidade do daemon Docker e PostgreSQL quando `PIE_DATABASE_URL` estiver configurada. Não cria banco, roda migrações, instala software ou baixa imagens. PostgreSQL `available` confirma conectividade e a tabela PIE básica usada pelo adapter; não comprova todas as migrações, workers ou execução VERIFY. O relatório omite a URL e detalhes de autenticação.
 
 `--db` padrão: `.pie/pie.sqlite` na pasta do usuário. O estado precisa ficar fora do projeto auditado. `export` retorna o snapshot completo em JSON; consultas de grafo/histórico/projetos são paginadas. Não há dados de demonstração nem seed na aplicação.
 
