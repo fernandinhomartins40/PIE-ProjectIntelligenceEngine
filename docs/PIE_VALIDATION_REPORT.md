@@ -22,8 +22,8 @@
 ## Runtime pinado e plano agregado inicial — 17/10/2026
 
 - `npm.cmd exec --yes --package=node@24.18.0 -- node --version`: `v24.18.0` a partir do cache npm existente, sem instalação global. Com esse executável, `scripts/pie.mjs doctor` reportou `ready_for_observe`, Node/Git disponíveis, SQLite `not_configured` sem criar arquivo; Docker `unavailable` e PostgreSQL `not_configured`. Executado com `Join-Path $env:TEMP 'pie-doctor-absent.sqlite'`. O `node` global 22.17.1 reporta corretamente fora de `engines.node`.
-- `npm.cmd run test:focused -- tests/boundary/pieUnifiedPlan.test.ts`: 1/1 passou. Repositório Git e SQLite reais; saída de PieService, CLI, API autenticada e MCP idêntica; schema Ajv válido; Evidence presente; token canário ausente; digest estável sob paginação. Motores infraestrutura/regressão e contestação histórica seguem explicitamente ausentes.
-- `npm.cmd run mcp-catalog:generate` e `mcp-catalog:check` passaram; a nova ferramenta MCP está registrada. `npm.cmd run check:fast`, `pie:build`, `docs:check`, `format:check` e `git diff --check` passaram. `docs:check` incluiu licenças e cinco testes de consistência README.
+- `npm.cmd exec --yes --package=node@24.18.0 --package=npm@11.16.0 -- npm run test:focused -- tests/boundary/pieUnifiedPlan.test.ts`: 1/1 passou no toolchain pinado. Repositório Git e SQLite reais; saída de PieService, CLI, API autenticada e MCP idêntica; schema Ajv válido; Evidence presente; token canário ausente; digest estável sob paginação. Motores infraestrutura/regressão e contestação histórica seguem explicitamente ausentes.
+- Sob Node 24.18.0/npm 11.16.0 passaram `check:fast`, `pie:build`, `docs:check`, `format:check` e `mcp-catalog:check`; `mcp-catalog:generate` incluiu a nova ferramenta e `git diff --check` passou. `docs:check` incluiu licenças e cinco testes de consistência README.
 
 ## Exportação paginada compartilhada — 17/10/2026
 
