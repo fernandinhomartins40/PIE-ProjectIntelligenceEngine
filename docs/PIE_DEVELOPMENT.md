@@ -231,9 +231,9 @@ No modo continuous, stdout usa NDJSON: um objeto JSON por linha para a abertura 
 
 ## Endpoints Express por AST
 
-Declarações express-ast reconhecem chamadas diretas no escopo superior a receptores const originados de import/default/Router ou require express. Método/padrão literal, receptor local, linha e prova são preservados em declarations e trace. O parent é o nome do receptor local, não uma URL pública; prefixos de app.use não são inventados. Referência: [roteamento Express](https://expressjs.com/en/guide/routing/).
+Declarações express-ast reconhecem chamadas diretas no escopo superior a receptores const originados de import/default/Router ou require express. Método/padrão literal, receptor local, linha e prova são preservados em declarations e trace. Para imports relativos que resolvem a um export único de router comprovado, o prefixo literal do mount compõe o caminho, incluindo mounts locais do router exportado; Evidence separada sela a rota composta e a linha/caminho/hash de cada mount. O campo de proveniência `sourcePath` identifica o arquivo de cada derivação cross-file. Isso é uma derivação estática e não prova carregamento, registro ou resposta HTTP em runtime. Referência: [roteamento Express](https://expressjs.com/en/guide/routing/).
 
-Somente caminhos literais começando com / ou * são examinados. Escopos aninhados, aliases mutáveis, cadeias route(), templates dinâmicos, arrays/regex, resolução de handlers e efeitos de código chamado permanecem desconhecidos. Binding require sombreado não é tratado como carregador CommonJS. Essa observação estática não confirma framework instalado, servidor ouvindo, autenticação nem funcionamento HTTP.
+Somente caminhos literais começando com / ou * são examinados. Escopos aninhados, aliases mutáveis, cadeias route(), templates dinâmicos, arrays/regex, resolução de handlers e efeitos de código chamado permanecem desconhecidos. Binding require sombreado não é tratado como carregador CommonJS. Imports sem export único comprovado e prefixos não literais não são compostos. Essa observação estática não confirma framework instalado, servidor ouvindo, autenticação nem funcionamento HTTP.
 
 ## Configuração Nginx estática
 

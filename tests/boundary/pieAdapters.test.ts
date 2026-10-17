@@ -395,7 +395,7 @@ it("Express AST compõe montagens literais e mantém prova da rota", async () =>
     );
     const fact = snapshot.declarations[1]!;
     expect(fact).toMatchObject({
-      provenanceVersion: 2,
+      provenanceVersion: 3,
       derivations: [
         {
           line: 9,
@@ -456,6 +456,10 @@ it("Express AST compõe montagens literais e mantém prova da rota", async () =>
     );
     expect(snapshot.coverage.limitations.join(" ")).toContain("prefixos");
     expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    const historicalV2 = structuredClone(snapshot);
+    for (const declaration of historicalV2.declarations)
+      declaration.provenanceVersion = 2;
+    expect(validateSnapshot(historicalV2).id).toBe(snapshot.id);
     const alteredDerivation = structuredClone(snapshot);
     alteredDerivation.declarations[1]!.derivations[0]!.prefix = "/changed";
     expect(() => validateSnapshot(alteredDerivation)).toThrow(

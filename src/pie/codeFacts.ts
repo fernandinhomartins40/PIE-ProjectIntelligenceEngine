@@ -6,6 +6,7 @@ import type { AdapterRead } from "./adapters/contracts.js";
 import {
   readExpressDeclarations,
   type ExpressCrossFileMount,
+  type ExpressLocalRouterMount,
   type ExpressRouterExport,
 } from "./adapters/express.js";
 import { cachedAnalysis } from "./analysisCache.js";
@@ -22,12 +23,13 @@ export function readCodeFacts(
   declarations: AdapterRead;
   express: {
     crossFileMounts: ExpressCrossFileMount[];
+    routerMounts: ExpressLocalRouterMount[];
     routerExports: ExpressRouterExport[];
     omittedCrossFileFacts: number;
   };
 } {
   return cachedAnalysis(
-    ["pie-code-facts-v3", path, sha256(source), maxReferences, maxDeclarations],
+    ["pie-code-facts-v4", path, sha256(source), maxReferences, maxDeclarations],
     () => {
       const tree = parse(source, {
         sourceType: "unambiguous",
@@ -64,6 +66,7 @@ export function readCodeFacts(
         omitted,
         express: {
           crossFileMounts: express.crossFileMounts,
+          routerMounts: express.routerMounts,
           routerExports: express.routerExports,
           omittedCrossFileFacts: express.omittedCrossFileFacts,
         },

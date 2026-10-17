@@ -50,11 +50,21 @@ export function collectDeclarations(
       const existing = byId.get(id);
       const existingDerivations = new Set(
         existing?.derivations.map((item) =>
-          JSON.stringify([item.line, item.operation, item.prefix]),
+          JSON.stringify([
+            item.line,
+            item.operation,
+            item.prefix,
+            item.sourcePath ?? null,
+          ]),
         ) ?? [],
       );
       const derivations = (declaration.derivedFrom ?? []).filter((item) => {
-        const key = JSON.stringify([item.line, item.operation, item.prefix]);
+        const key = JSON.stringify([
+          item.line,
+          item.operation,
+          item.prefix,
+          item.sourcePath ?? null,
+        ]);
         if (existingDerivations.has(key)) return false;
         existingDerivations.add(key);
         return true;
@@ -83,7 +93,7 @@ export function collectDeclarations(
         ...value,
         source: proof.source,
         id,
-        provenanceVersion: 2,
+        provenanceVersion: 3,
         evidenceId: proof.id,
         derivations: derivationProofs.map(({ proof: _proof, ...item }) => item),
         method: "static",

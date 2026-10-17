@@ -22,6 +22,11 @@ function validateDeclarations(
   evidenceById: ReadonlyMap<string, Evidence>,
 ): void {
   const ids = new Set<string>();
+  const fileEvidence = new Map(
+    snapshot.evidence
+      .filter((item) => item.source.line === null)
+      .map((item) => [item.source.path, item]),
+  );
   for (const declaration of snapshot.declarations) {
     const proof = evidenceById.get(declaration.evidenceId);
     const derivationIds = new Set<string>();
@@ -34,7 +39,7 @@ function validateDeclarations(
       proof.source.path !== declaration.source.path ||
       proof.source.line !== declaration.source.line ||
       proof.source.sha256 !== declaration.source.sha256 ||
-      (declaration.provenanceVersion === 2 &&
+      (declaration.provenanceVersion >= 2 &&
         proof.observation !== declarationEvidenceObservation(declaration)) ||
       (declaration.provenanceVersion === 1 &&
         declaration.derivations.length > 0)
@@ -46,16 +51,21 @@ function validateDeclarations(
     ids.add(declaration.id);
     for (const derivation of declaration.derivations) {
       const derivationProof = evidenceById.get(derivation.evidenceId);
+      const sourcePath = derivation.sourcePath ?? declaration.source.path;
+      const sourceFile = fileEvidence.get(sourcePath);
       if (
-        declaration.provenanceVersion !== 2 ||
+        declaration.provenanceVersion < 2 ||
+        (declaration.provenanceVersion < 3 &&
+          derivation.sourcePath !== undefined) ||
         derivationIds.has(derivation.evidenceId) ||
         derivation.evidenceId === declaration.evidenceId ||
+        !sourceFile ||
         !derivationProof ||
         derivationProof.method !== "static" ||
         derivationProof.confidence !== "derived" ||
-        derivationProof.source.path !== declaration.source.path ||
+        derivationProof.source.path !== sourcePath ||
         derivationProof.source.line !== derivation.line ||
-        derivationProof.source.sha256 !== declaration.source.sha256 ||
+        derivationProof.source.sha256 !== sourceFile.source.sha256 ||
         derivationProof.observation !==
           derivationEvidenceObservation(derivation)
       )

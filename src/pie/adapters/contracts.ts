@@ -2,7 +2,9 @@ import { z } from "zod";
 import { sourceSchema } from "../source.js";
 
 export const adapterFactSchema = z.strictObject({
-  provenanceVersion: z.union([z.literal(1), z.literal(2)]).default(1),
+  provenanceVersion: z
+    .union([z.literal(1), z.literal(2), z.literal(3)])
+    .default(1),
   id: z.string(),
   adapter: z.enum([
     "node-manifest",
@@ -37,6 +39,7 @@ export const adapterFactSchema = z.strictObject({
         line: z.number().int().positive(),
         operation: z.literal("express_router_mount"),
         prefix: z.string().max(1000),
+        sourcePath: z.string().min(1).optional(),
       }),
     )
     .default([]),
@@ -48,6 +51,7 @@ export const declarationDerivationSchema = z.strictObject({
   line: z.number().int().positive(),
   operation: z.literal("express_router_mount"),
   prefix: z.string().max(1000),
+  sourcePath: z.string().min(1).optional(),
 });
 export type DeclarationDerivation = z.infer<typeof declarationDerivationSchema>;
 export type Declaration = Pick<
@@ -68,7 +72,10 @@ export function declarationEvidenceObservation(
 export function derivationEvidenceObservation(
   derivation: DeclarationDerivation,
 ) {
-  return `Derivação estática de rota ${JSON.stringify([derivation.operation, derivation.prefix])}; registro em runtime não verificado.`;
+  const tuple = derivation.sourcePath
+    ? [derivation.operation, derivation.prefix, derivation.sourcePath]
+    : [derivation.operation, derivation.prefix];
+  return `Derivação estática de rota ${JSON.stringify(tuple)}; registro em runtime não verificado.`;
 }
 export interface AdapterRead {
   declarations: Declaration[];

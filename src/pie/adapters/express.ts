@@ -27,12 +27,19 @@ export type ExpressRouterExport = {
   localName: string;
   line: number;
 };
+export type ExpressLocalRouterMount = {
+  receiver: string;
+  prefix: string;
+  router: string;
+  line: number;
+};
 export type ExpressCrossFileMount = ExpressRouterImport & {
   prefix: string;
   mountLine: number;
 };
 export type ExpressRead = AdapterRead & {
   crossFileMounts: ExpressCrossFileMount[];
+  routerMounts: ExpressLocalRouterMount[];
   routerExports: ExpressRouterExport[];
   omittedCrossFileFacts: number;
 };
@@ -238,14 +245,17 @@ function mountedRouter(
   });
 }
 
-function joinRoute(prefix: string, route: string): string | null {
+export function joinExpressRoute(prefix: string, route: string): string | null {
   if (prefix === "*") return null;
   if (route === "*") return prefix ? null : "*";
   if (prefix === "" || prefix === "/") return route;
   return `${prefix.replace(/\/$/, "")}/${route.replace(/^\//, "")}`;
 }
 
-function routerPrefixes(mounts: readonly RouterMount[]) {
+function routerPrefixes(
+  mounts: readonly RouterMount[],
+  exportedRouters: ReadonlySet<string>,
+) {
   type Resolution = { prefixes: RouterPrefix[]; cyclic: boolean };
   const parents = new Map<string, RouterMount[]>();
   for (const mount of mounts) {
@@ -258,6 +268,11 @@ function routerPrefixes(mounts: readonly RouterMount[]) {
     router,
     visiting,
   ) => {
+    if (exportedRouters.has(router))
+      return {
+        prefixes: [{ path: "", derivations: [] }],
+        cyclic: false,
+      };
     const known = cache.get(router);
     if (known) return known;
     if (visiting.has(router)) return { prefixes: [], cyclic: true };
@@ -276,7 +291,7 @@ function routerPrefixes(mounts: readonly RouterMount[]) {
         const ancestor = resolve(mount.receiver, nextVisiting);
         cyclic ||= ancestor.cyclic;
         for (const prefix of ancestor.prefixes) {
-          const joined = joinRoute(prefix.path, mount.prefix);
+          const joined = joinExpressRoute(prefix.path, mount.prefix);
           if (joined === null) cyclic = true;
           else
             prefixes.push({
@@ -394,9 +409,12 @@ export function readExpressDeclarations(
     const route = endpoint(statement.expression, bindings);
     if (route) routes.push(route);
   }
-  const resolvePrefixes = routerPrefixes(mounts);
   const routerExports = exportCandidates.filter(
     (item) => bindings.get(item.localName) === "router",
+  );
+  const resolvePrefixes = routerPrefixes(
+    mounts,
+    new Set(routerExports.map((item) => item.localName)),
   );
   const crossFileMounts = mounts.flatMap((mount) =>
     mount.imported
@@ -404,10 +422,19 @@ export function readExpressDeclarations(
       : [],
   );
   const boundedCrossFileMounts = crossFileMounts.slice(0, limit);
+  const localMounts = mounts.filter((mount) => !mount.imported);
+  const routerMounts = localMounts.slice(0, limit).map((mount) => ({
+    receiver: mount.receiver,
+    prefix: mount.prefix,
+    router: mount.router,
+    line: mount.line,
+  }));
   const boundedRouterExports = routerExports.slice(0, limit);
   const omittedCrossFileFacts =
     crossFileMounts.length -
     boundedCrossFileMounts.length +
+    localMounts.length -
+    routerMounts.length +
     routerExports.length -
     boundedRouterExports.length;
   let unresolvedMounts = 0;
@@ -428,7 +455,7 @@ export function readExpressDeclarations(
         : resolved.cyclic
           ? []
           : resolved.prefixes.flatMap((prefix) => {
-              const path = joinRoute(prefix.path, localPath);
+              const path = joinExpressRoute(prefix.path, localPath);
               return path === null
                 ? []
                 : [{ path, derivations: prefix.derivations }];
@@ -461,6 +488,7 @@ export function readExpressDeclarations(
   return {
     declarations,
     crossFileMounts: boundedCrossFileMounts,
+    routerMounts,
     routerExports: boundedRouterExports,
     omittedCrossFileFacts,
     limitations:

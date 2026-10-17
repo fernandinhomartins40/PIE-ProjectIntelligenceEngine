@@ -22,15 +22,23 @@ import { readInventoryFile } from "./readFile.js";
 import { collectDeclarations } from "./adapters/collect.js";
 import { readDeclarations } from "./adapters/declarations.js";
 import { readCodeFacts } from "./codeFacts.js";
-import type { AdapterFact } from "./adapters/contracts.js";
+import {
+  declarationEvidenceObservation,
+  derivationEvidenceObservation,
+  type AdapterFact,
+  type DeclarationDerivation,
+} from "./adapters/contracts.js";
+import { declarationIdentity } from "./adapters/identity.js";
 import {
   expressRouterExportObservation,
   expressRouterMountEdgeId,
   expressRouterMountObservation,
 } from "./adapters/expressEvidence.js";
-import type {
-  ExpressCrossFileMount,
-  ExpressRouterExport,
+import {
+  joinExpressRoute,
+  type ExpressLocalRouterMount,
+  type ExpressCrossFileMount,
+  type ExpressRouterExport,
 } from "./adapters/express.js";
 
 const runFile = promisify(execFile);
@@ -168,6 +176,7 @@ export async function discoverProject(
   const expressModules: Array<{
     path: string;
     mounts: ExpressCrossFileMount[];
+    routerMounts: ExpressLocalRouterMount[];
     exports: ExpressRouterExport[];
   }> = [];
   const limitations = [
@@ -249,11 +258,12 @@ export async function discoverProject(
           expressModules.push({
             path,
             mounts: parsed.express.crossFileMounts,
+            routerMounts: parsed.express.routerMounts,
             exports: parsed.express.routerExports,
           });
           if (parsed.express.omittedCrossFileFacts > 0)
             limitations.push(
-              `${parsed.express.omittedCrossFileFacts} fatos de mount/export Express cross-file omitidos pelo limite de análise em ${path}.`,
+              `${parsed.express.omittedCrossFileFacts} fatos de mount/export Express usados na resolução cross-file omitidos pelo limite de análise em ${path}.`,
             );
           const declared = collectDeclarations(item, parsed.declarations);
           evidence.push(...declared.evidence);
@@ -394,6 +404,13 @@ export async function discoverProject(
     }
   }
   const expressEdges: Snapshot["edges"] = [];
+  const resolvedExpressMounts: Array<{
+    sourcePath: string;
+    targetPath: string;
+    mountLine: number;
+    prefix: string;
+    exported: ExpressRouterExport;
+  }> = [];
   let unresolvedExpressMounts = 0;
   let omittedExpressMounts = 0;
   const maxExpressEdges = Math.max(
@@ -483,6 +500,13 @@ export async function discoverProject(
         expressRouterExportObservation(exported.exportName, exported.localName),
       );
       evidence.push(mountProof, exportProof);
+      resolvedExpressMounts.push({
+        sourcePath: module.path,
+        targetPath: targetPath.path,
+        mountLine: mount.mountLine,
+        prefix: mount.prefix,
+        exported,
+      });
       expressEdges.push({
         id: expressRouterMountEdgeId(
           sourceNode.id,
@@ -507,6 +531,301 @@ export async function discoverProject(
     limitations.push(
       `${omittedExpressMounts} relações de mount Express omitidas pelo limite global de arestas.`,
     );
+  const routeFacts = new Map<string, AdapterFact[]>();
+  for (const fact of declarations) {
+    if (fact.adapter !== "express-ast" || fact.kind !== "endpoint") continue;
+    const key = JSON.stringify([fact.source.path, fact.parent]);
+    const group = routeFacts.get(key) ?? [];
+    group.push(fact);
+    routeFacts.set(key, group);
+  }
+  const mountsByFact = new Map<string, typeof resolvedExpressMounts>();
+  const routerClosures = new Map<string, Set<string>>();
+  const unresolvedNestedExpressRoutes = new Set<string>();
+  const cyclicRouterClosures = new Set<string>();
+  for (const mount of resolvedExpressMounts) {
+    const module = moduleByPath.get(mount.targetPath);
+    if (!module) continue;
+    const closureKey = JSON.stringify([
+      mount.targetPath,
+      mount.exported.localName,
+    ]);
+    let closure = routerClosures.get(closureKey);
+    if (!closure) {
+      closure = new Set([mount.exported.localName]);
+      const byReceiver = new Map<string, ExpressLocalRouterMount[]>();
+      for (const localMount of module.routerMounts) {
+        const group = byReceiver.get(localMount.receiver) ?? [];
+        group.push(localMount);
+        byReceiver.set(localMount.receiver, group);
+      }
+      const queue = [mount.exported.localName];
+      for (let index = 0; index < queue.length; index++)
+        for (const localMount of byReceiver.get(queue[index]!) ?? [])
+          if (!closure.has(localMount.router)) {
+            closure.add(localMount.router);
+            queue.push(localMount.router);
+          }
+      const visiting = new Set<string>();
+      const visited = new Set<string>();
+      const hasCycle = (router: string): boolean => {
+        if (visiting.has(router)) return true;
+        if (visited.has(router)) return false;
+        visiting.add(router);
+        for (const localMount of byReceiver.get(router) ?? [])
+          if (closure!.has(localMount.router) && hasCycle(localMount.router))
+            return true;
+        visiting.delete(router);
+        visited.add(router);
+        return false;
+      };
+      if (hasCycle(mount.exported.localName))
+        cyclicRouterClosures.add(closureKey);
+      routerClosures.set(closureKey, closure);
+    }
+    if (cyclicRouterClosures.has(closureKey)) continue;
+    for (const router of closure) {
+      for (const fact of routeFacts.get(
+        JSON.stringify([mount.targetPath, router]),
+      ) ?? []) {
+        if (
+          router !== mount.exported.localName &&
+          fact.derivations.length === 0
+        ) {
+          unresolvedNestedExpressRoutes.add(fact.id);
+          continue;
+        }
+        const group = mountsByFact.get(fact.id) ?? [];
+        group.push(mount);
+        mountsByFact.set(fact.id, group);
+      }
+    }
+  }
+  const composedDeclarations: AdapterFact[] = [];
+  const composedById = new Map<string, AdapterFact>();
+  let extraDeclarationBudget = Math.max(
+    0,
+    policy.maxGraphEdges - declarations.length,
+  );
+  let derivationBudget = Math.max(
+    0,
+    policy.maxGraphEdges - resolved.edges.length - expressEdges.length,
+  );
+  let omittedComposedRoutes = 0;
+  let unresolvedComposedRoutes = 0;
+  const generatedDeclarationEvidence = new Set<string>();
+  const addRouteDerivation = (
+    fact: AdapterFact,
+    mount: (typeof resolvedExpressMounts)[number],
+  ) => {
+    const derivation = {
+      line: mount.mountLine,
+      operation: "express_router_mount" as const,
+      prefix: mount.prefix,
+      sourcePath: mount.sourcePath,
+    };
+    const key = JSON.stringify([
+      derivation.line,
+      derivation.operation,
+      derivation.prefix,
+      derivation.sourcePath,
+    ]);
+    if (
+      fact.derivations.some(
+        (item) =>
+          JSON.stringify([
+            item.line,
+            item.operation,
+            item.prefix,
+            item.sourcePath ?? null,
+          ]) === key,
+      )
+    )
+      return true;
+    if (derivationBudget <= 0) return false;
+    const sourceEvidence = evidenceByPath.get(mount.sourcePath);
+    if (!sourceEvidence) return false;
+    const proof = makeDerivedEvidence(
+      sourceEvidence,
+      derivation.line,
+      derivationEvidenceObservation(derivation),
+    );
+    evidence.push(proof);
+    fact.derivations.push({ ...derivation, evidenceId: proof.id });
+    fact.provenanceVersion = 3;
+    derivationBudget--;
+    return true;
+  };
+  for (const original of declarations) {
+    const mounts = mountsByFact.get(original.id);
+    if (!mounts?.length) {
+      composedDeclarations.push(original);
+      composedById.set(original.id, original);
+      continue;
+    }
+    const separator = original.name.indexOf(" ");
+    const method = original.name.slice(0, separator);
+    const localPath = original.name.slice(separator + 1);
+    const candidates = new Map<
+      string,
+      { name: string; mounts: Array<(typeof resolvedExpressMounts)[number]> }
+    >();
+    for (const mount of mounts) {
+      const path = joinExpressRoute(mount.prefix, localPath);
+      if (path === null) {
+        unresolvedComposedRoutes++;
+        continue;
+      }
+      const name = `${method} ${path}`;
+      const group = candidates.get(name) ?? { name, mounts: [] };
+      group.mounts.push(mount);
+      candidates.set(name, group);
+    }
+    if (candidates.size === 0) {
+      composedDeclarations.push(original);
+      composedById.set(original.id, original);
+      continue;
+    }
+    let emittedForOriginal = 0;
+    for (const candidate of candidates.values()) {
+      if (
+        candidate.name.length > 1000 ||
+        (emittedForOriginal > 0 && extraDeclarationBudget <= 0)
+      ) {
+        omittedComposedRoutes++;
+        continue;
+      }
+      const id = declarationIdentity({
+        ...original,
+        name: candidate.name,
+        source: original.source,
+      });
+      const existingFact = composedById.get(id);
+      let fact = existingFact;
+      const existingDerivations = new Set(
+        (fact?.derivations ?? original.derivations).map((item) =>
+          JSON.stringify([
+            item.line,
+            item.operation,
+            item.prefix,
+            item.sourcePath ?? null,
+          ]),
+        ),
+      );
+      const pendingMounts = candidate.mounts.filter(
+        (mount) =>
+          !existingDerivations.has(
+            JSON.stringify([
+              mount.mountLine,
+              "express_router_mount",
+              mount.prefix,
+              mount.sourcePath,
+            ]),
+          ),
+      );
+      if (!fact && pendingMounts.length === 0) {
+        unresolvedComposedRoutes++;
+        continue;
+      }
+      if (pendingMounts.length > 0 && derivationBudget <= 0) {
+        omittedComposedRoutes += pendingMounts.length;
+        continue;
+      }
+      if (!fact) {
+        if (candidate.name === original.name)
+          fact = {
+            ...original,
+            provenanceVersion: 3,
+            derivations: [...original.derivations],
+          };
+        else {
+          const originalFile = evidenceByPath.get(original.source.path);
+          if (!originalFile || original.source.line === null) {
+            unresolvedComposedRoutes++;
+            continue;
+          }
+          const proof = makeDerivedEvidence(
+            originalFile,
+            original.source.line,
+            declarationEvidenceObservation({
+              adapter: original.adapter,
+              kind: original.kind,
+              name: candidate.name,
+              parent: original.parent,
+            }),
+          );
+          evidence.push(proof);
+          generatedDeclarationEvidence.add(proof.id);
+          fact = {
+            ...original,
+            id,
+            name: candidate.name,
+            evidenceId: proof.id,
+            provenanceVersion: 3,
+            derivations: [...original.derivations],
+          };
+        }
+        composedById.set(id, fact);
+        composedDeclarations.push(fact);
+      }
+      let evidencedMounts = 0;
+      for (const mount of candidate.mounts) {
+        if (!addRouteDerivation(fact, mount)) {
+          omittedComposedRoutes++;
+          continue;
+        }
+        evidencedMounts++;
+      }
+      if (evidencedMounts === 0 && !existingFact) {
+        composedById.delete(id);
+        const index = composedDeclarations.indexOf(fact);
+        if (index >= 0) composedDeclarations.splice(index, 1);
+        continue;
+      }
+      if (emittedForOriginal > 0 && !existingFact) extraDeclarationBudget--;
+      emittedForOriginal++;
+    }
+    if (emittedForOriginal === 0) {
+      composedDeclarations.push(original);
+      composedById.set(original.id, original);
+    }
+  }
+  if (unresolvedComposedRoutes > 0)
+    limitations.push(
+      `${unresolvedComposedRoutes} caminhos de endpoint não foram compostos por prefixo Express literal; o caminho local permanece como evidência estática.`,
+    );
+  if (unresolvedNestedExpressRoutes.size > 0)
+    limitations.push(
+      `${unresolvedNestedExpressRoutes.size} endpoints em routers Express aninhados não foram compostos cross-file porque a origem do prefixo interno não ficou provada.`,
+    );
+  if (cyclicRouterClosures.size > 0)
+    limitations.push(
+      `${cyclicRouterClosures.size} closures de routers Express com mounts cíclicos não foram compostos cross-file.`,
+    );
+  if (omittedComposedRoutes > 0) {
+    omitted += omittedComposedRoutes;
+    limitations.push(
+      `${omittedComposedRoutes} variantes de endpoint Express cross-file foram omitidas pelos limites de declarações/proveniência.`,
+    );
+  }
+  const usedDeclarationEvidence = new Set(
+    composedDeclarations.flatMap((fact) => [
+      fact.evidenceId,
+      ...fact.derivations.map((item) => item.evidenceId),
+    ]),
+  );
+  const supersededDeclarationEvidence = new Set(
+    declarations.flatMap((fact) => [
+      fact.evidenceId,
+      ...fact.derivations.map((item) => item.evidenceId),
+    ]),
+  );
+  const finalEvidence = evidence.filter(
+    (item) =>
+      (!supersededDeclarationEvidence.has(item.id) &&
+        !generatedDeclarationEvidence.has(item.id)) ||
+      usedDeclarationEvidence.has(item.id),
+  );
   remaining();
   return snapshotSchema.parse({
     schemaVersion: 1,
@@ -526,8 +845,8 @@ export async function discoverProject(
     ),
     nodes,
     edges: [...resolved.edges, ...expressEdges],
-    evidence,
-    declarations,
+    evidence: finalEvidence,
+    declarations: composedDeclarations,
     coverage: {
       scope: "git-tracked-files",
       status: omitted > 0 || changed ? "partial" : "complete",
