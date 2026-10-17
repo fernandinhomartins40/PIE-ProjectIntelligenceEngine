@@ -37,6 +37,21 @@ it("parses a bounded strict HTTP grant and rejects oversized or non-file inputs"
       snapshotId: grant.snapshotId,
       request: { address: "127.0.0.1", port: 3000 },
     });
+    await writeFile(path, Buffer.from([0xff, 0xfe]));
+    await expect(readHttpProbeGrant(path)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    await writeFile(path, "{");
+    await expect(readHttpProbeGrant(path)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    await writeFile(
+      path,
+      JSON.stringify({ ...grant, unrecognizedAuthority: true }),
+    );
+    await expect(readHttpProbeGrant(path)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
     await writeFile(path, " ".repeat(1_000_001));
     await expect(readHttpProbeGrant(path)).rejects.toMatchObject({
       code: "INVALID_INPUT",

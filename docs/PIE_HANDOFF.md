@@ -6,7 +6,7 @@
 
 ## Leitura limitada do grant HTTP no CLI — 17/10/2026
 
-`http-probe-run` usa leitura limitada a 1 MB, UTF-8 estrito e schema fechado antes de abrir persistência. Boundary cobre grant válido, acima do limite e diretório; o fluxo CLI/MCP real segue positivo. `pie:build`, testes focados (2/2) e `check:fast` (2/2) passaram. `PIE_TEST_DATABASE_URL` ausente, então PostgreSQL real não foi executado nesta rodada. Sem prova de runtime/identidade do alvo; T3.2 permanece parcial.
+`http-probe-run` usa leitura limitada a 1 MB, UTF-8 estrito e schema fechado antes de abrir persistência. Boundary cobre grant válido, acima do limite, diretório, UTF-8/JSON inválidos e campo extra; o fluxo CLI/MCP real segue positivo. `pie:build`, testes focados (2/2) e `check:fast` (2/2) passaram. `PIE_TEST_DATABASE_URL` ausente, então PostgreSQL real não foi executado nesta rodada. Sem prova de runtime/identidade do alvo; T3.2 permanece parcial.
 
 ## Runner HTTP: cutoff de cancelamento na publicação — 17/10/2026
 

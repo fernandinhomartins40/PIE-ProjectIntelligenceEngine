@@ -12,6 +12,22 @@ export async function readHttpProbeGrant(path: string) {
       "INVALID_INPUT",
       "Arquivo de autorização HTTP excede 1 MB ou não é regular.",
     );
-  const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  return httpGrantSchema.parse(JSON.parse(source) as unknown);
+  let source: string;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (cause) {
+    if (!(cause instanceof TypeError)) throw cause;
+    throw new PieError("INVALID_INPUT", "Grant HTTP não contém UTF-8 válido.");
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(source) as unknown;
+  } catch (cause) {
+    if (!(cause instanceof SyntaxError)) throw cause;
+    throw new PieError("INVALID_INPUT", "Grant HTTP não contém JSON válido.");
+  }
+  const parsed = httpGrantSchema.safeParse(value);
+  if (!parsed.success)
+    throw new PieError("INVALID_INPUT", "Grant HTTP não segue o contrato.");
+  return parsed.data;
 }
