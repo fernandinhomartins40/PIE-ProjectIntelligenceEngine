@@ -1,7 +1,10 @@
 # PIE — Plano mestre de implementação integral
 
-## Canal versionado para observação de linhas VERIFY — 17/10/2026
+## Validação do canal de observação VERIFY — 17/10/2026
 
+- `NodeResult` v2 preserva leitura v1 e armazena `runtimeLocations`; grants v2 de arquivo único habilitam coverage experimental. Focos são derivados da declaração autorizada e comparados por caminho completo exato. Nenhuma associação `covers` ou prova de comportamento é produzida.
+- `npm.cmd run test:focused -- tests/boundary/pieNodeResults.test.ts tests/boundary/pieDockerPlan.test.ts tests/boundary/pieVerification.test.ts tests/boundary/pieRunPersistence.test.ts tests/boundary/pieRegressionResults.test.ts`: 11 passaram, 3 skips por plataforma/Docker/PostgreSQL. Node 24.18 real no Windows não forneceu identidade compatível com `/source`; a observação ficou vazia e limitada. Docker Linux real não foi executado.
+- `npm.cmd run check:fast` (typecheck/lint 2/2), `npm.cmd run format:check` (4.116 arquivos) e `git diff --check` passaram. T4.1 permanece parcial; falta validar o path do coverage dentro de Docker Linux e projetar a evidência em CLI/API/MCP.
 - `NodeResult` agora lê schema v1 e grava v2 com `runtimeLocations`; o reporter aceita somente focos caminho/linha obtidos das declarações do snapshot e emite locais positivos por correspondência de caminho completo. O plano ativa `--experimental-test-coverage` somente para grant v2 com um arquivo. Isso registra execução da linha, não comprova que o teste validou o comportamento nem cria aresta `covers`.
 - O runner Node 24.18.0 real em Windows emitiu caminho absoluto do host incompatível com `/source/<path>`. A comparação exata deixou os locais vazios com limitação, sem sufixo heurístico; a lane Docker Linux não estava disponível. Grants com vários testes não instrumentam. T4.1 permanece parcial até identidade de caminho e projeção pública serem verificadas no Docker Linux real.
 - `npm.cmd run test:focused -- tests/boundary/pieNodeResults.test.ts tests/boundary/pieDockerPlan.test.ts tests/boundary/pieVerification.test.ts tests/boundary/pieRunPersistence.test.ts tests/boundary/pieRegressionResults.test.ts`: 11 passaram, 3 skips declarados (Docker/plataforma/PostgreSQL). O teste específico de coverage com Node 24.18 passou quando `PIE_NODE_COVERAGE_EXECUTABLE` apontou para o runtime provisionado.
