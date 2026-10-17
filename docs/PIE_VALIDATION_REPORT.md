@@ -7,7 +7,7 @@
 - A regressão cria repo Git real sem commit e fixa `HEAD` simbólica em `refs/heads/pie-test`; ref ausente mantém `revision: null`, enquanto conteúdo malformado da ref gera `IO_ERROR`.
 - `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts`: 10/10 passaram. `npm.cmd run pie:build`, `npm.cmd run check:fast` (2/2 tarefas), `npm.cmd run docs:check:built`, `npm.cmd run format:check` e `git diff --check` passaram no Windows.
 - Linux/macOS não executados. `check:pr` integral não foi repetido; a execução anterior foi interrompida e segue não comprovada.
-- Publicação e CI para o SHA resultante serão registradas após o push autorizado na `main`.
+- Commit `df2a983d14bc853c696ef0a8d489cae9d78f752c` publicado por fast-forward em `origin/main` e `rea-fork/main`; fetch confirma igualdade com `HEAD`; somente branch local `main`, e `upstream/main` é ancestral. Actions: PIE CI `39039487627` pending, integração `39039487588` queued e Release `39039487748` queued; fork CI `39039492220` pending, integração `39039492200` queued e Release `39039492290` queued. Resultado remoto ainda não concluído.
 
 - `git push origin main` e `git push https://github.com/fernandinhomartins40/rea.git main`: fast-forward de `744c44c1d` para `9732f293585b4d1ebaed5d3f642e12199331dfe3`; hooks `check:fast` passaram (cache hit, 2/2).
 - `git fetch origin main` e `git fetch rea-fork main`; `HEAD`, `origin/main` e `rea-fork/main` retornaram o mesmo SHA. `git merge-base --is-ancestor upstream/main HEAD` passou; branch local única: `main`.

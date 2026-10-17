@@ -2,6 +2,8 @@
 
 ## Estado atual — remotos sincronizados — 17/10/2026
 
+Atualizado após commit `df2a983d1`: local, `origin/main` e `rea-fork/main` sincronizados; apenas `main` local. CI de ambos os repositórios pending; integração PIE e Release queued (`PIE`: 39039487627, 39039487588, 39039487748; fork: 39039492220, 39039492200, 39039492290). Próximo: acompanhar esses workflows e continuar trilhas parciais T1.1/T1.2/T1.3/T1.4/T1.5. Não declarar aceite integral.
+
 `origin/main` e `rea-fork/main` estão ambos em `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `upstream/main` `926e18b3f` é ancestral e só existe a branch local `main`. Para esse SHA, CI do PIE `39038524038` e do fork `39038534862` estão pendentes; Release do PIE `39038524037` está `in_progress` e do fork `39038534901` está `queued`. Próximo: acompanhar conclusões e seguir trilhas T1.1/T1.2/T1.3/T1.4/T1.5 ainda parciais; não declarar aceite integral.
 
 ## Continuidade atual — novo avanço upstream — 17/10/2026

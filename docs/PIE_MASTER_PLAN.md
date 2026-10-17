@@ -2,6 +2,8 @@
 
 ## Estado dos remotos sincronizados — 17/10/2026
 
+Estado atual após a correção da distinção entre HEAD sem commit e ref inválida: `origin/main` e `rea-fork/main` em `df2a983d14bc853c696ef0a8d489cae9d78f752c`; `upstream/main` continua ancestral e só há branch local `main`. CI PIE `39039487627` e CI fork `39039492220` estão `pending`; integrações PIE `39039487588`/`39039492200` e Releases `39039487748`/`39039492290` estão `queued`. Código e validações locais documentados na seção Git abaixo.
+
 `origin/main` e `rea-fork/main` avançaram por fast-forward e apontam ao mesmo SHA `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `upstream/main` (`926e18b3f`) é ancestral. API confirmou `fernandinhomartins40/rea` como fork de `morluto/rea`; o repo PIE permanece separado. `git branch` lista apenas `main`. CI dos dois repositórios segue pendente (PIE 39038524038; fork 39038534862); Release do PIE está `in_progress` (39038524037) e Release do fork `queued` (39038534901). Fork e história verificados; CI desse SHA segue pendente.
 
 ## Atualização do upstream após criação do fork — 17/10/2026
