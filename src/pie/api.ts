@@ -23,6 +23,7 @@ import { functionalRecordExportInput } from "./functionalRecord.js";
 import { verificationExportInput } from "./execution/runContracts.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 import { planningInput } from "./planning.js";
+import { planExportInput } from "./planExport.js";
 import { planContestationInput } from "./planContestation.js";
 import { planTriageInput } from "./planTriage.js";
 
@@ -395,6 +396,17 @@ export async function startPieApi(
         const input = planningInput.parse(await body(request));
         await requireSnapshot(input.snapshotId);
         respond(response, 200, await service.plan(input));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/plan/export") {
+        const input = planExportInput.parse({
+          snapshotId: url.searchParams.get("snapshotId"),
+          format: url.searchParams.get("format") ?? "json",
+          offset: Number(url.searchParams.get("offset") ?? 0),
+          limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
+        });
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.exportPlan(input));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/plan/contest") {

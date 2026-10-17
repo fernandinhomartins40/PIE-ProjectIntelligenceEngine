@@ -55,6 +55,7 @@ import {
 } from "./regressionResults.js";
 import { exportVerification as renderVerificationExport } from "./execution/runExport.js";
 import { verificationExportInput } from "./execution/runContracts.js";
+import { exportPlan as renderPlanExport } from "./planExport.js";
 
 function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
   if (result.ok) return result.value;
@@ -448,6 +449,9 @@ export class PieService {
         },
       });
     });
+  }
+  exportPlan(input: unknown) {
+    return renderPlanExport(this, input);
   }
   contestPlanItem(input: unknown) {
     return this.#read(async () => {

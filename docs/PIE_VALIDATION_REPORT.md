@@ -679,3 +679,10 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 # Integração do produto/UX no painel — 17/10/2026
 
 `ProductReview` consome a rota autenticada local existente via sessão/CSRF e mostra declaração, origem, estado de evidência insuficiente, lacunas e paginação. Evidence vinculada abre pelo GET persistente existente e apresenta hash, método/confiança, estado e limitações; seleção limpa ao trocar snapshot, módulo ou página. `npm.cmd run pie:build` e `node scripts/run-exact-tests.mjs tests/boundary/pieProductWeb.test.ts` passaram; 1/1 browser real Chrome/Playwright executou login, consulta SHA/localização, troca de escopo e viewports 360/1440 sem overflow. `check:fast`, typecheck explícito de `apps/web` e `format:check` também passaram. O teste percorreu a interface do PIE com fixture de fonte inerte; não captura jornada de projeto-alvo nem avalia acessibilidade de aplicação externa.
+
+## Exportação do plano unificado — 17/10/2026
+
+- `npm.cmd run pie:build`: passou (inclui geração Prisma, compilação do serviço PIE e build web).
+- `npm.cmd exec -- vitest run --project boundary tests/boundary/pieUnifiedPlan.test.ts`: 2/2 passou, com SQLite/Git reais; verifica JSON UTF-8 paginado (257 bytes), continuidade e SHA-256, `planDigest` preservado, triagem ordenada e nota humana no conteúdo exportado, paridade API/MCP/CLI, schema Ajv e rejeição da API sem token.
+- `npm.cmd run check:fast`: passou após lint/typecheck (2 tarefas); duração Turbo 1m47s.
+- PostgreSQL não executado: `PIE_TEST_DATABASE_URL` indisponível. Exportação de artefatos além do plano permanece fora desta fatia; T6.1 parcial.

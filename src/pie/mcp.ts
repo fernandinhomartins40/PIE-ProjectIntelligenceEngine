@@ -17,6 +17,7 @@ import { securityInput, securityOutput } from "./security.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
 import { planningInput, unifiedPlanOutput } from "./planning.js";
+import { planExportInput, planExportOutput } from "./planExport.js";
 import {
   planContestationInput,
   planContestationSchema,
@@ -231,6 +232,17 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.plan(input)),
+  );
+  server.registerTool(
+    "pie_plan_export",
+    {
+      description:
+        "Exporta o plano PIE atual em JSON, Markdown ou HTML com paginação UTF-8. Preserva triagem humana e planDigest estático; estado continua unverified e execução não autorizada.",
+      inputSchema: planExportInput,
+      outputSchema: withError(planExportOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.exportPlan(input)),
   );
   server.registerTool(
     "pie_plan_contest",

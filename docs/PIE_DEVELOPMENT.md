@@ -310,3 +310,7 @@ A evidência derivada de uma diretiva com userinfo de transporte removido recebe
 httpTransport.ts e httpProbe.ts são módulos internos em integração, sem comando público. Teste real: tests/boundary/pieHttpTransport.test.ts. Transporte permite GET/HEAD a endereço literal 127.0.0.1, porta explícita e caminho ASCII codificado; não usa DNS/proxy/cookies nem segue redirects. O workflow exige grant VERIFY separado para requisição local, snapshot, raiz autorizada, prazo/limites, status esperado, digest opcional e TTL.
 
 Resultado passed se refere apenas à asserção status/digest de resposta completa. Não prova que o processo responde pela revisão do snapshot, nem jornada/persistência/permissões. Capturas parciais nunca aprovam; corpo e headers não são retidos. Falhas preservam status/bytes/digest parcial e tag. Persistência, habilitação explícita em adaptadores públicos e isolamento/identidade do serviço alvo ainda precisam ser integrados antes de anunciar o runner completo.
+
+## Exportar o plano unificado
+
+`plan-export <snapshot-id> --format json|md|html` exporta o plano atual, incluindo a triagem humana aplicada, owner/status e notas de prioridade. A API autenticada aceita `GET /v1/plan/export?snapshotId=<uuid>&format=json&offset=0&limitBytes=65536`; o MCP fornece `pie_plan_export` com os mesmos formatos e paginação UTF-8. Cada resposta inclui `planDigest`, SHA-256 e offsets do artefato completo. Prioridade continua sendo avaliação humana; a exportação não muda o digest, estado `unverified` ou autorização de execução.

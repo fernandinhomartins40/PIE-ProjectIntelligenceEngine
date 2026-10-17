@@ -104,6 +104,120 @@ async function verifyPlanAdapters(input: {
   expect(result.structuredContent).toEqual(input.expected);
 }
 
+async function verifyPlanExportAdapters(input: {
+  service: PieService;
+  snapshotId: string;
+  expected: Awaited<ReturnType<PieService["plan"]>>;
+  apiUrl: string;
+  token: string;
+  database: string;
+  root: string;
+}) {
+  const exported = await input.service.exportPlan({
+    snapshotId: input.snapshotId,
+    format: "json",
+    offset: 0,
+    limitBytes: 257,
+  });
+  expect(exported.planDigest).toBe(input.expected.planDigest);
+  expect(exported.executionAuthorized).toBe(false);
+  const pages = [exported.content];
+  for (let offset = exported.nextOffset; offset !== null;) {
+    const next = await input.service.exportPlan({
+      snapshotId: input.snapshotId,
+      format: "json",
+      offset,
+      limitBytes: 257,
+    });
+    expect(next.sha256).toBe(exported.sha256);
+    pages.push(next.content);
+    offset = next.nextOffset;
+  }
+  const document = JSON.parse(pages.join("")) as typeof input.expected;
+  expect(document.items.items.map((item) => item.id)).toEqual(
+    input.expected.items.items.map((item) => item.id),
+  );
+  expect(document.items.items[0]?.priorityAssessment).toEqual(
+    input.expected.items.items[0]?.priorityAssessment,
+  );
+  const apiExport = await fetch(
+    `${input.apiUrl}/v1/plan/export?snapshotId=${input.snapshotId}&format=json&limitBytes=257`,
+    { headers: { Authorization: `Bearer ${input.token}` } },
+  );
+  expect(apiExport.status).toBe(200);
+  expect(await apiExport.json()).toEqual(exported);
+  const missingAuth = await fetch(
+    `${input.apiUrl}/v1/plan/export?snapshotId=${input.snapshotId}`,
+  );
+  expect(missingAuth.status).toBe(401);
+
+  const mcp = createPieMcp(input.service, input.root);
+  const client = new Client({ name: "pie-plan-export-test", version: "1" });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await Promise.all([
+    client.connect(clientTransport),
+    mcp.connect(serverTransport),
+  ]);
+  try {
+    const tool = (await client.listTools()).tools.find(
+      (candidate) => candidate.name === "pie_plan_export",
+    );
+    expect(tool).toBeDefined();
+    const ajv = new Ajv2020({ strict: false, validateFormats: false });
+    expect(ajv.validateSchema(tool!.inputSchema)).toBe(true);
+    expect(ajv.validateSchema(tool!.outputSchema as AnySchema)).toBe(true);
+    const mcpExport = await client.callTool({
+      name: "pie_plan_export",
+      arguments: {
+        snapshotId: input.snapshotId,
+        format: "json",
+        limitBytes: 257,
+      },
+    });
+    expect(mcpExport.structuredContent).toEqual(exported);
+    const output = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    try {
+      await runPie(["plan-export", input.snapshotId, "--db", input.database]);
+      const cliPlan = JSON.parse(
+        String(output.mock.calls.map((call) => call[0]).join("")),
+      ) as typeof input.expected;
+      expect(cliPlan.items.items.map((item) => item.id)).toEqual(
+        input.expected.items.items.map((item) => item.id),
+      );
+      expect(cliPlan.items.items[0]?.priorityAssessment).toEqual(
+        input.expected.items.items[0]?.priorityAssessment,
+      );
+    } finally {
+      output.mockRestore();
+    }
+  } finally {
+    await client.close();
+    await mcp.close();
+  }
+}
+
+async function verifyRankedPlanAdapters(input: {
+  expected: Awaited<ReturnType<PieService["plan"]>>;
+  snapshotId: string;
+  database: string;
+  apiUrl: string;
+  token: string;
+  service: PieService;
+  root: string;
+}) {
+  const mcp = createPieMcp(input.service, input.root);
+  const client = new Client({ name: "pie-ranked-plan-test", version: "1" });
+  try {
+    await verifyPlanAdapters({ ...input, client, mcp });
+  } finally {
+    await client.close();
+    await mcp.close();
+  }
+}
+
 async function verifyContestAdapters(input: {
   request: Record<string, unknown>;
   expected: unknown;
@@ -635,25 +749,24 @@ it("agrega propostas de motores com Evidence e sem promover verificação", asyn
       result.planDigest,
       result.items.items,
     );
-    const rankedMcp = createPieMcp(service, repo);
-    const rankedClient = new Client({
-      name: "pie-ranked-plan-test",
-      version: "1",
+    await verifyPlanExportAdapters({
+      service,
+      snapshotId: discovered.snapshot.id,
+      expected: prioritized,
+      apiUrl: api.url,
+      token,
+      database: storePath,
+      root: repo,
     });
-    try {
-      await verifyPlanAdapters({
-        expected: prioritized,
-        snapshotId: discovered.snapshot.id,
-        database: storePath,
-        apiUrl: api.url,
-        token,
-        client: rankedClient,
-        mcp: rankedMcp,
-      });
-    } finally {
-      await rankedClient.close();
-      await rankedMcp.close();
-    }
+    await verifyRankedPlanAdapters({
+      expected: prioritized,
+      snapshotId: discovered.snapshot.id,
+      database: storePath,
+      apiUrl: api.url,
+      token,
+      service,
+      root: repo,
+    });
   } finally {
     await client.close();
     await mcp.close();
