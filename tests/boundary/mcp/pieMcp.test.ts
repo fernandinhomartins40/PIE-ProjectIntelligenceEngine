@@ -317,6 +317,39 @@ async function verifyHttpProbeAdapters(
       })
     ).structuredContent,
   ).toEqual(outcome.value);
+  const history = await client.callTool({
+    name: "pie_http_probes_list",
+    arguments: { snapshotId: details.snapshotId, limit: 1 },
+  });
+  expect(history.structuredContent).toMatchObject({
+    total: 2,
+    offset: 0,
+    nextOffset: 1,
+    items: [{ state: "passed" }],
+  });
+  const historyTool = catalog.find(
+    (tool) => tool.name === "pie_http_probes_list",
+  )!;
+  const validateHistory = ajv.compile(historyTool.outputSchema as AnySchema);
+  expect(
+    validateHistory(history.structuredContent),
+    JSON.stringify(validateHistory.errors),
+  ).toBe(true);
+  expect(
+    JSON.parse(
+      (
+        await exec(process.execPath, [
+          details.script,
+          "http-probes",
+          details.snapshotId,
+          "--limit",
+          "1",
+          "--db",
+          details.db,
+        ])
+      ).stdout,
+    ),
+  ).toEqual(history.structuredContent);
 }
 
 async function discoverMcpFixture(

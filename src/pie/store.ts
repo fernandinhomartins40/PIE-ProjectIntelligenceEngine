@@ -8,11 +8,7 @@ import { projectsOutput, historyOutput } from "./outputContracts.js";
 import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import canonicalize from "canonicalize";
-import { httpProbeSchema } from "./execution/httpProbe.js";
-import {
-  validateHttpProbe,
-  validateStoredHttpProbe,
-} from "./execution/httpIntegrity.js";
+import { createHttpSqlitePersistence } from "./httpSqlitePersistence.js";
 import {
   functionalRecordSchema,
   functionalHistorySchema,
@@ -32,6 +28,7 @@ import {
 /** SQLite is the optional local persistence mode. */
 export class PieStore implements PiePersistence {
   readonly #db: DatabaseSync;
+  readonly #http: ReturnType<typeof createHttpSqlitePersistence>;
   readonly path: string;
   constructor(path: string) {
     this.path = resolve(path);
@@ -66,72 +63,24 @@ export class PieStore implements PiePersistence {
       CREATE TRIGGER IF NOT EXISTS pie_http_immutable_update BEFORE UPDATE ON pie_http_probes BEGIN SELECT RAISE(ABORT,'HTTP immutable'); END;
       CREATE TRIGGER IF NOT EXISTS pie_http_immutable_delete BEFORE DELETE ON pie_http_probes BEGIN SELECT RAISE(ABORT,'HTTP immutable'); END;
       INSERT OR IGNORE INTO pie_migrations(version) VALUES(4);`);
+    this.#http = createHttpSqlitePersistence({
+      db: this.#db,
+      snapshot: (id) => this.snapshot(id),
+      evidence: (id) => this.evidence(id),
+    });
   }
 
   close(): void {
     this.#db.close();
   }
   saveHttpProbe(input: unknown) {
-    const parsed = httpProbeSchema.parse(input);
-    const record = validateHttpProbe(parsed, this.snapshot(parsed.snapshotId));
-    this.#db.exec("BEGIN IMMEDIATE");
-    try {
-      const previous = this.#db
-        .prepare("SELECT id FROM pie_http_probes WHERE id=?")
-        .get(record.id);
-      if (previous) {
-        if (canonicalize(this.httpProbe(record.id)) !== canonicalize(record))
-          throw new PieError(
-            "INTEGRITY_ERROR",
-            "Registro HTTP histórico não pode ser substituído.",
-          );
-      } else {
-        this.#db
-          .prepare(
-            "INSERT INTO pie_evidence(id,snapshot_id,payload) VALUES(?,?,?)",
-          )
-          .run(
-            record.evidence.id,
-            record.snapshotId,
-            JSON.stringify(record.evidence),
-          );
-        this.#db
-          .prepare(
-            "INSERT INTO pie_http_probes(id,snapshot_id,evidence_id,created_at,payload) VALUES(?,?,?,?,?)",
-          )
-          .run(
-            record.id,
-            record.snapshotId,
-            record.evidence.id,
-            record.createdAt,
-            JSON.stringify(record),
-          );
-      }
-      this.#db.exec("COMMIT");
-      return record;
-    } catch (cause) {
-      this.#db.exec("ROLLBACK");
-      throw cause;
-    }
+    return this.#http.saveHttpProbe(input);
   }
   httpProbe(id: string) {
-    const row = this.#db
-      .prepare(
-        "SELECT snapshot_id,evidence_id,created_at,payload FROM pie_http_probes WHERE id=?",
-      )
-      .get(id);
-    if (!row) throw new PieError("NOT_FOUND", "Registro HTTP não encontrado.");
-    return validateStoredHttpProbe(
-      {
-        id,
-        snapshotId: String(row.snapshot_id),
-        evidenceId: String(row.evidence_id),
-        createdAt: String(row.created_at),
-        payload: JSON.parse(String(row.payload)),
-        evidence: this.evidence(String(row.evidence_id)),
-      },
-      this.snapshot(String(row.snapshot_id)),
-    );
+    return this.#http.httpProbe(id);
+  }
+  httpProbes(snapshotId: string, input: unknown = {}) {
+    return this.#http.httpProbes(snapshotId, input);
   }
   functionalRecords(snapshotId: string, input: unknown = {}) {
     this.snapshot(snapshotId);

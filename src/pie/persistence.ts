@@ -5,7 +5,11 @@ import type {
   FunctionalRecord,
   functionalHistorySchema,
 } from "./functionalRecord.js";
-import type { historyOutput, projectsOutput } from "./outputContracts.js";
+import type {
+  historyOutput,
+  httpProbeHistorySchema,
+  projectsOutput,
+} from "./outputContracts.js";
 import type {
   VerificationRun,
   verificationHistorySchema,
@@ -29,6 +33,10 @@ export interface PiePersistence {
   evidence(id: string): Awaitable<Evidence>;
   saveHttpProbe(input: unknown): Awaitable<z.infer<typeof httpProbeSchema>>;
   httpProbe(id: string): Awaitable<z.infer<typeof httpProbeSchema>>;
+  httpProbes(
+    snapshotId: string,
+    input?: unknown,
+  ): Awaitable<z.infer<typeof httpProbeHistorySchema>>;
   saveFunctional(input: unknown): Awaitable<FunctionalRecord>;
   functionalRecord(id: string): Awaitable<FunctionalRecord>;
   functionalRecords(

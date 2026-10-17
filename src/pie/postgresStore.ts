@@ -1,7 +1,7 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import canonicalize from "canonicalize";
-import { httpProbeSchema } from "./execution/httpProbe.js";
+import { httpProbeSchema, httpProbeSummary } from "./execution/httpProbe.js";
 import {
   validateHttpProbe,
   validateStoredHttpProbe,
@@ -16,6 +16,7 @@ import {
 import { PieError, type Snapshot } from "./contracts.js";
 import { verifyEvidence } from "./evidence.js";
 import { pageSchema } from "./graph.js";
+import { httpProbeHistorySchema } from "./outputContracts.js";
 import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import {
@@ -130,6 +131,49 @@ export class PostgresPieStore implements PiePersistence {
         evidence: row.evidence,
       },
       await this.snapshot(row.snapshot_id),
+    );
+  }
+  async httpProbes(snapshotId: string, input: unknown = {}) {
+    const snapshot = await this.snapshot(snapshotId);
+    const { offset, limit } = pageSchema.parse(input);
+    return this.#client.$transaction(
+      async (tx) => {
+        const counts = await tx.$queryRaw<
+          Array<{ total: bigint }>
+        >`SELECT count(*) AS total FROM pie_http_probes WHERE snapshot_id=${snapshotId}::uuid`;
+        const rows = await tx.$queryRaw<
+          Array<{
+            id: string;
+            snapshot_id: string;
+            evidence_id: string;
+            created_at: Date;
+            payload: unknown;
+            evidence: unknown;
+          }>
+        >`SELECT r.id::text,r.snapshot_id::text,r.evidence_id::text,r.created_at,r.payload,e.payload AS evidence FROM pie_http_probes r JOIN pie_evidence e ON e.id=r.evidence_id WHERE r.snapshot_id=${snapshotId}::uuid ORDER BY r.created_at,r.id LIMIT ${limit} OFFSET ${offset}`;
+        const total = Number(counts[0]!.total);
+        return httpProbeHistorySchema.parse({
+          items: rows.map((row) =>
+            httpProbeSummary(
+              validateStoredHttpProbe(
+                {
+                  id: row.id,
+                  snapshotId: row.snapshot_id,
+                  evidenceId: row.evidence_id,
+                  createdAt: row.created_at.toISOString(),
+                  payload: row.payload,
+                  evidence: row.evidence,
+                },
+                snapshot,
+              ),
+            ),
+          ),
+          total,
+          offset,
+          nextOffset: offset + limit < total ? offset + limit : null,
+        });
+      },
+      { isolationLevel: "RepeatableRead" },
     );
   }
   async functionalRecords(snapshotId: string, input: unknown = {}) {

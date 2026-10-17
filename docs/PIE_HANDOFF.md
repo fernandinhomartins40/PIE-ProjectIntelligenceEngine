@@ -2,7 +2,7 @@
 
 ## Estado atual — 17/10/2026
 
-O caminho HTTP local está integrado à CLI, MCP e API por `PieService.probeHttp`. Requer grant VERIFY explícito ligado a raiz/snapshot/treeDigest e captura apenas status/digest; não inicia o servidor nem associa sua identidade ao snapshot. Registro e Evidence são transacionais e imutáveis, com leitura que valida hash e vínculos. Transporte, persistência SQLite/API e MCP stdio/CLI passaram localmente; `npm run check:fast`, build PIE/web, Prisma validate/generate, teste-discovery, limites de módulos e lint focado passaram. A CI PIE 39003507601 passou no commit `8f1710352`, incluindo migração e teste PostgreSQL real: https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/39003507601. O PostgreSQL foi pulado apenas na rodada local, sem `PIE_TEST_DATABASE_URL`. Outros runners e motores permanecem pendentes; goal ativo.
+O runner HTTP está integrado à CLI, MCP e API. Execução explícita usa `PieService.probeHttp`; histórico individual e paginado preserva Evidence imutável e valida hash/vínculos. SQLite/API e MCP/CLI passaram em testes reais com servidor local. `npm run check:fast`, typecheck PIE, Prisma validate/generate, build, limites de módulos e descoberta passaram. A CI 39003507601 validou a persistência anterior; o novo histórico PostgreSQL será comprovado na CI após o push. PostgreSQL local foi pulado por falta de `PIE_TEST_DATABASE_URL`. A captura não associa a identidade do servidor ao snapshot. Outros runners e motores permanecem pendentes; goal ativo.
 
 ## Base real do runner HTTP local — 17/10/2026
 

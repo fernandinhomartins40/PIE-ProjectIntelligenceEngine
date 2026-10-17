@@ -98,7 +98,7 @@ export async function runPie(args: string[]): Promise<void> {
       "Resultados persistidos: verification <run-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta não inicia testes.",
     );
     console.log(
-      "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê prova persistida. Não inicia o servidor do projeto.",
+      "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova e http-probes <snapshot-id> lista o histórico. Não inicia o servidor do projeto.",
     );
     console.log(
       "Análise funcional OBSERVE: functional <snapshot-id> --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Lacunas de verificação não são defeitos comprovados.",
@@ -204,6 +204,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional-record",
       "functional-records",
       "http-probe",
+      "http-probes",
       "trace",
       "evidence",
       "verification",
@@ -394,6 +395,12 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "http-probe":
         result = await service.httpProbe(z.string().uuid().parse(target!));
+        break;
+      case "http-probes":
+        result = await service.httpProbes(
+          z.string().uuid().parse(target!),
+          paging,
+        );
         break;
       case "verifications":
         result = await service.verifications(target!, paging);

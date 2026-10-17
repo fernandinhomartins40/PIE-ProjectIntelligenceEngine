@@ -11,6 +11,50 @@ import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
 import { startPieApi } from "../../src/pie/api.js";
 
+async function verifyHttpApi(details: {
+  api: Awaited<ReturnType<typeof startPieApi>>;
+  service: PieService;
+  grant: unknown;
+  snapshotId: string;
+  record: { id: string };
+}) {
+  const token = "local-http-probe-test-token-with-more-than-32-chars";
+  const headers = { Authorization: `Bearer ${token}` };
+  const response = await fetch(
+    `${details.api.url}/v1/http-probes/${details.record.id}`,
+    { headers },
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(details.record);
+
+  const run = await fetch(`${details.api.url}/v1/http-probes`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(details.grant),
+  });
+  expect(run.status).toBe(201);
+  const outcome = (await run.json()) as {
+    ok: boolean;
+    value: { id: string; state: string };
+  };
+  expect(outcome).toMatchObject({ ok: true, value: { state: "passed" } });
+  expect(await details.service.httpProbe(outcome.value.id)).toEqual(
+    outcome.value,
+  );
+
+  const listing = await fetch(
+    `${details.api.url}/v1/http-probes?snapshotId=${details.snapshotId}&limit=1`,
+    { headers },
+  );
+  expect(listing.status).toBe(200);
+  expect(await listing.json()).toMatchObject({
+    total: 2,
+    offset: 0,
+    nextOffset: 1,
+    items: [{ id: details.record.id, state: "passed" }],
+  });
+}
+
 it("preserva a sondagem HTTP autorizada com prova atômica, consulta validada e histórico imutável", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "pie-http-history-"));
   const repository = join(temporary, "repo");
@@ -67,6 +111,20 @@ it("preserva a sondagem HTTP autorizada com prova atômica, consulta validada e 
     const record = probed.value;
     expect(await service.httpProbe(record.id)).toEqual(record);
     expect(await service.store.saveHttpProbe(record)).toEqual(record);
+    expect(await service.httpProbes(snapshot.id, { limit: 1 })).toMatchObject({
+      total: 1,
+      offset: 0,
+      nextOffset: null,
+      items: [
+        {
+          id: record.id,
+          snapshotId: snapshot.id,
+          state: "passed",
+          evidenceId: record.evidence.id,
+          proofSha256: record.evidence.source.sha256,
+        },
+      ],
+    });
 
     const changed = {
       ...record,
@@ -103,35 +161,13 @@ it("preserva a sondagem HTTP autorizada com prova atômica, consulta validada e 
       token: "local-http-probe-test-token-with-more-than-32-chars",
     });
     try {
-      const response = await fetch(`${api.url}/v1/http-probes/${record.id}`, {
-        headers: {
-          Authorization:
-            "Bearer local-http-probe-test-token-with-more-than-32-chars",
-        },
+      await verifyHttpApi({
+        api,
+        service,
+        grant,
+        snapshotId: snapshot.id,
+        record,
       });
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual(record);
-      const run = await fetch(`${api.url}/v1/http-probes`, {
-        method: "POST",
-        headers: {
-          Authorization:
-            "Bearer local-http-probe-test-token-with-more-than-32-chars",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(grant),
-      });
-      expect(run.status).toBe(201);
-      const apiResult = (await run.json()) as {
-        ok: boolean;
-        value: { id: string; state: string };
-      };
-      expect(apiResult).toMatchObject({
-        ok: true,
-        value: { state: "passed" },
-      });
-      expect(await service.httpProbe(apiResult.value.id)).toEqual(
-        apiResult.value,
-      );
     } finally {
       await api.close();
     }

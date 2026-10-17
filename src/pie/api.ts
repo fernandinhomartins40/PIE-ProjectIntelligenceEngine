@@ -16,7 +16,7 @@ import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { enqueueVerification } from "./jobs/verification.js";
 import { scopedJob } from "./jobs/access.js";
 import { functionalInput } from "./functional.js";
-import { httpGrantSchema } from "./execution/httpProbe.js";
+import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -165,6 +165,19 @@ export async function startPieApi(
           limit: Number(url.searchParams.get("limit") ?? 50),
         });
       const segments = url.pathname.split("/").filter(Boolean);
+      if (
+        await handleHttpProbeRoute({
+          request,
+          response,
+          service,
+          authorizedRoot,
+          url,
+          segments,
+          readBody: body,
+          respond,
+        })
+      )
+        return;
       if (request.method === "POST" && url.pathname === "/v1/verify") {
         if (!options.verifier) {
           respond(response, 403, { error: { code: "VERIFICATION_DISABLED" } });
@@ -181,24 +194,6 @@ export async function startPieApi(
             201,
             await options.verifier.run(await body(request), controller.signal),
           );
-        } finally {
-          response.off("close", cancel);
-        }
-        return;
-      }
-      if (request.method === "POST" && url.pathname === "/v1/http-probes") {
-        const controller = new AbortController();
-        const cancel = () => {
-          if (!response.writableEnded) controller.abort();
-        };
-        response.once("close", cancel);
-        try {
-          const outcome = await service.probeHttp(
-            httpGrantSchema.parse(await body(request)),
-            authorizedRoot,
-            controller.signal,
-          );
-          respond(response, outcome.ok ? 201 : 403, outcome);
         } finally {
           response.off("close", cancel);
         }
@@ -335,19 +330,6 @@ export async function startPieApi(
           response,
           200,
           await service.functionalRecord(z.string().uuid().parse(segments[2])),
-        );
-        return;
-      }
-      if (
-        request.method === "GET" &&
-        segments.length === 3 &&
-        segments[0] === "v1" &&
-        segments[1] === "http-probes"
-      ) {
-        respond(
-          response,
-          200,
-          await service.httpProbe(z.string().uuid().parse(segments[2])),
         );
         return;
       }

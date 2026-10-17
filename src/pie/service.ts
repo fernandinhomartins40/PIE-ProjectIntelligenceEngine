@@ -52,10 +52,7 @@ export class PieService {
       );
     if (this.#active.size >= 2)
       return Promise.reject(
-        new PieError(
-          "LIMIT_EXCEEDED",
-          "Limite de operações ativas atingido.",
-        ),
+        new PieError("LIMIT_EXCEEDED", "Limite de operações ativas atingido."),
       );
     const controller = new AbortController();
     const effective = signal
@@ -160,6 +157,9 @@ export class PieService {
   }
   httpProbe(id: string) {
     return this.#read(async () => this.store.httpProbe(id));
+  }
+  httpProbes(snapshotId: string, input: unknown = {}) {
+    return this.#read(async () => this.store.httpProbes(snapshotId, input));
   }
   verifications(snapshotId: string, input: unknown = {}) {
     return this.#read(async () => this.store.verifications(snapshotId, input));

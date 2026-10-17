@@ -34,6 +34,7 @@ import {
   projectsOutput,
   historyOutput,
   evidenceOutput,
+  httpProbeHistorySchema,
   withError,
 } from "./outputContracts.js";
 
@@ -210,6 +211,18 @@ export function createPieMcp(
           );
         return { schemaVersion: 1 as const, record: outcome.value };
       }),
+  );
+  server.registerTool(
+    "pie_http_probes_list",
+    {
+      description:
+        "Lista sondagens HTTP locais preservadas por snapshot, paginadas e ordenadas por data/ID. Valida a prova de cada registro; consulta não envia requisições.",
+      inputSchema: graphInput,
+      outputSchema: withError(httpProbeHistorySchema),
+      annotations: read,
+    },
+    ({ snapshotId, ...paging }) =>
+      guarded(() => service.httpProbes(snapshotId, paging)),
   );
   server.registerTool(
     "pie_http_probe_get",

@@ -56,6 +56,27 @@ const payloadSchema = z.strictObject({
 export const httpProbeSchema = payloadSchema.extend({
   evidence: evidenceSchema,
 });
+export const httpProbeSummarySchema = z.strictObject({
+  id: z.string().uuid(),
+  snapshotId: z.string().uuid(),
+  createdAt: z.iso.datetime({ precision: 3 }),
+  state: payloadSchema.shape.state,
+  evidenceId: evidenceSchema.shape.id,
+  proofSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  expiresAt: z.iso.datetime(),
+});
+
+export function httpProbeSummary(record: z.infer<typeof httpProbeSchema>) {
+  return {
+    id: record.id,
+    snapshotId: record.snapshotId,
+    createdAt: record.createdAt,
+    state: record.state,
+    evidenceId: record.evidence.id,
+    proofSha256: record.evidence.source.sha256,
+    expiresAt: record.evidence.expiresAt,
+  };
+}
 function matchesAssertion(
   grant: z.infer<typeof httpGrantSchema>,
   capture: z.infer<typeof captureSchema>,

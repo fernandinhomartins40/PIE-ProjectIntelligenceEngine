@@ -113,6 +113,19 @@ async function verifyPostgresHttpProbe(details: {
   expect(await details.peer.saveHttpProbe(outcome.value)).toEqual(
     outcome.value,
   );
+  expect(
+    await details.peer.httpProbes(details.snapshot.id, { limit: 1 }),
+  ).toMatchObject({
+    total: 1,
+    nextOffset: null,
+    items: [
+      {
+        id: outcome.value.id,
+        evidenceId: outcome.value.evidence.id,
+        proofSha256: outcome.value.evidence.source.sha256,
+      },
+    ],
+  });
   await expect(
     details.pool.query(
       "UPDATE pie_http_probes SET created_at=now() WHERE id=$1",
