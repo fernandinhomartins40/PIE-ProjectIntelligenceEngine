@@ -1,9 +1,39 @@
+import { useEffect, useState } from "react";
+import { api, type Evidence } from "./api.js";
 import { Notice, Pager } from "./components.js";
 import { useProductReview } from "./useProductReview.js";
 
 export function ProductReview({ snapshotId }: { snapshotId: string }) {
   const { modulePath, setModulePath, setRequest, review, error, loading } =
     useProductReview(snapshotId);
+  const [evidenceId, setEvidenceId] = useState("");
+  const [evidence, setEvidence] = useState<Evidence>();
+  const [evidenceError, setEvidenceError] = useState("");
+
+  useEffect(() => {
+    if (!evidenceId) return;
+    const controller = new AbortController();
+    setEvidence(undefined);
+    setEvidenceError("");
+    void api<Evidence>(`evidence/${evidenceId}`, { signal: controller.signal })
+      .then((value) => {
+        if (!controller.signal.aborted) setEvidence(value);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted)
+          setEvidenceError(
+            cause instanceof Error
+              ? cause.message
+              : "Falha ao carregar evidência.",
+          );
+      });
+    return () => controller.abort();
+  }, [evidenceId, snapshotId]);
+
+  useEffect(() => {
+    setEvidenceId("");
+    setEvidence(undefined);
+  }, [snapshotId, review?.opportunities.offset, review?.scope.modulePath]);
   return (
     <section
       className="card investigation"
@@ -59,6 +89,16 @@ export function ProductReview({ snapshotId }: { snapshotId: string }) {
               </p>
               <p>Estado: evidência insuficiente; jornada não observada.</p>
               <p>Movimentos: ainda não avaliados.</p>
+              <h4>Evidence vinculada</h4>
+              <ul>
+                {item.evidenceIds.map((id) => (
+                  <li key={id}>
+                    <button type="button" onClick={() => setEvidenceId(id)}>
+                      Consultar Evidence {id}
+                    </button>
+                  </li>
+                ))}
+              </ul>
               <h4>Evidências necessárias</h4>
               <ul>
                 {item.missingEvidence.map((value) => (
@@ -94,6 +134,41 @@ export function ProductReview({ snapshotId }: { snapshotId: string }) {
             </ul>
           </details>
         </>
+      )}
+      {evidenceError && <Notice error>{evidenceError}</Notice>}
+      {evidence && (
+        <aside aria-label="Evidence vinculada à análise de produto">
+          <div className="section-heading">
+            <h3>Evidence de origem</h3>
+            <button type="button" onClick={() => setEvidenceId("")}>
+              Fechar Evidence
+            </button>
+          </div>
+          <dl>
+            <dt>Identificador</dt>
+            <dd className="path">{evidence.id}</dd>
+            <dt>Origem</dt>
+            <dd className="path">
+              {evidence.source.path}
+              {evidence.source.line ? `:${evidence.source.line}` : ""}
+            </dd>
+            <dt>Método / confiança</dt>
+            <dd>
+              {evidence.method} / {evidence.confidence}
+            </dd>
+            <dt>Estado</dt>
+            <dd>{evidence.state}</dd>
+            <dt>SHA-256</dt>
+            <dd className="path">{evidence.sha256}</dd>
+            <dt>Observação</dt>
+            <dd>{evidence.observation}</dd>
+          </dl>
+          <ul>
+            {evidence.limitations.map((limitation, index) => (
+              <li key={index}>{limitation}</li>
+            ))}
+          </ul>
+        </aside>
       )}
     </section>
   );

@@ -16,7 +16,7 @@ Runs VERIFY persistidos v1/v2 agora s?o exportados sem reexecu??o via `verificat
 
 `PieService.product`, CLI `product-review`, POST autenticado `/v1/product` e MCP `pie_product_review` compartilham contrato paginado. A análise liga cada declaração de página/endpoint à Evidence estática e marca jornada como não observada, os cinco movimentos como não avaliados e a oportunidade como insuficiente evidência; não inventa fricção ou melhoria. Testes de descoberta Next real e projeto vazio validam origem, paginação e recusa de snapshot divergente; testes HTTP/MCP com schema Ajv verificam paridade CLI. T4.2 passa a parcial: captura de jornadas, passos, acessibilidade/UI, mobile/desktop, hipótese, impacto/custo/dependências/risco e oportunidades verificáveis permanecem pendentes.
 
-O painel agora apresenta essa análise em seção acessível, com escopo por módulo, paginação, origem declarada, limitações e evidências faltantes; a tela não cria achados de fricção. Typecheck web e build do runtime passaram em Windows. Jornadas reais, acessibilidade observada e comparação desktop/mobile não foram executadas nem capturadas.
+O painel agora apresenta essa análise em seção acessível, com escopo por módulo, paginação, origem declarada, limitações e evidências faltantes. Cada Evidence vinculada pode ser aberta no serviço de leitura imutável, com origem, método/confiança, estado, hash e limitações; a seleção é limpa ao mudar snapshot/página. `node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit` passou. Jornadas reais, acessibilidade observada e comparação desktop/mobile não foram executadas nem capturadas.
 
 ## CI incremental PIE verificado — 17/10/2026
 
