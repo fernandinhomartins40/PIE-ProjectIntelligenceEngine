@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Entrada de grant HTTP limitada — 17/10/2026
+
+O CLI `http-probe-run` agora usa leitura limitada a 1 MB, UTF-8 estrito e schema fechado antes de abrir persistência, alinhada à fronteira de autorização VERIFY. Boundary do leitor prova grant válido, arquivo oversized e diretório não regular; teste real do fluxo CLI/MCP segue verde. `pie:build`, `check:fast` (2/2), testes focados (2/2), `format:check` e `docs:check:built` validados. Esta mudança endurece entrada local; não acrescenta prova de runtime nem de identidade do servidor.
+
 ## Cutoff de cancelamento na publicação HTTP — 17/10/2026
 
 A fronteira de publicação em `PieService.probeHttp` está explícita: abort é observado imediatamente antes de iniciar a escrita; a gravação atômica em andamento preserva o recibo mesmo após abort do caller. Boundary sincronizada com transporte HTTP, Git e SQLite reais: 3/3; `pie:build`, `check:fast` (2/2) e `format:check` (4.113 arquivos) passaram. PostgreSQL não executado e identidade do processo respondente não provada; T3.2 permanece parcial.

@@ -1,6 +1,5 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { PieError } from "./contracts.js";
 import { openPersistence } from "./openPersistence.js";
@@ -8,7 +7,7 @@ import { PieService } from "./service.js";
 import { renderSnapshot } from "./reports.js";
 import { z } from "zod";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
-import { httpGrantSchema } from "./execution/httpProbe.js";
+import { readHttpProbeGrant } from "./execution/httpGrantFile.js";
 
 export async function runPie(args: string[]): Promise<void> {
   const parsed = parseArgs({
@@ -64,9 +63,7 @@ export async function runPie(args: string[]): Promise<void> {
   if (command === "http-probe-run") {
     if (!target)
       throw new PieError("INVALID_INPUT", "Informe o arquivo de grant HTTP.");
-    const grant = httpGrantSchema.parse(
-      JSON.parse(await readFile(target, "utf8")) as unknown,
-    );
+    const grant = await readHttpProbeGrant(target);
     const store = await openPersistence(
       parsed.values.db ?? join(homedir(), ".pie", "pie.sqlite"),
       grant.repositoryRoot,

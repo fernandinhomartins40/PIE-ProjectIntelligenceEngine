@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Leitura limitada do grant HTTP no CLI — 17/10/2026
+
+`http-probe-run` deixou de ler grant JSON sem limite: lê até 1 MB por descritor regular, exige UTF-8 válido e valida o schema estrito antes de abrir a persistência. Teste boundary cobre grant válido, arquivo acima do limite e diretório; o teste MCP/CLI real mantém o fluxo positivo. `pieHttpGrantFile` + `pieMcp`: 2/2; `pie:build` passou antes da correção exclusiva de tipagem do teste; `check:fast` (2/2) passou depois. PostgreSQL/runtime de alvo não envolvidos.
+
 ## Runner HTTP: cutoff de cancelamento na publicação — 17/10/2026
 
 O `PieService.probeHttp` agora documenta o cutoff: abort antes da chamada síncrona/atômica impede publicação; após entrar no commit assíncrono, retorna o recibo persistido mesmo se o caller cancelar. Boundary usa servidor HTTP, repositório Git e SQLite reais com barreira na fronteira de publicação. `pieHttpPersistence` 3/3, `pie:build`, `check:fast` 2/2 e `format:check` (4.113 arquivos) passaram. PostgreSQL não executado; sem vínculo de identidade entre servidor e bytes do snapshot; T3.2 segue parcial.

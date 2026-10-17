@@ -1,4 +1,8 @@
-# PIE — Registro de validação contínua
+# PIE — Registro de validação contínua## Leitura segura de grant HTTP pela CLI — 17/10/2026
+
+- Grant JSON limitado a 1 MB, UTF-8 fatal e schema estrito antes de abrir o banco; entrada inválida não chega ao runner.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/mcp/pieMcp.test.ts`: 2/2. Inclui tamanho excessivo e caminho para diretório, além do fluxo positivo real CLI/MCP.
+- `npm.cmd run pie:build` passou antes de ajuste somente no tipo de asserção do teste; depois, `npm.cmd run check:fast` (2/2), `npm.cmd run format:check`, `npm.cmd run docs:check:built` e `git diff --check` passaram. Sem PostgreSQL ou execução do alvo nesta validação.
 
 ## Cutoff de cancelamento na publicação HTTP — 17/10/2026
 
