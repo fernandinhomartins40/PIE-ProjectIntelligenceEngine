@@ -4,7 +4,7 @@
 
 ## Descoberta Git: HEAD ausente vs. ref corrompida — 17/10/2026
 
-Revisão posterior do commit `df2a983d1` encontrou um falso positivo no oráculo: o teste aceitava qualquer `IO_ERROR`, e o primeiro código consultava `git symbolic-ref`, que falha quando a referência de destino está corrompida. Correção local lê `HEAD` simbólica e a ref no diretório Git resolvido, valida nome/formato, verifica refs empacotadas antes de classificar ausência e propaga falhas tipadas. O teste agora exige a mensagem específica `A referência Git simbólica possui formato inválido.`. A boundary completa passou 10/10 com a nova asserção.
+Revisão posterior do commit `df2a983d1` encontrou um falso positivo no oráculo: o teste aceitava qualquer `IO_ERROR`, e o primeiro código consultava `git symbolic-ref`, que falha quando a referência de destino está corrompida. Correção lê `HEAD` simbólica e a ref no diretório Git resolvido, valida nome/formato, verifica refs empacotadas antes de classificar ausência e propaga falhas tipadas. O teste exige a mensagem específica `A referência Git simbólica possui formato inválido.`. A boundary completa passou 10/10. Correção publicada em `f3e979496` via fast-forward nos dois remotos; fetch confirmou HEAD/origin/fork iguais e apenas `main` local.
 
 - A regressão cria repo Git real sem commit e fixa `HEAD` simbólica em `refs/heads/pie-test`; ref ausente mantém `revision: null`, enquanto conteúdo malformado da ref gera `IO_ERROR`.
 - `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts`: 10/10 passaram. `npm.cmd run pie:build`, `npm.cmd run check:fast` (2/2 tarefas), `npm.cmd run docs:check:built`, `npm.cmd run format:check` e `git diff --check` passaram no Windows.

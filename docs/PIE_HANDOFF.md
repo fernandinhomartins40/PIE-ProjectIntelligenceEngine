@@ -2,7 +2,7 @@
 
 ## Estado atual — remotos sincronizados — 17/10/2026
 
-Atualizado após commit `df2a983d1`: local, `origin/main` e `rea-fork/main` sincronizados; apenas `main` local. CI de ambos os repositórios pending; integração PIE e Release queued (`PIE`: 39039487627, 39039487588, 39039487748; fork: 39039492220, 39039492200, 39039492290). Próximo: acompanhar esses workflows e continuar trilhas parciais T1.1/T1.2/T1.3/T1.4/T1.5. Não declarar aceite integral.
+Atualizado após commit `f3e979496`: local, `origin/main` e `rea-fork/main` sincronizados; apenas `main` local. CI de ambos os repositórios pending; integração PIE e Release in_progress (`PIE`: 39039843326, 39039843258, 39039843313; fork: 39039849336, 39039849189, 39039849377). Próximo: acompanhar esses workflows e continuar trilhas parciais T1.1/T1.2/T1.3/T1.4/T1.5. Não declarar aceite integral.
 
 `origin/main` e `rea-fork/main` estão ambos em `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `upstream/main` `926e18b3f` é ancestral e só existe a branch local `main`. Para esse SHA, CI do PIE `39038524038` e do fork `39038534862` estão pendentes; Release do PIE `39038524037` está `in_progress` e do fork `39038534901` está `queued`. Próximo: acompanhar conclusões e seguir trilhas T1.1/T1.2/T1.3/T1.4/T1.5 ainda parciais; não declarar aceite integral.
 
@@ -20,7 +20,7 @@ Na preparação inicial, a conta autenticada foi `fernandinhomartins40`; o fork 
 
 ## Continuidade atual — supervisão/cancelamento Git — 17/10/2026
 
-Auditoria do comportamento no commit `df2a983d1` identificou que a regressão inicial aceitava qualquer `IO_ERROR`, sem provar a causa, e que `git symbolic-ref HEAD` não consegue ler uma referência cujo destino está corrompido. A leitura direta dos metadados Git foi corrigida para distinguir ref inexistente de conteúdo inválido; o teste agora exige também a mensagem tipada específica. Boundary `pieFoundation` completo: 10/10. A correção subsequente deve ser commitada e publicada na main.
+Auditoria do comportamento no commit `df2a983d1` identificou que a regressão inicial aceitava qualquer `IO_ERROR`, sem provar a causa, e que `git symbolic-ref HEAD` não consegue ler uma referência cujo destino está corrompido. A leitura direta dos metadados Git foi corrigida para distinguir ref inexistente de conteúdo inválido; o teste agora exige também a mensagem tipada específica. Boundary `pieFoundation` completo: 10/10. A correção está publicada em `f3e979496` nos dois remotos.
 
 Correção adicional na mesma fronteira: revisão nula só para HEAD simbólica sem ref; ref malformada dá `IO_ERROR`. O prazo é consultado de novo em cada subprocesso Git aninhado. `pieFoundation` 10/10, `pie:build`, `check:fast`, `docs:check:built`, `format:check` e `git diff --check` passaram no Windows. Próximo: registrar/publicar na `main` e conferir CI. Linux/macOS e cobertura de todos os workers/processos ainda ausentes; T1.1/T1.3 parciais.
 
