@@ -21,6 +21,22 @@ const completed = {
   truncated: false,
 };
 
+async function reportCoverage(files: unknown[]) {
+  const source = nodeReporterSource({
+    coverageFocus: [{ sourcePath: "src/subject.mjs", line: 7 }],
+  });
+  const reporterModule = await import(
+    `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
+  );
+  const events = (async function* () {
+    yield { type: "test:coverage", data: { summary: { files } } };
+  })();
+  const records: unknown[] = [];
+  for await (const record of reporterModule.default(events))
+    records.push(JSON.parse(record));
+  return records;
+}
+
 async function runFixture(body: string) {
   const root = await mkdtemp(join(tmpdir(), "pie-node-results-"));
   try {
@@ -227,6 +243,40 @@ it.skipIf(!process.env.PIE_NODE_COVERAGE_EXECUTABLE)(
   },
   20_000,
 );
+
+it("reporter restringe locais à correspondência autorizada e à contagem positiva", async () => {
+  expect(
+    await reportCoverage([
+      {
+        path: "/source/src/subject.mjs",
+        lines: [
+          { line: 7, count: 2 },
+          { line: 8, count: 1 },
+          { line: 9, count: 0 },
+        ],
+      },
+      {
+        path: "/source/other/src/subject.mjs",
+        lines: [{ line: 7, count: 3 }],
+      },
+    ]),
+  ).toEqual([
+    {
+      protocolVersion: 1,
+      kind: "runtime-locations",
+      complete: true,
+      locations: [{ sourcePath: "src/subject.mjs", line: 7 }],
+    },
+  ]);
+  expect(await reportCoverage([])).toEqual([
+    {
+      protocolVersion: 1,
+      kind: "runtime-locations",
+      complete: false,
+      locations: [],
+    },
+  ]);
+});
 
 it("não aprova arquivo vazio nem falha de processo sem testes", async () => {
   for (const [body, state] of [

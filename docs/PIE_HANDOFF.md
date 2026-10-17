@@ -1,12 +1,8 @@
 # PIE — Continuidade
 
-## Continuidade atual — observação de runtime VERIFY — 17/10/2026
+## Próximo passo — identidade do path de coverage no Docker — 17/10/2026
 
-NodeResult v2 preserva leitura v1 e carrega `runtimeLocations`; instrumentação experimental somente para grant v2 com um único teste. O reporter retorna exclusivamente paths/linhas do foco autorizado e não gera associação funcional. Validação focada: 11 testes passaram, 3 skips explícitos; typecheck/lint 2/2, format e diff check verdes. Node 24.18 no Windows reportou caminho absoluto do host; a comparação exata com caminho de container não atribuiu local, de forma segura. Docker Linux real ausente. Próximo: executar teste de cobertura na lane Docker Linux e confirmar path observado; só então considerar exposição nos bindings CLI/API/MCP. T4.1 continua parcial.
-
-## Próximo passo seguro — caminho de cobertura runtime VERIFY — 17/10/2026
-
-NodeResult v2 foi adicionado preservando schema v1; parser aceita registro de localizações estrito e limitado. Grants v2 com um único arquivo ativam coverage experimental do Node. Regressões focadas passaram para plano, persistência, verificação, regressão e testes gerais; `pieNodeResults` confirmou casos Node normais e cobertura reportada sem correspondência. O probe Node 24.18 no Windows emitiu caminhos absolutos do host, e o reporter dentro de container Linux espera `/source/<path>` exato. Isso permanece sem atribuição, corretamente. Antes de anunciar runtime locations em API/MCP ou alimentar `covers`, executar lane Docker Linux real e verificar o caminho reportado; sem Docker, ficar `unknown`/sem location. T4.1 segue parcial.
+`NodeResult` v2 preserva leitura v1; coverage experimental é ativada apenas para grant v2 de arquivo único e paths só são associados por identidade integral. A regressão do reporter cobre path/linha/count positivos e negativos (pieNodeResults + pieDockerPlan: 8/8); typecheck/lint 2/2 e format check passaram. Node 24.18 real em Windows emitiu path host incompatível com `/source`; nenhuma localização foi atribuída. Docker Linux real ausente. Confirmar o path dentro do container antes de projetar os resultados nos bindings CLI/API/MCP. T4.1 permanece parcial.
 
 ## Comparação de bindings VERIFY — 17/10/2026
 
