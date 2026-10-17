@@ -3,6 +3,8 @@ import { posix } from "node:path";
 import { parseTree, findNodeAtLocation } from "jsonc-parser";
 import type { AdapterRead, Declaration } from "./contracts.js";
 import { readNginx } from "./nginx.js";
+import { cachedAnalysis } from "../analysisCache.js";
+import { sha256 } from "../evidence.js";
 
 const object = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -223,6 +225,17 @@ function prisma(source: string): AdapterRead {
 }
 
 export function readDeclarations(
+  path: string,
+  source: string,
+  limit: number,
+): AdapterRead | null {
+  return cachedAnalysis(
+    ["pie-declarations-v1", path, sha256(source), limit],
+    () => readDeclarationsUncached(path, source, limit),
+  );
+}
+
+function readDeclarationsUncached(
   path: string,
   source: string,
   limit: number,
