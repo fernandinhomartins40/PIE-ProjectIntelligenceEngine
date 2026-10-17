@@ -6,6 +6,9 @@ import { readInventoryFile } from "./readFile.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import { adapterFactSchema } from "./adapters/contracts.js";
+import { parse } from "@babel/parser";
+import traverse from "@babel/traverse";
+import type { Node } from "@babel/types";
 import { z } from "zod";
 
 export const securityInput = pageSchema.extend({
@@ -19,11 +22,13 @@ const secretKind = z.enum([
   "stripe_live_secret",
   "google_api_key",
   "private_key_material",
+  "global_eval",
+  "function_constructor",
 ]);
 
 const findingSchema = z.strictObject({
   id: z.string(),
-  category: z.literal("credential_like_material"),
+  category: z.enum(["credential_like_material", "dynamic_code_evaluation"]),
   state: z.literal("suspected"),
   severity: z.enum(["high", "critical"]),
   kind: secretKind,
@@ -62,6 +67,9 @@ export const securityOutput = z.strictObject({
   coverage: z.strictObject({
     discovery: z.enum(["complete", "partial"]),
     credentialPatterns: z.literal("partial"),
+    dynamicCodePatterns: z.literal("partial"),
+    astFilesExamined: z.number().int().nonnegative(),
+    astFilesSkipped: z.number().int().nonnegative(),
     authorization: z.literal("unverified"),
     authorizationTargets: z.number().int().nonnegative(),
     filesExamined: z.number().int().nonnegative(),
@@ -114,6 +122,84 @@ const patterns: ReadonlyArray<{
   },
 ];
 
+function supportsDynamicCodeAst(path: string): boolean {
+  return /\.(?:[cm]?js|jsx|[cm]?ts|tsx)$/iu.test(path);
+}
+
+function analyzeDynamicCode(
+  path: string,
+  source: string,
+  digest: string,
+  evidenceId: string,
+  maxFindings: number,
+): { findings: z.infer<typeof findingSchema>[]; truncated: boolean } {
+  const tree = parse(source, {
+    sourceType: "unambiguous",
+    plugins:
+      path.endsWith(".tsx") || path.endsWith(".jsx")
+        ? ["typescript", "jsx"]
+        : ["typescript"],
+  });
+  const findings: z.infer<typeof findingSchema>[] = [];
+  let truncated = maxFindings === 0;
+  const record = (
+    line: number,
+    kind: "global_eval" | "function_constructor",
+  ) => {
+    findings.push({
+      id: `security:dynamic-code:${identity(path, line, kind, digest)}`,
+      category: "dynamic_code_evaluation",
+      state: "suspected",
+      severity: "high",
+      kind,
+      source: { path, line },
+      evidenceIds: [evidenceId],
+      observation: `Foi observada chamada compatível com ${kind}; fluxo de dados e alcançabilidade não foram analisados.`,
+      uncertainty: [
+        "A presença da chamada não prova que dados controlados por usuário cheguem ao argumento nem que o trecho seja alcançável.",
+        "Aliases, propriedades globais, outras linguagens e sinks não reconhecidos não são cobertos.",
+      ],
+    });
+  };
+  traverse(tree as unknown as Node, {
+    CallExpression(astPath) {
+      if (truncated) return astPath.stop();
+      const { callee } = astPath.node;
+      if (
+        callee.type === "Identifier" &&
+        callee.name === "eval" &&
+        !astPath.scope.getBinding("eval")
+      )
+        record(astPath.node.loc?.start.line ?? 1, "global_eval");
+      if (
+        callee.type === "Identifier" &&
+        callee.name === "Function" &&
+        !astPath.scope.getBinding("Function")
+      )
+        record(astPath.node.loc?.start.line ?? 1, "function_constructor");
+      if (findings.length >= maxFindings) {
+        truncated = true;
+        astPath.stop();
+      }
+    },
+    NewExpression(astPath) {
+      if (truncated) return astPath.stop();
+      const { callee } = astPath.node;
+      if (
+        callee.type === "Identifier" &&
+        callee.name === "Function" &&
+        !astPath.scope.getBinding("Function")
+      )
+        record(astPath.node.loc?.start.line ?? 1, "function_constructor");
+      if (findings.length >= maxFindings) {
+        truncated = true;
+        astPath.stop();
+      }
+    },
+  });
+  return { findings, truncated };
+}
+
 function identity(path: string, line: number, kind: string, digest: string) {
   return createHash("sha256")
     .update(`${path}\0${line}\0${kind}\0${digest}`)
@@ -122,13 +208,13 @@ function identity(path: string, line: number, kind: string, digest: string) {
 
 function analyzeFile(
   path: string,
-  contents: Buffer,
+  source: string,
   digest: string,
   evidenceId: string,
+  maxFindings: number,
 ): { findings: z.infer<typeof findingSchema>[]; truncated: boolean } {
-  const text = new TextDecoder("utf-8", { fatal: true }).decode(contents);
   const findings: z.infer<typeof findingSchema>[] = [];
-  const lines = text.split(/\r?\n/u);
+  const lines = source.split(/\r?\n/u);
   let truncated = false;
   for (let index = 0; index < lines.length; index++) {
     for (const pattern of patterns) {
@@ -148,7 +234,7 @@ function analyzeFile(
           "Formatos diferentes, valores codificados, montados em runtime ou fornecidos por secret managers não são cobertos por esta regra.",
         ],
       });
-      if (findings.length >= MAX_FINDINGS) {
+      if (findings.length >= maxFindings) {
         truncated = true;
         break;
       }
@@ -158,16 +244,137 @@ function analyzeFile(
   return { findings, truncated };
 }
 
-/** Scans only current files whose bytes still match static Evidence in the snapshot. */
-export async function reviewSecurity(
-  snapshotInput: unknown,
-  rawInput: unknown,
-) {
-  const input = securityInput.parse(rawInput);
-  const snapshot: Snapshot = validateSnapshot(snapshotInput);
-  if (input.snapshotId !== snapshot.id)
-    throw new PieError("INVALID_INPUT", "Snapshot de segurança diverge.");
+type FileScan =
+  | { status: "skipped"; limitation: string }
+  | {
+      status: "scanned";
+      findings: z.infer<typeof findingSchema>[];
+      bytes: number;
+      astExamined: number;
+      astSkipped: number;
+      truncated: boolean;
+      limitations: string[];
+    };
 
+function fileReadLimitation(cause: unknown, path: string): string | null {
+  if (cause instanceof PieError && cause.code === "POLICY_DENIED")
+    return `Arquivo fora da política de leitura ou link não analisado: ${path}.`;
+  const code =
+    cause instanceof Error ? (cause as NodeJS.ErrnoException).code : undefined;
+  if (["ENOENT", "ENOTDIR", "EACCES", "EPERM"].includes(code ?? ""))
+    return `Arquivo indisponível na revisão; Evidence histórica preservada: ${path}.`;
+  return null;
+}
+
+async function scanCurrentFile(
+  snapshot: Snapshot,
+  path: string,
+  evidence: typeof snapshot.evidence,
+  remainingBytes: number,
+  remainingFindings: number,
+): Promise<FileScan> {
+  const expected = evidence[0]!.source.sha256;
+  if (evidence.some((item) => item.source.sha256 !== expected))
+    return {
+      status: "skipped",
+      limitation: `Hashes de Evidence divergentes; arquivo não analisado: ${path}.`,
+    };
+
+  let contents: Buffer | null;
+  try {
+    const target = await inventoryPath(snapshot.root, path);
+    contents = await readInventoryFile(target, MAX_FILE_BYTES, () => 1);
+  } catch (cause) {
+    const limitation = fileReadLimitation(cause, path);
+    if (limitation) return { status: "skipped", limitation };
+    throw cause;
+  }
+  if (!contents || contents.length > remainingBytes)
+    return {
+      status: "skipped",
+      limitation: `Arquivo excedeu o limite local da análise estática: ${path}.`,
+    };
+  if (sha256(contents) !== expected)
+    return {
+      status: "skipped",
+      limitation: `Arquivo mudou desde o snapshot e não foi reportado como atual: ${path}.`,
+    };
+
+  let source: string;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(contents);
+  } catch (cause) {
+    if (!(cause instanceof TypeError)) throw cause;
+    return {
+      status: "skipped",
+      limitation: `Arquivo não é UTF-8 válido e não foi analisado: ${path}.`,
+    };
+  }
+
+  const credential = analyzeFile(
+    path,
+    source,
+    expected,
+    evidence[0]!.id,
+    remainingFindings,
+  );
+  const findings = [...credential.findings];
+  const limitations: string[] = [];
+  let astExamined = 0;
+  let astSkipped = 0;
+  let truncated = credential.truncated;
+  if (supportsDynamicCodeAst(path)) {
+    if (findings.length >= remainingFindings) {
+      astSkipped += 1;
+      truncated = true;
+    } else {
+      try {
+        const dynamicCode = analyzeDynamicCode(
+          path,
+          source,
+          expected,
+          evidence[0]!.id,
+          remainingFindings - findings.length,
+        );
+        findings.push(...dynamicCode.findings);
+        truncated ||= dynamicCode.truncated;
+        astExamined += 1;
+      } catch (cause) {
+        if (!(cause instanceof SyntaxError)) throw cause;
+        astSkipped += 1;
+        limitations.push(
+          `AST indisponível para fonte JavaScript/TypeScript com sintaxe não suportada: ${path}.`,
+        );
+      }
+    }
+  }
+  if (truncated)
+    limitations.push(
+      `Limite de findings atingido; arquivos restantes não foram analisados.`,
+    );
+  return {
+    status: "scanned",
+    findings,
+    bytes: contents.length,
+    astExamined,
+    astSkipped,
+    truncated,
+    limitations,
+  };
+}
+
+type SnapshotScan = {
+  findings: z.infer<typeof findingSchema>[];
+  limitations: string[];
+  filesExamined: number;
+  filesSkipped: number;
+  bytesExamined: number;
+  findingsTruncated: boolean;
+  astFilesExamined: number;
+  astFilesSkipped: number;
+};
+
+async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
   const byPath = new Map<string, typeof snapshot.evidence>();
   for (const evidence of snapshot.evidence) {
     if (evidence.method !== "static") continue;
@@ -175,147 +382,158 @@ export async function reviewSecurity(
     items.push(evidence);
     byPath.set(evidence.source.path, items);
   }
-
   const findings: z.infer<typeof findingSchema>[] = [];
   const limitations = [...snapshot.coverage.limitations];
   let filesExamined = 0;
   let filesSkipped = 0;
   let bytesExamined = 0;
   let findingsTruncated = false;
+  let astFilesExamined = 0;
+  let astFilesSkipped = 0;
+  let resourceLimitReported = false;
   for (const [path, evidence] of byPath) {
     if (findingsTruncated) {
       filesSkipped += 1;
       continue;
     }
-    if (
-      filesExamined + filesSkipped >= MAX_FILES ||
-      bytesExamined >= MAX_TOTAL_BYTES
-    ) {
+    if (filesExamined + filesSkipped >= MAX_FILES) {
       filesSkipped += 1;
-      continue;
-    }
-    const expected = evidence[0]!.source.sha256;
-    if (evidence.some((item) => item.source.sha256 !== expected)) {
-      filesSkipped += 1;
-      limitations.push(
-        `Hashes de Evidence divergentes; arquivo não analisado: ${path}.`,
-      );
-      continue;
-    }
-    let contents: Buffer | null;
-    try {
-      const target = await inventoryPath(snapshot.root, path);
-      contents = await readInventoryFile(target, MAX_FILE_BYTES, () => 1);
-    } catch (cause) {
-      if (cause instanceof PieError && cause.code === "POLICY_DENIED") {
-        filesSkipped += 1;
-        limitations.push(
-          `Arquivo fora da política de leitura ou link não analisado: ${path}.`,
-        );
-        continue;
+      if (!resourceLimitReported) {
+        limitations.push(`Limite de ${MAX_FILES} arquivos atingido.`);
+        resourceLimitReported = true;
       }
-      const code =
-        cause instanceof Error
-          ? (cause as NodeJS.ErrnoException).code
-          : undefined;
-      if (["ENOENT", "ENOTDIR", "EACCES", "EPERM"].includes(code ?? "")) {
-        filesSkipped += 1;
-        limitations.push(
-          `Arquivo indisponível na revisão; Evidence histórica preservada: ${path}.`,
-        );
-        continue;
+      continue;
+    }
+    if (bytesExamined >= MAX_TOTAL_BYTES) {
+      filesSkipped += 1;
+      if (!resourceLimitReported) {
+        limitations.push(`Limite total de ${MAX_TOTAL_BYTES} bytes atingido.`);
+        resourceLimitReported = true;
       }
-      throw cause;
-    }
-    if (!contents || contents.length > MAX_TOTAL_BYTES - bytesExamined) {
-      filesSkipped += 1;
-      limitations.push(
-        `Arquivo excedeu o limite local da análise estática: ${path}.`,
-      );
       continue;
     }
-    if (sha256(contents) !== expected) {
+    const result = await scanCurrentFile(
+      snapshot,
+      path,
+      evidence,
+      MAX_TOTAL_BYTES - bytesExamined,
+      MAX_FINDINGS - findings.length,
+    );
+    if (result.status === "skipped") {
       filesSkipped += 1;
-      limitations.push(
-        `Arquivo mudou desde o snapshot e não foi reportado como atual: ${path}.`,
-      );
+      limitations.push(result.limitation);
       continue;
     }
-    try {
-      const result = analyzeFile(path, contents, expected, evidence[0]!.id);
-      findings.push(...result.findings);
-      if (result.truncated) {
-        findingsTruncated = true;
-        limitations.push(
-          `Limite de ${MAX_FINDINGS} suspeitas atingido; arquivos restantes não foram analisados.`,
-        );
-      }
-    } catch (cause) {
-      if (!(cause instanceof TypeError)) throw cause;
-      filesSkipped += 1;
-      limitations.push(
-        `Arquivo não é UTF-8 válido e não foi analisado: ${path}.`,
-      );
-      continue;
-    }
+    findings.push(...result.findings);
     filesExamined += 1;
-    bytesExamined += contents.length;
+    bytesExamined += result.bytes;
+    astFilesExamined += result.astExamined;
+    astFilesSkipped += result.astSkipped;
+    findingsTruncated ||= result.truncated;
+    limitations.push(...result.limitations);
   }
+  return {
+    findings,
+    limitations,
+    filesExamined,
+    filesSkipped,
+    bytesExamined,
+    findingsTruncated,
+    astFilesExamined,
+    astFilesSkipped,
+  };
+}
 
-  const selected = page(findings, {
-    offset: input.offset,
-    limit: input.limit,
-  });
-  const authorizationTargets = snapshot.declarations.filter(
+function authorizationReviewPage(
+  snapshot: Snapshot,
+  input: z.infer<typeof securityInput>,
+) {
+  const targets = snapshot.declarations.filter(
     (declaration) => declaration.kind === "endpoint",
   );
-  const authorizationSurfaces = page(
-    authorizationTargets.map((declaration) => ({
-      declaration,
-      state: "unverified" as const,
-      evidenceIds: [
-        declaration.evidenceId,
-        ...declaration.derivations.map((item) => item.evidenceId),
-      ],
-      requiredChecks: [
-        "Verificar resposta sem identidade e com sessão expirada.",
-        "Verificar acesso horizontal com identificador de outro usuário ou tenant quando esse modelo existir.",
-        "Verificar privilégios menores e acesso direto por API, jobs e exports quando aplicável.",
-      ],
-    })),
-    { offset: input.offset, limit: input.limit },
-  );
+  return {
+    targets,
+    page: page(
+      targets.map((declaration) => ({
+        declaration,
+        state: "unverified" as const,
+        evidenceIds: [
+          declaration.evidenceId,
+          ...declaration.derivations.map((item) => item.evidenceId),
+        ],
+        requiredChecks: [
+          "Verificar resposta sem identidade e com sessão expirada.",
+          "Verificar acesso horizontal com identificador de outro usuário ou tenant quando esse modelo existir.",
+          "Verificar privilégios menores e acesso direto por API, jobs e exports quando aplicável.",
+        ],
+      })),
+      { offset: input.offset, limit: input.limit },
+    ),
+  };
+}
+
+function securityReport(
+  snapshot: Snapshot,
+  input: z.infer<typeof securityInput>,
+  scan: SnapshotScan,
+) {
+  const authorization = authorizationReviewPage(snapshot, input);
   return securityOutput.parse({
     schemaVersion: 1,
     engine: "security",
     snapshotId: snapshot.id,
-    state:
-      filesSkipped > 0 ||
-      findingsTruncated ||
-      snapshot.coverage.status === "partial"
-        ? "incomplete"
-        : findings.length > 0
-          ? "suspected_findings"
-          : "no_patterns_observed",
-    findings: selected,
-    authorizationSurfaces,
+    state: reportState(snapshot, scan),
+    findings: page(scan.findings, {
+      offset: input.offset,
+      limit: input.limit,
+    }),
+    authorizationSurfaces: authorization.page,
     coverage: {
       discovery: snapshot.coverage.status,
       credentialPatterns: "partial",
+      dynamicCodePatterns: "partial",
+      astFilesExamined: scan.astFilesExamined,
+      astFilesSkipped: scan.astFilesSkipped,
       authorization: "unverified",
-      authorizationTargets: authorizationTargets.length,
-      filesExamined,
-      filesSkipped,
-      bytesExamined,
-      findingsTruncated,
+      authorizationTargets: authorization.targets.length,
+      filesExamined: scan.filesExamined,
+      filesSkipped: scan.filesSkipped,
+      bytesExamined: scan.bytesExamined,
+      findingsTruncated: scan.findingsTruncated,
       runtime: false,
       limitations: [
-        ...limitations,
+        ...scan.limitations,
         "Cobertura limitada a formatos de credencial de alta identificabilidade; ausência de padrões não comprova ausência de segredos.",
         "Nenhum valor detectado é incluído na resposta; Findings são suspeitas estáticas, não validação de credenciais nem pentest.",
         "Rotas declaradas são inventário de escopo; não determinam se existe ou falta autorização e permanecem unverified sem testes negativos de runtime.",
+        "AST JavaScript/TypeScript cobre somente chamadas diretas globais eval/Function; não realiza análise de fluxo, alcançabilidade ou outros sinks.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },
   });
+}
+
+function reportState(snapshot: Snapshot, scan: SnapshotScan) {
+  if (
+    scan.filesSkipped > 0 ||
+    scan.astFilesSkipped > 0 ||
+    scan.findingsTruncated ||
+    snapshot.coverage.status === "partial"
+  )
+    return "incomplete" as const;
+  return scan.findings.length > 0
+    ? ("suspected_findings" as const)
+    : ("no_patterns_observed" as const);
+}
+
+/** Scans only current files whose bytes still match static Evidence in the snapshot. */
+export async function reviewSecurity(
+  snapshotInput: unknown,
+  rawInput: unknown,
+) {
+  const input = securityInput.parse(rawInput);
+  const snapshot = validateSnapshot(snapshotInput);
+  if (input.snapshotId !== snapshot.id)
+    throw new PieError("INVALID_INPUT", "Snapshot de segurança diverge.");
+  return securityReport(snapshot, input, await scanSnapshot(snapshot));
 }
