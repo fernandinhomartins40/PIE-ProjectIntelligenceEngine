@@ -94,6 +94,21 @@ async function verifyFunctionalHistory(
     exportIdentity!.totalBytes,
   );
   expect(sha256(exportContent)).toBe(exportIdentity!.sha256);
+  const invalidExportLimit = await fetch(
+    `${url}/v1/functional-records/${record.id}/export?limitBytes=3`,
+    { headers },
+  );
+  expect(invalidExportLimit.status).toBe(400);
+  const artifactBytes = Buffer.from(exportContent, "utf8");
+  const invalidUtf8Offset = artifactBytes.findIndex(
+    (byte) => (byte & 0xc0) === 0x80,
+  );
+  expect(invalidUtf8Offset).toBeGreaterThan(0);
+  const invalidExportOffset = await fetch(
+    `${url}/v1/functional-records/${record.id}/export?offset=${invalidUtf8Offset}`,
+    { headers },
+  );
+  expect(invalidExportOffset.status).toBe(400);
   const listed = await fetch(
     `${url}/v1/functional-records?snapshotId=${snapshotId}&limit=1`,
     { headers },
