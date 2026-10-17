@@ -1,5 +1,12 @@
 # PIE — Registro de validação contínua
 
+## Relatórios exigidos pelo protocolo de execução — 17/10/2026
+
+- Verificados ausentes e criados: `PIE_PROJECT_MAP.md`, `PIE_AUDIT_PLAN.md`, `PIE_FINDINGS.md` e `PIE_UPSTREAM_DIFF.md`. O protocolo 05 exige os quatro artefatos e findings com ID, severidade, evidência, reprodução, correção, status e limitação.
+- Comparação executada: `git rev-list --left-right --count upstream/main...HEAD` → `0 80`; `git diff --shortstat upstream/main...HEAD` → 173 arquivos, 51.949 inserções, 103 remoções. Base upstream `926e18b3f`; HEAD comparado `4451f1fc4`.
+- Os relatórios registram o achado corrigido sobre ref Git inválida e o bloqueio de validação do pacote (`EPERM` em symlink Windows) sem atribuir instalação/update funcional. Sete notice gaps existentes continuam explícitos; não se declara revisão legal completa.
+- `npm.cmd run docs:check:built` e `npm.cmd run format:check` passaram após formatação; `git diff --check` passou. Não houve execução de alvo cliente nem atualização de evidência de runtime.
+
 ## Publicação e CI do upstream sincronizado — 17/10/2026
 
 ## Descoberta Git: HEAD ausente vs. ref corrompida — 17/10/2026

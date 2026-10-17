@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Artefatos de auditoria obrigatórios
+
+Criados `PIE_PROJECT_MAP.md`, `PIE_AUDIT_PLAN.md`, `PIE_FINDINGS.md` e `PIE_UPSTREAM_DIFF.md`, exigidos pela seção 7 do protocolo de execução. A comparação `upstream/main...HEAD` confirmou zero commits upstream-only e 80 commits PIE-only no SHA `4451f1fc4`; diff de árvore: 173 arquivos, +51.949/−103. Licença MIT/notices preservados; sete gaps de notices e revisão legal permanecem abertos. `docs:check:built` e `format:check` passam após formatação. Próximo avanço: `Result` uniforme T1.1 ou retenção/redação T1.2, sem reduzir o restante do objetivo.
+
 ## Estado atual — remotos sincronizados — 17/10/2026
 
 Atualizado após `998485ae4`: remotos sincronizados e somente `main` local; upstream `926e18b3f` é ancestral. Integração PIE `39040260781` está in_progress; CI `39040260802` e Release `39040260851` pending. No fork: integração `39040265372` queued, CI `39040265451` e Release `39040265445` pending. Refatoração de proveniência passou 17 testes em duas boundaries, além de build/checkfast/formato/docs. Próximo: acompanhar CI e seguir contratos/Result uniforme T1.1; T1.2 (retenção/redação) e T3 (Playwright/jobs) continuam lacunas grandes. Não declarar aceite integral.
