@@ -1,3 +1,7 @@
+## Pr?xima frente ? export de execu??es VERIFY e CI incremental ? 17/10/2026
+
+Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s adapters, revalidada contra snapshot, ID e hashes preservados. Testes `pieApi`, `pieMcp`, `pieFunctionalPersistence`: 4/4 passaram. Pr?ximo: auditar formato e integridade dos `verification_runs` antes de adicionar export hist?rico, depois caracterizar a CI incremental existente sem alterar workflows at? determinar gatilhos e contratos. PostgreSQL real n?o foi validado nesta entrega.
+
 # PIE — Continuidade
 
 ## Próxima frente — histórico de exportações e CI incremental — 17/10/2026

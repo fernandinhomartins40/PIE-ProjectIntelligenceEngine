@@ -13,7 +13,11 @@ import {
   exportSnapshot as renderSnapshotExport,
   exportSnapshotInput,
 } from "./exportSnapshot.js";
-import { sealFunctional } from "./functionalRecord.js";
+import {
+  exportFunctionalRecord as renderFunctionalRecordExport,
+  functionalRecordExportInput,
+  sealFunctional,
+} from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 import {
@@ -360,6 +364,14 @@ export class PieService {
   }
   functionalRecord(id: string) {
     return this.#read(async () => this.store.functionalRecord(id));
+  }
+  exportFunctionalRecord(input: unknown) {
+    return this.#read(async () => {
+      const request = functionalRecordExportInput.parse(input);
+      const record = await this.store.functionalRecord(request.id);
+      const snapshot = await this.store.snapshot(record.snapshotId);
+      return renderFunctionalRecordExport(record, snapshot, request);
+    });
   }
   functionalRecords(snapshotId: string, input: unknown = {}) {
     return this.#read(async () =>

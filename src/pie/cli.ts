@@ -103,7 +103,7 @@ export async function runPie(args: string[]): Promise<void> {
       "Análise funcional OBSERVE: functional <snapshot-id> --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Lacunas de verificação não são defeitos comprovados.",
     );
     console.log(
-      "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n>. Retenção preserva somente a página solicitada.",
+      "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
     );
     console.log(
       "Candidatos a reteste: retest-plan <antes-id> <depois-id> --mode affected|full --limit <1–200> --offset <n>. Plano não autoriza execução nem comprova cobertura.",
@@ -208,6 +208,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional",
       "functional-retain",
       "functional-record",
+      "functional-record-export",
       "functional-records",
       "data-review",
       "http-probe",
@@ -367,6 +368,24 @@ export async function runPie(args: string[]): Promise<void> {
           z.string().uuid().parse(target!),
         );
         break;
+      case "functional-record-export":
+        {
+          let offset = 0;
+          let report = "";
+          const id = z.string().uuid().parse(target!);
+          do {
+            const exported = await service.exportFunctionalRecord({
+              id,
+              offset,
+              limitBytes: 1_000_000,
+            });
+            report += exported.content;
+            if (exported.nextOffset === null) break;
+            offset = exported.nextOffset;
+          } while (true);
+          process.stdout.write(`${report}\n`);
+        }
+        return;
       case "functional-records":
         result = await service.functionalRecords(
           z.string().uuid().parse(target!),

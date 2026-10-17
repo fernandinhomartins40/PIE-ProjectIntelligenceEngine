@@ -1,3 +1,9 @@
+## Exporta??o do hist?rico funcional ? 17/10/2026
+
+- `functional-record-export <id>`, `GET /v1/functional-records/:id/export` e MCP `pie_functional_record_export` chamam o mesmo servi?o; as p?ginas carregam registro/hash, snapshot/treeDigest e hash/tamanho do JSON serializado. Revalida payload hist?rico contra snapshot; n?o recalcula o motor.
+- Valida??o executada: `npm.cmd run test:focused -- tests/boundary/pieApi.test.ts tests/boundary/mcp/pieMcp.test.ts tests/boundary/pieFunctionalPersistence.test.ts`: 3 arquivos/4 testes passaram. API usa Git/SQLite locais, checa aus?ncia de token e pagina??o; MCP stdio valida schema e igualdade byte a byte entre CLI e MCP.
+- T6.1 segue parcial: export de VERIFY e CI incremental n?o foram inclu?dos.
+
 # PIE — Registro de validação contínua
 
 ## Exportação paginada compartilhada — 17/10/2026

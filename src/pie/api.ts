@@ -18,6 +18,7 @@ import { scopedJob } from "./jobs/access.js";
 import { functionalInput } from "./functional.js";
 import { dataReviewInput } from "./dataReview.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
+import { functionalRecordExportInput } from "./functionalRecord.js";
 import { handleHttpProbeRoute } from "./httpProbeApiRoute.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
@@ -387,6 +388,26 @@ export async function startPieApi(
           response,
           200,
           await service.functionalRecord(z.string().uuid().parse(segments[2])),
+        );
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        segments.length === 4 &&
+        segments[0] === "v1" &&
+        segments[1] === "functional-records" &&
+        segments[3] === "export"
+      ) {
+        respond(
+          response,
+          200,
+          await service.exportFunctionalRecord(
+            functionalRecordExportInput.parse({
+              id: segments[2],
+              offset: Number(url.searchParams.get("offset") ?? 0),
+              limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
+            }),
+          ),
         );
         return;
       }

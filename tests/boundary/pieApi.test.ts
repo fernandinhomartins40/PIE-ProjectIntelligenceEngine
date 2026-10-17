@@ -48,6 +48,52 @@ async function verifyFunctionalHistory(
       })
     ).json(),
   ).toEqual(record);
+  const exportUnauthenticated = await fetch(
+    `${url}/v1/functional-records/${record.id}/export`,
+  );
+  expect(exportUnauthenticated.status).toBe(401);
+  let exportOffset = 0;
+  let exportContent = "";
+  let exportIdentity:
+    | {
+        recordSha256: string;
+        treeDigest: string;
+        sha256: string;
+        totalBytes: number;
+      }
+    | undefined;
+  do {
+    const page = await fetch(
+      `${url}/v1/functional-records/${record.id}/export?offset=${exportOffset}&limitBytes=128`,
+      { headers },
+    );
+    expect(page.status).toBe(200);
+    const value = (await page.json()) as {
+      recordId: string;
+      snapshotId: string;
+      recordSha256: string;
+      treeDigest: string;
+      nextOffset: number | null;
+      sha256: string;
+      totalBytes: number;
+      content: string;
+    };
+    expect(value.recordId).toBe(record.id);
+    expect(value.snapshotId).toBe(snapshotId);
+    exportIdentity ??= value;
+    expect(value.recordSha256).toBe(exportIdentity.recordSha256);
+    expect(value.treeDigest).toBe(exportIdentity.treeDigest);
+    expect(value.sha256).toBe(exportIdentity.sha256);
+    expect(Buffer.byteLength(value.content, "utf8")).toBeLessThanOrEqual(128);
+    exportContent += value.content;
+    if (value.nextOffset === null) break;
+    exportOffset = value.nextOffset;
+  } while (true);
+  expect(JSON.parse(exportContent)).toEqual(record);
+  expect(Buffer.byteLength(exportContent, "utf8")).toBe(
+    exportIdentity!.totalBytes,
+  );
+  expect(sha256(exportContent)).toBe(exportIdentity!.sha256);
   const listed = await fetch(
     `${url}/v1/functional-records?snapshotId=${snapshotId}&limit=1`,
     { headers },

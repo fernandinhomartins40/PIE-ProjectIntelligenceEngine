@@ -1,3 +1,7 @@
+## Exporta??o paginada de hist?rico funcional ? 17/10/2026
+
+`functional_records` agora pode ser exportado como JSON paginado UTF-8 via servi?o, CLI (`functional-record-export`), API autenticada e MCP. Cada p?gina referencia registro/hash imut?veis, snapshot e treeDigest; antes de exportar, o registro ? validado novamente contra snapshot e seu escopo original, sem recomputar o motor. Boundary real prova paridade integral MCP/CLI, pagina??o API e autentica??o. T6.1 continua parcial: export de execu??es VERIFY e CI incremental faltam.
+
 # PIE — Plano mestre de implementação integral
 
 ## Exportação compartilhada de snapshots — 17/10/2026

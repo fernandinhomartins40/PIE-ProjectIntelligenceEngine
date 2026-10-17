@@ -99,6 +99,58 @@ async function verifyQueueCli(script: string, repo: string, db: string) {
   expect(JSON.parse(job.stdout)).toMatchObject({ state: "succeeded" });
 }
 
+async function verifyFunctionalRecordExport(
+  client: Client,
+  catalog: Awaited<ReturnType<Client["listTools"]>>["tools"],
+  ajv: Ajv2020,
+  script: string,
+  db: string,
+  record: { id: string },
+) {
+  const exportTool = catalog.find(
+    (item) => item.name === "pie_functional_record_export",
+  )!;
+  let exportOffset = 0;
+  let exportContent = "";
+  let exportDigest: string | undefined;
+  do {
+    const page = await client.callTool({
+      name: "pie_functional_record_export",
+      arguments: { id: record.id, offset: exportOffset, limitBytes: 128 },
+    });
+    expect(page.isError).not.toBe(true);
+    const validateExport = ajv.compile(exportTool.outputSchema as AnySchema);
+    expect(
+      validateExport(page.structuredContent),
+      JSON.stringify(validateExport.errors),
+    ).toBe(true);
+    const value = page.structuredContent as {
+      recordId: string;
+      nextOffset: number | null;
+      sha256: string;
+      content: string;
+    };
+    expect(value.recordId).toBe(record.id);
+    exportDigest ??= value.sha256;
+    expect(value.sha256).toBe(exportDigest);
+    exportContent += value.content;
+    if (value.nextOffset === null) break;
+    exportOffset = value.nextOffset;
+  } while (true);
+  expect(JSON.parse(exportContent)).toEqual(record);
+  expect(createHash("sha256").update(exportContent).digest("hex")).toBe(
+    exportDigest,
+  );
+  const cliExport = await exec(process.execPath, [
+    script,
+    "functional-record-export",
+    record.id,
+    "--db",
+    db,
+  ]);
+  expect(cliExport.stdout).toBe(`${exportContent}\n`);
+}
+
 async function verifyFunctional(
   client: Client,
   options: { script: string; db: string; snapshotId: string },
@@ -144,6 +196,7 @@ async function verifyFunctional(
   expect(retained.isError).not.toBe(true);
   const record = retained.structuredContent as { id: string; result: unknown };
   expect(record.result).toEqual(functional.structuredContent);
+  await verifyFunctionalRecordExport(client, catalog, ajv, script, db, record);
   const retests = await client.callTool({
     name: "pie_retest_plan",
     arguments: { beforeId: snapshotId, afterId: snapshotId, mode: "full" },

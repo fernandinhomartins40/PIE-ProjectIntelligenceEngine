@@ -48,7 +48,65 @@ const payload = z.strictObject({
 export const functionalRecordSchema = payload.extend({
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
 });
+export const functionalRecordExportInput = z.strictObject({
+  id: z.string().uuid(),
+  offset: z.number().int().nonnegative().default(0),
+  limitBytes: z.number().int().min(4).max(1_000_000).default(65_536),
+});
+export const functionalRecordExportOutput = z.strictObject({
+  schemaVersion: z.literal(1),
+  recordId: z.string().uuid(),
+  snapshotId: z.string().uuid(),
+  treeDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  recordSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  format: z.literal("json"),
+  offset: z.number().int().nonnegative(),
+  totalBytes: z.number().int().nonnegative(),
+  nextOffset: z.number().int().nonnegative().nullable(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  content: z.string(),
+});
 export type FunctionalRecord = z.infer<typeof functionalRecordSchema>;
+
+/** Page the exact retained record; this never reruns the current analysis engine. */
+export function exportFunctionalRecord(
+  input: unknown,
+  snapshot: Snapshot,
+  rawRequest: unknown,
+) {
+  const request = functionalRecordExportInput.parse(rawRequest);
+  const record = validateFunctional(input, snapshot);
+  if (request.id !== record.id)
+    throw new PieError("INVALID_INPUT", "Registro da exportação diverge.");
+  const content = JSON.stringify(record, null, 2);
+  const bytes = Buffer.from(content, "utf8");
+  if (request.offset > bytes.length)
+    throw new PieError("INVALID_INPUT", "Offset excede a exportação.");
+  if (request.offset < bytes.length && (bytes[request.offset]! & 0xc0) === 0x80)
+    throw new PieError("INVALID_INPUT", "Offset não inicia caractere UTF-8.");
+  let end = Math.min(bytes.length, request.offset + request.limitBytes);
+  if (end < bytes.length && (bytes[end]! & 0xc0) === 0x80) {
+    while (end > request.offset && (bytes[end]! & 0xc0) === 0x80) end--;
+    if (end === request.offset)
+      throw new PieError(
+        "INVALID_INPUT",
+        "Limite não comporta caractere UTF-8.",
+      );
+  }
+  return functionalRecordExportOutput.parse({
+    schemaVersion: 1,
+    recordId: record.id,
+    snapshotId: record.snapshotId,
+    treeDigest: snapshot.treeDigest,
+    recordSha256: record.sha256,
+    format: "json",
+    offset: request.offset,
+    totalBytes: bytes.length,
+    nextOffset: end < bytes.length ? end : null,
+    sha256: sha256(bytes),
+    content: bytes.subarray(request.offset, end).toString("utf8"),
+  });
+}
 export function sealFunctional(
   request: unknown,
   result: unknown,

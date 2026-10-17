@@ -13,6 +13,8 @@ import { exportSnapshotInput } from "./exportSnapshot.js";
 import { retestInput, retestOutput } from "./retestPlan.js";
 import {
   functionalRecordSchema,
+  functionalRecordExportInput,
+  functionalRecordExportOutput,
   functionalHistorySchema,
 } from "./functionalRecord.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
@@ -142,6 +144,17 @@ export function createPieMcp(
       annotations: read,
     },
     ({ id }) => guarded(() => service.functionalRecord(id)),
+  );
+  server.registerTool(
+    "pie_functional_record_export",
+    {
+      description:
+        "Exporta em páginas UTF-8 o JSON do registro funcional histórico imutável, com hash do registro e digest da árvore do snapshot. Não recalcula o motor nem transforma estado unverified em aprovação.",
+      inputSchema: functionalRecordExportInput,
+      outputSchema: withError(functionalRecordExportOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.exportFunctionalRecord(input)),
   );
   server.registerTool(
     "pie_functional_records_list",
