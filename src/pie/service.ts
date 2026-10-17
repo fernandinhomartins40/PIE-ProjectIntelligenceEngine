@@ -10,6 +10,7 @@ import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
 import { assessFunctional, functionalInput } from "./functional.js";
 import { sealFunctional } from "./functionalRecord.js";
 import { planRetests, retestInput } from "./retestPlan.js";
+import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
@@ -36,6 +37,46 @@ export class PieService {
       ? AbortSignal.any([signal, controller.signal])
       : controller.signal;
     const operation = this.#discover(input, effective);
+    this.#active.set(controller, operation);
+    void operation.then(
+      () => this.#active.delete(controller),
+      () => this.#active.delete(controller),
+    );
+    return operation;
+  }
+
+  probeHttp(input: unknown, authorizedRoot: string, signal?: AbortSignal) {
+    if (this.#closing)
+      return Promise.reject(
+        new PieError("POLICY_DENIED", "Serviço em encerramento."),
+      );
+    if (this.#active.size >= 2)
+      return Promise.reject(
+        new PieError(
+          "LIMIT_EXCEEDED",
+          "Limite de operações ativas atingido.",
+        ),
+      );
+    const controller = new AbortController();
+    const effective = signal
+      ? AbortSignal.any([signal, controller.signal])
+      : controller.signal;
+    const operation = (async () => {
+      const grant = httpGrantSchema.parse(input);
+      const snapshot = await this.store.snapshot(grant.snapshotId);
+      const result = await probeLocalHttp(
+        grant,
+        snapshot,
+        authorizedRoot,
+        effective,
+      );
+      if (!result.ok) return result;
+      effective.throwIfAborted();
+      return {
+        ok: true as const,
+        value: await this.store.saveHttpProbe(result.value),
+      };
+    })();
     this.#active.set(controller, operation);
     void operation.then(
       () => this.#active.delete(controller),
@@ -116,6 +157,9 @@ export class PieService {
   }
   verification(id: string) {
     return this.#read(async () => this.store.verification(id));
+  }
+  httpProbe(id: string) {
+    return this.#read(async () => this.store.httpProbe(id));
   }
   verifications(snapshotId: string, input: unknown = {}) {
     return this.#read(async () => this.store.verifications(snapshotId, input));

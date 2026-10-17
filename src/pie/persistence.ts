@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type { Snapshot, Evidence } from "./contracts.js";
+import type { httpProbeSchema } from "./execution/httpProbe.js";
 import type {
   FunctionalRecord,
   functionalHistorySchema,
@@ -26,6 +27,8 @@ export interface PiePersistence {
   saveSnapshot(input: unknown): Awaitable<Snapshot>;
   snapshot(id: string): Awaitable<Snapshot>;
   evidence(id: string): Awaitable<Evidence>;
+  saveHttpProbe(input: unknown): Awaitable<z.infer<typeof httpProbeSchema>>;
+  httpProbe(id: string): Awaitable<z.infer<typeof httpProbeSchema>>;
   saveFunctional(input: unknown): Awaitable<FunctionalRecord>;
   functionalRecord(id: string): Awaitable<FunctionalRecord>;
   functionalRecords(

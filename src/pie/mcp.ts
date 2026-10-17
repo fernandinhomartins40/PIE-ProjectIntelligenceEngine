@@ -15,6 +15,7 @@ import {
 } from "./functionalRecord.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { nodeTestGrantSchema } from "./execution/contracts.js";
+import { httpGrantSchema, httpProbeSchema } from "./execution/httpProbe.js";
 import { realpath } from "node:fs/promises";
 import type { JobQueue } from "./jobs/contracts.js";
 import { jobSchema } from "./jobs/contracts.js";
@@ -42,7 +43,10 @@ const historyInput = pageSchema.extend({ projectId: z.string().uuid() });
 const discoverInput = z.strictObject({
   maxFiles: z.number().int().positive().max(100_000).default(10_000),
 });
-
+const httpProbeResultOutput = z.strictObject({
+  schemaVersion: z.literal(1),
+  record: httpProbeSchema,
+});
 function result(value: object) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(value) }],
@@ -183,6 +187,41 @@ export function createPieMcp(
         }),
     );
   }
+  server.registerTool(
+    "pie_http_probe_run",
+    {
+      description:
+        "Envia somente a requisição HTTP local declarada no grant VERIFY explícito, limita status/digest e persiste prova imutável antes de retornar. Não inicia o processo-alvo nem comprova que o servidor executa o snapshot.",
+      inputSchema: httpGrantSchema,
+      outputSchema: httpProbeResultOutput,
+      annotations: { ...write, openWorldHint: false },
+    },
+    (input, extra) =>
+      guarded(async () => {
+        const outcome = await service.probeHttp(
+          input,
+          repositoryRoot,
+          extra.mcpReq.signal,
+        );
+        if (!outcome.ok)
+          throw new PieError(
+            "POLICY_DENIED",
+            `Sondagem HTTP não autorizada ou indisponível: ${outcome.error.tag}.`,
+          );
+        return { schemaVersion: 1 as const, record: outcome.value };
+      }),
+  );
+  server.registerTool(
+    "pie_http_probe_get",
+    {
+      description:
+        "Lê sondagem HTTP local persistida e valida prova e vínculo ao snapshot. Não executa uma nova requisição.",
+      inputSchema: idInput,
+      outputSchema: withError(httpProbeSchema),
+      annotations: read,
+    },
+    ({ id }) => guarded(() => service.httpProbe(id)),
+  );
   if (verifier)
     server.registerTool(
       "pie_test_run",

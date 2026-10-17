@@ -1,6 +1,11 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import canonicalize from "canonicalize";
+import { httpProbeSchema } from "./execution/httpProbe.js";
+import {
+  validateHttpProbe,
+  validateStoredHttpProbe,
+} from "./execution/httpIntegrity.js";
 import {
   functionalRecordSchema,
   functionalHistorySchema,
@@ -52,6 +57,80 @@ export class PostgresPieStore implements PiePersistence {
   }
   async close(): Promise<void> {
     await this.#client.$disconnect();
+  }
+  async saveHttpProbe(input: unknown) {
+    const parsed = httpProbeSchema.parse(input);
+    const snapshot = await this.snapshot(parsed.snapshotId);
+    const record = validateHttpProbe(parsed, snapshot);
+    await this.#client.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${record.id}))`;
+      const rows = await tx.$queryRaw<
+        Array<{
+          id: string;
+          snapshot_id: string;
+          evidence_id: string;
+          created_at: Date;
+          payload: unknown;
+          evidence: unknown;
+        }>
+      >`SELECT r.id::text,r.snapshot_id::text,r.evidence_id::text,r.created_at,r.payload,e.payload AS evidence FROM pie_http_probes r JOIN pie_evidence e ON e.id=r.evidence_id WHERE r.id=${record.id}::uuid`;
+      if (rows[0]) {
+        if (
+          canonicalize(
+            validateStoredHttpProbe(
+              {
+                id: rows[0].id,
+                snapshotId: rows[0].snapshot_id,
+                evidenceId: rows[0].evidence_id,
+                createdAt: rows[0].created_at.toISOString(),
+                payload: rows[0].payload,
+                evidence: rows[0].evidence,
+              },
+              snapshot,
+            ),
+          ) !== canonicalize(record)
+        )
+          throw new PieError(
+            "INTEGRITY_ERROR",
+            "Registro HTTP histórico não pode ser substituído.",
+          );
+        return;
+      }
+      await tx.evidence.create({
+        data: {
+          id: record.evidence.id,
+          snapshotId: record.snapshotId,
+          payload: json(record.evidence),
+        },
+      });
+      await tx.$executeRaw`INSERT INTO pie_http_probes(id,snapshot_id,evidence_id,created_at,payload) VALUES(${record.id}::uuid,${record.snapshotId}::uuid,${record.evidence.id}::uuid,${new Date(record.createdAt)},${JSON.stringify(record)}::jsonb)`;
+    });
+    return record;
+  }
+  async httpProbe(id: string) {
+    const rows = await this.#client.$queryRaw<
+      Array<{
+        id: string;
+        snapshot_id: string;
+        evidence_id: string;
+        created_at: Date;
+        payload: unknown;
+        evidence: unknown;
+      }>
+    >`SELECT r.id::text,r.snapshot_id::text,r.evidence_id::text,r.created_at,r.payload,e.payload AS evidence FROM pie_http_probes r JOIN pie_evidence e ON e.id=r.evidence_id WHERE r.id=${id}::uuid`;
+    const row = rows[0];
+    if (!row) throw new PieError("NOT_FOUND", "Registro HTTP não encontrado.");
+    return validateStoredHttpProbe(
+      {
+        id: row.id,
+        snapshotId: row.snapshot_id,
+        evidenceId: row.evidence_id,
+        createdAt: row.created_at.toISOString(),
+        payload: row.payload,
+        evidence: row.evidence,
+      },
+      await this.snapshot(row.snapshot_id),
+    );
   }
   async functionalRecords(snapshotId: string, input: unknown = {}) {
     const snapshot = await this.snapshot(snapshotId);

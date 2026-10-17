@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Execução HTTP compartilhada e retenção — 17/10/2026
+
+Evidência executada nesta etapa: `npm run check:fast`, typecheck PIE, build do painel local, `prisma validate/generate`, lint focado dos testes HTTP, limites de módulos (2.060 fontes) e descoberta de testes (1.466 arquivos) passaram. Cinco testes passaram em `pieHttpTransport`/`pieHttpPersistence`; Git, servidor HTTP, SQLite e API locais validaram gravação/leitura, transação atômica, imutabilidade, integridade, rollback e reabertura. `pieMcp.test` passou com MCP stdio real, contrato Ajv e execução/leitura cruzada MCP/CLI. Rodada focada total: 8 passaram; PostgreSQL foi explicitamente pulado no host por ausência de `PIE_TEST_DATABASE_URL`. O caso PostgreSQL inclui gravação/leitura/idempotência/imutabilidade e foi incluído na CI PIE; resultado remoto desta revisão ainda aguarda. Captura é limitada a status/digest e não associa identidade do servidor ao snapshot.
+
+CLI executa `http-probe-run <grant.json>`; MCP `pie_http_probe_run`; API autenticada `POST /v1/http-probes`. Os três chamam `PieService.probeHttp`, que valida grant/snapshot/raiz/expiração, limita operação, permite cancelamento e só retorna sucesso depois de persistir prova e registro. Consultas `http-probe <id>`, `pie_http_probe_get` e `GET /v1/http-probes/:id` validam hash e vínculos. Migração SQLite v4 e PostgreSQL Prisma preservam evidência em tabelas com FKs, índices e proibição de update/delete. Testes usam resposta sintética apenas em servidor de loopback temporário; a aplicação não cria servidor ou mock. `npm run check:fast` passou após a integração; CI remota aguardando execução.
+
 ## Base real do runner HTTP local — 17/10/2026
 
 CI 38999421398 (fa7f25986) passou. Novo transporte interno captureLocalHttp envia GET/HEAD apenas a 127.0.0.1 e porta explícita, sem DNS, proxy, pool compartilhado, cookies, autenticação ou redirects. Caminho ASCII codificado é preservado; headers limitados a 16 KiB, corpo a 10 MB e prazo a 30s por seleção. Hash incremental retém somente bytes até o limite, sem corpo/headers na saída. Falhas esperadas usam Result/tag com captura parcial: entrada inválida, cancelamento, timeout, limite ou transporte. Não publica antes de finalizar o request/socket que possui.

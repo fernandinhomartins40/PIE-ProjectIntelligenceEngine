@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Estado atual — 17/10/2026
+
+O caminho HTTP local já está integrado à CLI, MCP e API autenticada por meio de `PieService.probeHttp`. Execução requer grant VERIFY explícito com raiz/snapshot/treeDigest, caminho, método GET/HEAD, porta, limites e expectativa de status/digest. Registro e Evidence são gravados atomicamente e não podem ser alterados; leitura valida conteúdo, prova, relações e snapshot. Testes reais locais de transporte, persistência SQLite/API, MCP stdio/CLI passaram. Migração e teste PostgreSQL estão adicionados; execução PostgreSQL aguarda CI (host sem `PIE_TEST_DATABASE_URL`). npm run check:fast, build PIE/web, Prisma validate/generate, teste-discovery e limites de módulos passaram após as extrações; testes HTTP/MCP/CLI focados também passaram. PostgreSQL real está incluído na CI, mas foi pulado no host sem PIE_TEST_DATABASE_URL; resultado remoto ainda aguarda. Sem alegação de identidade do servidor com bytes do snapshot nem de jornada de usuário. Motores e runners remanescentes mantêm goal ativo.
+
 ## Base real do runner HTTP local — 17/10/2026
 
 CI 38999421398 (fa7f25986) passou. Novo transporte interno captureLocalHttp envia GET/HEAD apenas a 127.0.0.1 e porta explícita, sem DNS, proxy, pool compartilhado, cookies, autenticação ou redirects. Caminho ASCII codificado é preservado; headers limitados a 16 KiB, corpo a 10 MB e prazo a 30s por seleção. Hash incremental retém somente bytes até o limite, sem corpo/headers na saída. Falhas esperadas usam Result/tag com captura parcial: entrada inválida, cancelamento, timeout, limite ou transporte. Não publica antes de finalizar o request/socket que possui.

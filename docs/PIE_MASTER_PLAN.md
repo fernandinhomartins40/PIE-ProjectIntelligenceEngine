@@ -1,5 +1,11 @@
 # PIE — Plano mestre de implementação integral
 
+## Execução e histórico HTTP compartilhados — 17/10/2026
+
+O transporte HTTP local agora percorre `PieService.probeHttp`: recebe grant VERIFY explícito, lê o snapshot persistido, confere escopo/raiz/expiração, faz somente GET/HEAD local, sela a captura e publica registro e evidência em transação atômica. A leitura histórica verifica hash, índices relacionais e vínculo ao snapshot. SQLite e PostgreSQL têm tabelas/migração, índices e triggers imutáveis. CLI `http-probe-run <grant.json>`/`http-probe <id>`, MCP `pie_http_probe_run`/`pie_http_probe_get` e API POST/GET `/v1/http-probes` compartilham o mesmo fluxo; adaptadores respeitam cancelamento HTTP/MCP.
+
+Git/servidor HTTP reais e SQLite validaram publicação/leitura autenticadas pela API, reabertura, idempotência, imutabilidade e rollback atômico. Transporte/persistência: 5 testes em 2 arquivos; MCP stdio e CLI reais passaram com schema Ajv e servidor local. `npm run check:fast`, `tsc -p tsconfig.pie.json`, build PIE web, `prisma validate/generate`, lint focado, limites de módulos (2.060 fontes) e descoberta (1.466 testes) passaram. Rodada final: 8 passaram e PostgreSQL foi pulado por indisponibilidade de `PIE_TEST_DATABASE_URL`; a prova PostgreSQL está na CI, cujo resultado desta revisão ainda aguarda. Captura limita-se a status/digest e não identifica o servidor com os bytes do snapshot. Playwright, outros motores e critérios integrais seguem pendentes; goal ativo.
+
 ## Base real do runner HTTP local — 17/10/2026
 
 CI 38999421398 (fa7f25986) passou. Novo transporte interno captureLocalHttp envia GET/HEAD apenas a 127.0.0.1 e porta explícita, sem DNS, proxy, pool compartilhado, cookies, autenticação ou redirects. Caminho ASCII codificado é preservado; headers limitados a 16 KiB, corpo a 10 MB e prazo a 30s por seleção. Hash incremental retém somente bytes até o limite, sem corpo/headers na saída. Falhas esperadas usam Result/tag com captura parcial: entrada inválida, cancelamento, timeout, limite ou transporte. Não publica antes de finalizar o request/socket que possui.

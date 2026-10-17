@@ -8,6 +8,11 @@ import { projectsOutput, historyOutput } from "./outputContracts.js";
 import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import canonicalize from "canonicalize";
+import { httpProbeSchema } from "./execution/httpProbe.js";
+import {
+  validateHttpProbe,
+  validateStoredHttpProbe,
+} from "./execution/httpIntegrity.js";
 import {
   functionalRecordSchema,
   functionalHistorySchema,
@@ -55,10 +60,78 @@ export class PieStore implements PiePersistence {
       CREATE TRIGGER IF NOT EXISTS pie_functional_immutable_update BEFORE UPDATE ON pie_functional_records BEGIN SELECT RAISE(ABORT,'functional immutable'); END;
       CREATE TRIGGER IF NOT EXISTS pie_functional_immutable_delete BEFORE DELETE ON pie_functional_records BEGIN SELECT RAISE(ABORT,'functional immutable'); END;
       INSERT OR IGNORE INTO pie_migrations(version) VALUES(3);`);
+    this.#db
+      .exec(`CREATE TABLE IF NOT EXISTS pie_http_probes(id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL REFERENCES pie_snapshots(id), evidence_id TEXT NOT NULL UNIQUE REFERENCES pie_evidence(id), created_at TEXT NOT NULL, payload TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS pie_http_probe_snapshot ON pie_http_probes(snapshot_id,created_at,id);
+      CREATE TRIGGER IF NOT EXISTS pie_http_immutable_update BEFORE UPDATE ON pie_http_probes BEGIN SELECT RAISE(ABORT,'HTTP immutable'); END;
+      CREATE TRIGGER IF NOT EXISTS pie_http_immutable_delete BEFORE DELETE ON pie_http_probes BEGIN SELECT RAISE(ABORT,'HTTP immutable'); END;
+      INSERT OR IGNORE INTO pie_migrations(version) VALUES(4);`);
   }
 
   close(): void {
     this.#db.close();
+  }
+  saveHttpProbe(input: unknown) {
+    const parsed = httpProbeSchema.parse(input);
+    const record = validateHttpProbe(parsed, this.snapshot(parsed.snapshotId));
+    this.#db.exec("BEGIN IMMEDIATE");
+    try {
+      const previous = this.#db
+        .prepare("SELECT id FROM pie_http_probes WHERE id=?")
+        .get(record.id);
+      if (previous) {
+        if (canonicalize(this.httpProbe(record.id)) !== canonicalize(record))
+          throw new PieError(
+            "INTEGRITY_ERROR",
+            "Registro HTTP histórico não pode ser substituído.",
+          );
+      } else {
+        this.#db
+          .prepare(
+            "INSERT INTO pie_evidence(id,snapshot_id,payload) VALUES(?,?,?)",
+          )
+          .run(
+            record.evidence.id,
+            record.snapshotId,
+            JSON.stringify(record.evidence),
+          );
+        this.#db
+          .prepare(
+            "INSERT INTO pie_http_probes(id,snapshot_id,evidence_id,created_at,payload) VALUES(?,?,?,?,?)",
+          )
+          .run(
+            record.id,
+            record.snapshotId,
+            record.evidence.id,
+            record.createdAt,
+            JSON.stringify(record),
+          );
+      }
+      this.#db.exec("COMMIT");
+      return record;
+    } catch (cause) {
+      this.#db.exec("ROLLBACK");
+      throw cause;
+    }
+  }
+  httpProbe(id: string) {
+    const row = this.#db
+      .prepare(
+        "SELECT snapshot_id,evidence_id,created_at,payload FROM pie_http_probes WHERE id=?",
+      )
+      .get(id);
+    if (!row) throw new PieError("NOT_FOUND", "Registro HTTP não encontrado.");
+    return validateStoredHttpProbe(
+      {
+        id,
+        snapshotId: String(row.snapshot_id),
+        evidenceId: String(row.evidence_id),
+        createdAt: String(row.created_at),
+        payload: JSON.parse(String(row.payload)),
+        evidence: this.evidence(String(row.evidence_id)),
+      },
+      this.snapshot(String(row.snapshot_id)),
+    );
   }
   functionalRecords(snapshotId: string, input: unknown = {}) {
     this.snapshot(snapshotId);

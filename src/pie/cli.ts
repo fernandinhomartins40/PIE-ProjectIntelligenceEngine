@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { PieError } from "./contracts.js";
 import { openPersistence } from "./openPersistence.js";
@@ -7,6 +8,7 @@ import { PieService } from "./service.js";
 import { renderSnapshot } from "./reports.js";
 import { z } from "zod";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
+import { httpGrantSchema } from "./execution/httpProbe.js";
 
 export async function runPie(args: string[]): Promise<void> {
   const parsed = parseArgs({
@@ -59,6 +61,32 @@ export async function runPie(args: string[]): Promise<void> {
     );
     return;
   }
+  if (command === "http-probe-run") {
+    if (!target)
+      throw new PieError("INVALID_INPUT", "Informe o arquivo de grant HTTP.");
+    const grant = httpGrantSchema.parse(
+      JSON.parse(await readFile(target, "utf8")) as unknown,
+    );
+    const store = await openPersistence(
+      parsed.values.db ?? join(homedir(), ".pie", "pie.sqlite"),
+      grant.repositoryRoot,
+    );
+    try {
+      const result = await new PieService(store).probeHttp(
+        grant,
+        grant.repositoryRoot,
+      );
+      if (!result.ok)
+        throw new PieError(
+          "POLICY_DENIED",
+          `Sondagem HTTP não autorizada ou indisponível: ${result.error.tag}.`,
+        );
+      console.log(JSON.stringify(result, null, 2));
+    } finally {
+      await store.close();
+    }
+    return;
+  }
   if (!command || parsed.values.help || command === "help") {
     console.log(
       "PIE — Project Intelligence Engine\nComandos: doctor | discover <raiz-git> | projects | history <projeto-id> | graph <snapshot-id> | compare <antes-id> <depois-id> | evidence <evidência-id> | export <snapshot-id> | mcp <raiz-git>\nOpções: --db <arquivo> --format <json|md|html> --limit <1–200> --offset <n> --max-files <n> --max-bytes <n>\nModo atual: OBSERVE. Inventário estático não verifica funcionamento. Documentação: docs/PIE_DEVELOPMENT.md",
@@ -68,6 +96,9 @@ export async function runPie(args: string[]): Promise<void> {
     );
     console.log(
       "Resultados persistidos: verification <run-id> | verifications <snapshot-id> --limit <1–200> --offset <n>. Consulta não inicia testes.",
+    );
+    console.log(
+      "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê prova persistida. Não inicia o servidor do projeto.",
     );
     console.log(
       "Análise funcional OBSERVE: functional <snapshot-id> --module <caminho-relativo-opcional> --limit <1–200> --offset <n>. Lacunas de verificação não são defeitos comprovados.",
@@ -172,6 +203,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional-retain",
       "functional-record",
       "functional-records",
+      "http-probe",
       "trace",
       "evidence",
       "verification",
@@ -359,6 +391,9 @@ export async function runPie(args: string[]): Promise<void> {
         break;
       case "verification":
         result = await service.verification(target!);
+        break;
+      case "http-probe":
+        result = await service.httpProbe(z.string().uuid().parse(target!));
         break;
       case "verifications":
         result = await service.verifications(target!, paging);

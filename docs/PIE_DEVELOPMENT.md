@@ -1,5 +1,9 @@
 # Desenvolvimento PIE
 
+## Execução HTTP local autorizada
+
+Uma sondagem é opt-in por um grant JSON explícito e ligado a snapshot completo; o PIE não inicia o servidor do projeto. Somente GET/HEAD para `127.0.0.1` com porta, caminho, timeout, limite de bytes e status/digest esperados declarados. Exemplo de execução: `node scripts/pie.mjs http-probe-run C:/dados/grant-http.json --db C:/dados-pie/pie.sqlite`. Consultar prova persistida com `node scripts/pie.mjs http-probe UUID --db C:/dados-pie/pie.sqlite`. MCP anuncia `pie_http_probe_run` e `pie_http_probe_get`; API local usa `POST /v1/http-probes` e `GET /v1/http-probes/UUID` com a autenticação existente. Resultado limitado a observação de status/digest, não prova identidade do processo respondente, jornada, autorização ou persistência.
+
 O produto está em desenvolvimento. O escopo integral permanece no plano mestre. A primeira fatia fornece inventário de arquivos rastreados por Git, classificação por nome, evidências com hash, histórico SQLite local, CLI e cinco ferramentas MCP. Não há execução do projeto auditado, análise AST, seis motores, painel ou PostgreSQL nesta fatia.
 
 ## Runtime e instalação

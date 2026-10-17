@@ -27,6 +27,7 @@ model Snapshot {
   edges     GraphEdge[]
   verificationRuns VerificationRun[]
   functionalRecords FunctionalRecord[]
+  httpProbes HttpProbe[]
 
   @@index([projectId, createdAt, id])
   @@map("pie_snapshots")
@@ -38,6 +39,7 @@ model Evidence {
   payload    Json
   snapshot   Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
   verificationRun VerificationRun?
+  httpProbe HttpProbe?
 
   @@index([snapshotId])
   @@map("pie_evidence")
@@ -51,6 +53,18 @@ model FunctionalRecord {
   snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
   @@index([snapshotId, createdAt, id], map: "pie_functional_snapshot")
   @@map("pie_functional_records")
+}
+
+model HttpProbe {
+ id String @id @db.Uuid
+ snapshotId String @map("snapshot_id") @db.Uuid
+ evidenceId String @unique @map("evidence_id") @db.Uuid
+ createdAt DateTime @map("created_at") @db.Timestamptz(3)
+ payload Json
+ snapshot Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+ evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+ @@index([snapshotId, createdAt, id], map: "pie_http_probe_snapshot")
+ @@map("pie_http_probes")
 }
 
 model VerificationRun {
