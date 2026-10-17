@@ -12,6 +12,7 @@ export const adapterFactSchema = z.strictObject({
     "compose",
     "openapi",
     "prisma-schema",
+    "sql-migration",
     "next-app-convention",
     "next-pages-convention",
     "express-ast",

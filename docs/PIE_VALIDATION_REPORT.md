@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Comparação de migrations PostgreSQL declarativas — 17/10/2026
+
+- Leitor SQL restrito a `prisma/migrations/<nome>/migration.sql` emite Evidence de linha para formas suportadas de tabela/PK/UNIQUE; `data-review` combina facts pelo nome exato da tabela e mantém todos os resultados `unverified`. O contrato público sobe para schemaVersion 2 para refletir as novas propriedades. Não conecta ao banco nem afirma estado final/aplicado.
+- Executado: `node scripts/run-exact-tests.mjs tests/boundary/pieAdapters.test.ts tests/boundary/pieDataReview.test.ts` (11/11), `npm run pie:build`, `npm run check:fast` (2/2), `npm run docs:check:built` (licenses:check: 902 lock/365 runtime), `npm run format:check` (4.113 arquivos) e `git diff --check`. Boundary prova migration Git versionada, strings/comentários/dollar-quoted sem falsos positivos, PK, UNIQUE, índice, chave composta, Evidence SQL, CLI/API/MCP equivalentes e validação Ajv 2020-12.
+- PostgreSQL runtime não executado; Linux/macOS não verificados. Limites do parser e a ausência de prova sobre migrations aplicadas aparecem no contrato e nos achados `unverified`.
+
 ## Motor Dados Prisma — 17/10/2026
 
 - Parser Prisma passou a emitir Facts/Evidence para seletores e diretivas de relação/default. Strings e comentários são ignorados; argumentos não são retidos. O motor usa exclusivamente declarações e snapshot validados para reportar ausência de seletor único declarado observado como `unverified` informativo; migration e banco continuam fora da cobertura.

@@ -53,12 +53,7 @@ function expectPrismaSelectors(
   );
 }
 
-it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP e API", async () => {
-  const root = await mkdtemp(join(tmpdir(), "pie-data-review-"));
-  const repo = join(root, "repo");
-  const db = join(root, "pie.sqlite");
-  await mkdir(repo);
-  await exec("git", ["init", repo]);
+async function writeDataReviewFixture(repo: string) {
   await writeFile(
     join(repo, "schema.prisma"),
     [
@@ -87,6 +82,31 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
       "// model Commented { id String @id }",
     ].join("\n"),
   );
+  await mkdir(join(repo, "prisma", "migrations", "001_init"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(repo, "prisma", "migrations", "001_init", "migration.sql"),
+    [
+      "-- SELECT 'CREATE TABLE \"Membership\" (id text PRIMARY KEY)';",
+      'CREATE TABLE "Product" ("id" TEXT NOT NULL, PRIMARY KEY ("id"));',
+      'CREATE TABLE "NaturalKey" ("code" TEXT NOT NULL);',
+      'CREATE UNIQUE INDEX "NaturalKey_code_key" ON "NaturalKey" ("code");',
+      'CREATE TABLE "Membership" ("id" TEXT, "unique" text, note text DEFAULT $tag$UNIQUE fake$tag$);',
+      'CREATE TABLE "Pair" ("left" TEXT, "right" TEXT);',
+      'ALTER TABLE "Pair" ADD CONSTRAINT "Pair_pkey" PRIMARY KEY ("left", "right");',
+      'CREATE TABLE "CompoundUnique" ("left" TEXT, "right" TEXT, UNIQUE ("left", "right"));',
+    ].join("\n"),
+  );
+}
+
+it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP e API", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-"));
+  const repo = join(root, "repo");
+  const db = join(root, "pie.sqlite");
+  await mkdir(repo);
+  await exec("git", ["init", repo]);
+  await writeDataReviewFixture(repo);
   await exec("git", ["-C", repo, "add", "."]);
 
   const store = await openStore(db, repo);
@@ -107,7 +127,7 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
     const snapshot = await store.snapshot(discovered.snapshot.id);
     expectPrismaSelectors(snapshot);
 
-    const request = { snapshotId: snapshot.id, limit: 1 };
+    const request = { snapshotId: snapshot.id, limit: 10 };
     const expected = await service.dataReview(request);
     expect(expected).toMatchObject({
       engine: "data",
@@ -126,7 +146,38 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
         schemaFiles: 1,
         examinedModels: 5,
         unexaminedSchemaFiles: 0,
+        migrationFiles: 1,
+        unexaminedMigrationFiles: 0,
       },
+    });
+    expect(expected.migrations.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          model: expect.objectContaining({ name: "Product" }),
+          state: "unique_constraint_observed",
+        }),
+        expect.objectContaining({
+          model: expect.objectContaining({ name: "NaturalKey" }),
+          state: "unique_constraint_observed",
+        }),
+        expect.objectContaining({
+          model: expect.objectContaining({ name: "Membership" }),
+          state: "table_observed_without_unique_constraint",
+        }),
+        expect.objectContaining({
+          model: expect.objectContaining({ name: "Pair" }),
+          state: "unique_constraint_observed",
+        }),
+      ]),
+    );
+    const migrationEvidence = expected.migrations.items.find(
+      (finding) => finding.model.name === "NaturalKey",
+    )!.evidenceIds;
+    expect(
+      (await service.evidence(migrationEvidence[2]!)).source,
+    ).toMatchObject({
+      path: "prisma/migrations/001_init/migration.sql",
+      line: 4,
     });
     expect(expected.models.items[0]!.evidenceIds).toEqual([
       expected.models.items[0]!.model.evidenceId,
@@ -151,7 +202,7 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
       unexaminedSchemaFiles: 1,
     });
 
-    await runPie(["data-review", snapshot.id, "--limit", "1", "--db", db]);
+    await runPie(["data-review", snapshot.id, "--limit", "10", "--db", db]);
     expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toEqual(expected);
 
     const headers = {

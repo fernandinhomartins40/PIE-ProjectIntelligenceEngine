@@ -4,6 +4,7 @@ import { parseTree, findNodeAtLocation } from "jsonc-parser";
 import type { AdapterRead, Declaration } from "./contracts.js";
 import { readNginx } from "./nginx.js";
 import { readLaravelDeclarations } from "./laravel.js";
+import { readSqlMigration } from "./sqlMigration.js";
 import { cachedAnalysis } from "../analysisCache.js";
 import { sha256 } from "../evidence.js";
 import { err, ok, type Result } from "../../domain/result.js";
@@ -296,7 +297,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v3", path, sha256(source), limit],
+    ["pie-declarations-v4", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }
@@ -335,6 +336,8 @@ function readDeclarationsUncached(
   )
     parsed = structured(path, source);
   else if (path.endsWith(".prisma")) parsed = prisma(source);
+  else if (/(?:^|\/)prisma\/migrations\/[^/]+\/migration\.sql$/i.test(path))
+    parsed = readSqlMigration(source);
   else return null;
   const omitted = Math.max(0, parsed.declarations.length - limit);
   const selected = parsed.declarations.slice(0, limit);

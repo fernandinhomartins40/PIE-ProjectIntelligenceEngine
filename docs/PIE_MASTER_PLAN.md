@@ -1,5 +1,9 @@
 # PIE — Plano mestre de implementação integral
 
+## Comparação estática de migrations Prisma — 17/10/2026
+
+T4.5 avança: discovery agora converte um subconjunto estático de PostgreSQL sob `prisma/migrations/<nome>/migration.sql` em facts com Evidence por linha: `CREATE TABLE`, `PRIMARY KEY`, `UNIQUE`, `CREATE UNIQUE INDEX` e `ALTER TABLE ADD` para chave/unique. `data-review` compara nome exato da tabela com o modelo Prisma e expõe observações paginadas no contrato schemaVersion 2; CLI, HTTP e MCP mantêm o mesmo contrato. O teste Git/SQLite exercita strings e comentários como negativos, índice e chave composta, origem da Evidence e paridade dos adapters: 11/11 boundaries. `pie:build` passou. Estado segue `unverified`: parser não calcula ordem/estado final, renames/mapeamentos ou SQL dinâmico, nem verifica aplicação no PostgreSQL; T4.5 permanece parcial.
+
 ## Primeiro vertical slice do motor Dados — 17/10/2026
 
 O adapter Prisma agora preserva diretivas estruturais `@id`, `@@id`, `@unique`, `@@unique`, `@relation` e `@default` como fatos `config_directive` com Evidence de arquivo/linha, sem valores de argumentos. `PieService.dataReview`, CLI `data-review`, POST `/v1/data-review` e MCP `pie_data_review` compartilham a análise do snapshot. O motor emite achados apenas informativos `unverified` para modelos sem seletor único observado; respeita schemas com fatos omitidos e não consulta banco/migrations. Boundary `pieAdapters` + `pieDataReview`: 11/11; `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` (4.112 arquivos) e `git diff --check` passaram em Windows. T4.5 avança de pendente para parcial: análise de migrations, constraints efetivas, contratos, retry/idempotência e PostgreSQL runtime ainda faltam.

@@ -20,18 +20,36 @@ const findingSchema = z.strictObject({
   uncertainty: z.array(z.string()),
 });
 
+const migrationFindingSchema = z.strictObject({
+  id: z.string(),
+  model: adapterFactSchema,
+  state: z.enum([
+    "no_migration_files_observed",
+    "table_not_observed",
+    "table_observed_without_unique_constraint",
+    "unique_constraint_observed",
+    "migration_inventory_incomplete",
+  ]),
+  evidenceIds: z.array(z.string().uuid()).min(1),
+  observation: z.string(),
+  uncertainty: z.array(z.string()),
+});
+
 export const dataReviewOutput = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   engine: z.literal("data"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
   models: pagedOutput(findingSchema),
+  migrations: pagedOutput(migrationFindingSchema),
   coverage: z.strictObject({
     discovery: z.enum(["complete", "partial"]),
     runtime: z.literal(false),
     schemaFiles: z.number().int().nonnegative(),
     examinedModels: z.number().int().nonnegative(),
     unexaminedSchemaFiles: z.number().int().nonnegative(),
+    migrationFiles: z.number().int().nonnegative(),
+    unexaminedMigrationFiles: z.number().int().nonnegative(),
     limitations: z.array(z.string()),
   }),
 });
@@ -64,6 +82,17 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
     (fact) => fact.adapter === "prisma-schema",
   );
   const models = declarations.filter((fact) => fact.kind === "model");
+  const migrationFiles = snapshot.nodes.filter((node) =>
+    /(?:^|\/)prisma\/migrations\/[^/]+\/migration\.sql$/i.test(node.path),
+  );
+  const migrationFacts = snapshot.declarations.filter(
+    (fact) => fact.adapter === "sql-migration",
+  );
+  const incompleteMigrationPaths = new Set(
+    migrationFiles
+      .filter((file) => schemaFileIncomplete(snapshot, file.path))
+      .map((file) => file.path),
+  );
   const selectorOwners = new Set(
     declarations
       .filter(
@@ -102,12 +131,68 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
     offset: input.offset,
     limit: input.limit,
   });
+  const migrationFindings = models.map((model) => {
+    const tables = migrationFacts.filter(
+      (fact) => fact.kind === "model" && fact.name === model.name,
+    );
+    const constraints = tables.flatMap((table) =>
+      migrationFacts.filter(
+        (fact) =>
+          fact.kind === "config_directive" &&
+          fact.parent === table.name &&
+          fact.source.path === table.source.path &&
+          ["primary_key", "unique"].includes(fact.name),
+      ),
+    );
+    const incomplete =
+      snapshot.coverage.status === "partial" ||
+      incompleteMigrationPaths.size > 0;
+    const state = incomplete
+      ? "migration_inventory_incomplete"
+      : migrationFiles.length === 0
+        ? "no_migration_files_observed"
+        : tables.length === 0
+          ? "table_not_observed"
+          : constraints.length > 0
+            ? "unique_constraint_observed"
+            : "table_observed_without_unique_constraint";
+    const evidenceIds = [
+      model.evidenceId,
+      ...tables.map((table) => table.evidenceId),
+      ...constraints.map((fact) => fact.evidenceId),
+    ];
+    return {
+      id: `data:migration-review:${model.id}`,
+      model,
+      state,
+      evidenceIds: [...new Set(evidenceIds)],
+      observation:
+        state === "unique_constraint_observed"
+          ? "Uma declaracao de PRIMARY KEY, UNIQUE ou CREATE UNIQUE INDEX foi observada em migration para uma tabela com nome igual ao modelo Prisma."
+          : state === "table_observed_without_unique_constraint"
+            ? "A tabela foi observada em CREATE TABLE, sem constraint unica reconhecida nas formas SQL suportadas."
+            : state === "table_not_observed"
+              ? "Nenhum CREATE TABLE com nome igual ao modelo Prisma foi observado nas migrations analisadas."
+              : state === "no_migration_files_observed"
+                ? "Nenhum arquivo de migration Prisma foi observado no snapshot."
+                : "A cobertura de migrations esta incompleta para determinar as observacoes estaticas deste modelo.",
+      uncertainty: [
+        "A comparacao usa nomes exatos de modelo/tabela e SQL estatico suportado; renames, mapeamentos Prisma, schemas SQL e migrations posteriores podem alterar o significado.",
+        "A analise nao calcula o estado final, nao executa migrations e nao comprova constraints aplicadas ao banco.",
+      ],
+    };
+  });
+  const selectedMigrations = page(migrationFindings, {
+    offset: input.offset,
+    limit: input.limit,
+  });
   return dataReviewOutput.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     engine: "data",
     snapshotId: snapshot.id,
     state: "unverified",
     models: selected,
+    migrations: selectedMigrations,
     coverage: {
       discovery: snapshot.coverage.status,
       runtime: false,
@@ -118,9 +203,12 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
       unexaminedSchemaFiles: schemaFiles.filter((file) =>
         schemaFileIncomplete(snapshot, file.path),
       ).length,
+      migrationFiles: migrationFiles.length,
+      unexaminedMigrationFiles: incompleteMigrationPaths.size,
       limitations: [
-        "A analise consome somente fatos Prisma estaticos do snapshot; nao conecta nem consulta banco ou migrations.",
+        "A analise consome fatos estaticos do snapshot; nao conecta nem consulta banco.",
         "Diretivas reconhecidas: @id, @@id, @unique e @@unique. Ausencia observada gera item informativo unverified, nunca defeito confirmado.",
+        "Migrations: reconhece um subconjunto de PostgreSQL e compara nomes exatos; nao calcula estado final, renames, mapeamentos, SQL dinamico ou aplicacao no banco.",
         ...snapshot.coverage.limitations,
       ],
     },

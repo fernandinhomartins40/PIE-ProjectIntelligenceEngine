@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Motor Dados: observações de migrations Prisma — 17/10/2026
+
+Segundo slice T4.5: reader limitado de PostgreSQL em `prisma/migrations/*/migration.sql` registra tabelas e constraints únicas suportadas como facts/Evidence. `data-review` compara nomes exatos e retorna estado observacional `unverified` por modelo; preserva Evidence da tabela/constraint, paginação e cobertura de arquivos incompletos. Contrato atualizado para schemaVersion 2. Teste Git/SQLite valida comentário/string negativa, PK, UNIQUE, índice e chave composta, schema/payload MCP e paridade service/CLI/HTTP/MCP. 11/11 boundaries, `pie:build`, `check:fast` (2/2), `docs:check:built` (licenses:check: 902 lock/365 runtime), `format:check` (4.113 arquivos) e `git diff --check` passaram em Windows/Node 24.18.0/npm 11.16.0. Limites: sem cálculo do estado final, mappings/renames, SQL dinâmico ou banco real. T4.5 parcial.
+
 ## Motor Dados: seletores Prisma declarados — 17/10/2026
 
 Primeiro slice T4.5 integrado: Prisma facts registram diretivas de seletor e ownership sem persistir argumentos; análise em snapshot sinaliza somente modelos sem `@id`/`@@id`/`@unique`/`@@unique` observados, estado `unverified`, com Evidence e limite por arquivo. `PieService`, CLI, API e MCP compartilham contrato; nenhum acesso ao banco é feito. Boundary Git/SQLite e consumers: 11/11; `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` e `git diff --check` passaram. Seguir com migrations/constraints e testes PostgreSQL reais; T4.5 permanece parcial.
