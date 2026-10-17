@@ -94,6 +94,22 @@ it.skipIf(!url)(
         repositoryRoot: repo,
       });
       const snapshot = await store.snapshot(run.snapshot.id);
+      const retained = await new PieService(store).retainFunctional({
+        snapshotId: snapshot.id,
+      });
+      expect(await peer.functionalRecord(retained.id)).toEqual(retained);
+      expect(await peer.saveFunctional(retained)).toEqual(retained);
+      await expect(
+        pool.query(
+          "UPDATE pie_functional_records SET created_at=now() WHERE id=$1",
+          [retained.id],
+        ),
+      ).rejects.toThrow("immutable");
+      await expect(
+        pool.query("DELETE FROM pie_functional_records WHERE id=$1", [
+          retained.id,
+        ]),
+      ).rejects.toThrow("immutable");
       expect(snapshot.nodes).toHaveLength(2);
       const model = snapshot.declarations.find(
         (fact) => fact.kind === "model",

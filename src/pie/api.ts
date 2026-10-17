@@ -277,6 +277,30 @@ export async function startPieApi(
         );
         return;
       }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/functional-records"
+      ) {
+        respond(
+          response,
+          201,
+          await service.retainFunctional(await body(request)),
+        );
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        segments.length === 3 &&
+        segments[0] === "v1" &&
+        segments[1] === "functional-records"
+      ) {
+        respond(
+          response,
+          200,
+          await service.functionalRecord(z.string().uuid().parse(segments[2])),
+        );
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/v1/health") {
         respond(response, 200, {
           schemaVersion: 1,

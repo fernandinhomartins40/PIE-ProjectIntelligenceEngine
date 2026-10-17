@@ -8,6 +8,7 @@ import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
 import { traceInput, traceOutput } from "./knowledgeGraph.js";
 import { functionalInput, functionalOutput } from "./functional.js";
+import { functionalRecordSchema } from "./functionalRecord.js";
 import type { VerificationCoordinator } from "./execution/coordinator.js";
 import { nodeTestGrantSchema } from "./execution/contracts.js";
 import { realpath } from "node:fs/promises";
@@ -92,6 +93,28 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.functional(input)),
+  );
+  server.registerTool(
+    "pie_functional_retain",
+    {
+      description:
+        "Executa análise estática e preserva a página solicitada como registro imutável ligado ao snapshot. Não executa alvo, não comprova defeito ou funcionamento. Retorna ID/hash para consulta histórica.",
+      inputSchema: functionalInput,
+      outputSchema: withError(functionalRecordSchema),
+      annotations: write,
+    },
+    (input) => guarded(() => service.retainFunctional(input)),
+  );
+  server.registerTool(
+    "pie_functional_record_get",
+    {
+      description:
+        "Lê registro funcional preservado por ID e verifica integridade/proveniência; não recalcula com a versão atual do motor.",
+      inputSchema: idInput,
+      outputSchema: withError(functionalRecordSchema),
+      annotations: read,
+    },
+    ({ id }) => guarded(() => service.functionalRecord(id)),
   );
   if (verifier && queue) {
     server.registerTool(

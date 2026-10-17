@@ -9,6 +9,37 @@ import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
 import { SqliteJobQueue } from "../../src/pie/jobs/sqliteQueue.js";
 
+async function verifyFunctionalHistory(
+  url: string,
+  headers: Record<string, string>,
+  snapshotId: string,
+  service: PieService,
+) {
+  const functional = await fetch(`${url}/v1/functional`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ snapshotId: snapshotId }),
+  });
+  expect(functional.status).toBe(200);
+  expect(await functional.json()).toEqual(
+    await service.functional({ snapshotId: snapshotId }),
+  );
+  const retained = await fetch(`${url}/v1/functional-records`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ snapshotId: snapshotId }),
+  });
+  expect(retained.status).toBe(201);
+  const record = (await retained.json()) as { id: string };
+  expect(
+    await (
+      await fetch(`${url}/v1/functional-records/${record.id}`, {
+        headers,
+      })
+    ).json(),
+  ).toEqual(record);
+}
+
 it("API local exige token, nega origem de navegador e compartilha descoberta persistente", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-api-"));
   const repo = join(root, "repo");
@@ -65,14 +96,11 @@ it("API local exige token, nega origem de navegador e compartilha descoberta per
     const graph = await fetch(`${api.url}/v1/graph/${result.snapshot.id}`, {
       headers,
     });
-    const functional = await fetch(`${api.url}/v1/functional`, {
-      method: "POST",
+    await verifyFunctionalHistory(
+      api.url,
       headers,
-      body: JSON.stringify({ snapshotId: result.snapshot.id }),
-    });
-    expect(functional.status).toBe(200);
-    expect(await functional.json()).toEqual(
-      await service.functional({ snapshotId: result.snapshot.id }),
+      result.snapshot.id,
+      service,
     );
     const graphData = (await graph.json()) as {
       nodes: { items: Array<{ id: string }> };

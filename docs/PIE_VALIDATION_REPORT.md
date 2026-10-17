@@ -1,5 +1,13 @@
 # PIE — Registro de validação contínua
 
+## Registros funcionais imutáveis — 16/10/2026
+
+Análise funcional pode ser preservada explicitamente com pedido completo, página retornada, data e SHA-256 canônico. Registro schemaVersion 1 é artefato derivado de observação, não prova runtime. Guarda somente a página solicitada: total/offset/nextOffset e módulo permanecem explícitos, sem alegar auditoria completa. selectFunctionalTargets é dono da seleção por módulo/página, reutilizado na validação do registro; fatos/IDs/provas e cobertura são conferidos contra o snapshot imutável. Texto histórico não é recalculado por nova versão do motor.
+
+SQLite possui tabela/índice/triggers aditivos e PostgreSQL migration 202610160005 com FK e trigger UPDATE/DELETE imutáveis; modelo Prisma correspondente e client regenerado. Salvamento idêntico é idempotente; mesmo ID com conteúdo distinto é recusado. PiePersistence/PieService compartilham as operações. CLI functional-retain <snapshot-id> --module/limit/offset e functional-record <id>; MCP pie_functional_retain/pie_functional_record_get; API POST /v1/functional-records e GET /v1/functional-records/:id, com autenticação/origem/CSRF existentes. Consulta funcional anterior segue somente leitura. Não há listagem histórica paginada nem UI de retenção nesta entrega.
+
+Teste SQLite real cobre reabertura, preservação da página, hash adulterado, troca re-selada sob mesmo ID, cobertura inconsistente e triggers. CLI/MCP stdio e HTTP com schemas Ajv passaram (quatro testes em três arquivos, 11s); extensão de integridade/API passou (três testes, 3,77s). PostgreSQL real foi acrescentado à trilha CI existente, ignorado localmente. Build PIE, typecheck completo e web passaram; lint focado dos novos contratos/testes sem avisos/erros. Limites de módulos: 2055 fontes; descoberta: 1464 testes. CPU/memória/tokens da persistência ainda não medidos. CI 38991840117 do painel anterior 86da7f14d terminou com sucesso. CI desta entrega ainda pendente. Nenhum motor completo nem prova de funcionamento do alvo é reivindicado; goal integral ativo.
+
 ## Análise funcional no painel — 16/10/2026
 
 CI 38991625430 (dfaa30743) passou. Painel passa a consultar a análise funcional OBSERVE real: filtro por módulo relativo, páginas de dez achados, incerteza, reprodução/proposta/aceite e prova da declaração com SHA-256. Estado é Não verificado/informativo; responsável permanece explicitamente não definido. Escopo vazio informa que ausência de declaração não prova ausência de funcionalidade. Nenhuma execução/autoridade é inferida do formulário. Consulta usa API autenticada/CSRF, cancela requisição anterior e limpa prova ao trocar escopo; componente remonta ao mudar snapshot.

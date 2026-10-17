@@ -43,26 +43,10 @@ export const functionalOutput = z.strictObject({
   }),
 });
 
-/** Reports missing verification, never a missing implementation or a proven defect. */
-export function assessFunctional(
-  snapshotInput: Snapshot,
-  input: unknown,
-  policyInput: unknown,
+export function selectFunctionalTargets(
+  snapshot: Snapshot,
+  request: z.infer<typeof functionalInput>,
 ) {
-  const request = functionalInput.parse(input);
-  const policy = policySchema.parse(policyInput);
-  const snapshot = validateSnapshot(snapshotInput);
-  if (
-    request.snapshotId !== snapshot.id ||
-    policy.repositoryRoot !== snapshot.root ||
-    policy.profile !== "OBSERVE" ||
-    policy.allowTargetExecution ||
-    policy.allowTargetMutation
-  )
-    throw new PieError(
-      "POLICY_DENIED",
-      "Análise funcional estática exige snapshot e escopo OBSERVE correspondentes.",
-    );
   const modulePath = request.modulePath;
   if (
     modulePath &&
@@ -88,6 +72,31 @@ export function assessFunctional(
     offset: request.offset,
     limit: request.limit,
   });
+  return { targets, selected };
+}
+
+/** Reports missing verification, never a missing implementation or a proven defect. */
+export function assessFunctional(
+  snapshotInput: Snapshot,
+  input: unknown,
+  policyInput: unknown,
+) {
+  const request = functionalInput.parse(input);
+  const policy = policySchema.parse(policyInput);
+  const snapshot = validateSnapshot(snapshotInput);
+  if (
+    request.snapshotId !== snapshot.id ||
+    policy.repositoryRoot !== snapshot.root ||
+    policy.profile !== "OBSERVE" ||
+    policy.allowTargetExecution ||
+    policy.allowTargetMutation
+  )
+    throw new PieError(
+      "POLICY_DENIED",
+      "Análise funcional estática exige snapshot e escopo OBSERVE correspondentes.",
+    );
+  const modulePath = request.modulePath;
+  const { targets, selected } = selectFunctionalTargets(snapshot, request);
   const findings = selected.items.map((declaration) => ({
     id: `functional:runtime-gap:${declaration.id}`,
     state: "unverified" as const,

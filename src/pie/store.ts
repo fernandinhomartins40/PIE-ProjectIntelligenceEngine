@@ -9,6 +9,11 @@ import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import canonicalize from "canonicalize";
 import {
+  functionalRecordSchema,
+  validateFunctional,
+  validateStoredFunctional,
+} from "./functionalRecord.js";
+import {
   verificationRunSchema,
   verificationHistorySchema,
 } from "./execution/runContracts.js";
@@ -42,10 +47,55 @@ export class PieStore implements PiePersistence {
       CREATE TRIGGER IF NOT EXISTS pie_snapshot_immutable_delete BEFORE DELETE ON pie_snapshots BEGIN SELECT RAISE(ABORT,'snapshot imutável'); END;
       CREATE TRIGGER IF NOT EXISTS pie_evidence_immutable_delete BEFORE DELETE ON pie_evidence BEGIN SELECT RAISE(ABORT,'evidência imutável'); END;
       INSERT OR IGNORE INTO pie_migrations(version) VALUES(2);`);
+    this.#db
+      .exec(`CREATE TABLE IF NOT EXISTS pie_functional_records(id TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL REFERENCES pie_snapshots(id), created_at TEXT NOT NULL, payload TEXT NOT NULL);
+      CREATE INDEX IF NOT EXISTS pie_functional_snapshot ON pie_functional_records(snapshot_id,created_at,id);
+      CREATE TRIGGER IF NOT EXISTS pie_functional_immutable_update BEFORE UPDATE ON pie_functional_records BEGIN SELECT RAISE(ABORT,'functional immutable'); END;
+      CREATE TRIGGER IF NOT EXISTS pie_functional_immutable_delete BEFORE DELETE ON pie_functional_records BEGIN SELECT RAISE(ABORT,'functional immutable'); END;
+      INSERT OR IGNORE INTO pie_migrations(version) VALUES(3);`);
   }
 
   close(): void {
     this.#db.close();
+  }
+  saveFunctional(input: unknown) {
+    const parsed = functionalRecordSchema.parse(input);
+    const record = validateFunctional(parsed, this.snapshot(parsed.snapshotId));
+    this.#db
+      .prepare(
+        "INSERT OR IGNORE INTO pie_functional_records(id,snapshot_id,created_at,payload) VALUES(?,?,?,?)",
+      )
+      .run(
+        record.id,
+        record.snapshotId,
+        record.createdAt,
+        JSON.stringify(record),
+      );
+    const stored = this.functionalRecord(record.id);
+    if (canonicalize(stored) !== canonicalize(record))
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "Análise funcional histórica não pode ser substituída.",
+      );
+    return stored;
+  }
+  functionalRecord(id: string) {
+    const row = this.#db
+      .prepare(
+        "SELECT snapshot_id,created_at,payload FROM pie_functional_records WHERE id=?",
+      )
+      .get(id);
+    if (!row)
+      throw new PieError("NOT_FOUND", "Análise funcional não encontrada.");
+    return validateStoredFunctional(
+      {
+        id,
+        snapshotId: String(row.snapshot_id),
+        createdAt: String(row.created_at),
+        payload: JSON.parse(String(row.payload)),
+      },
+      this.snapshot(String(row.snapshot_id)),
+    );
   }
 
   async assertOutside(targetRoot: string): Promise<void> {

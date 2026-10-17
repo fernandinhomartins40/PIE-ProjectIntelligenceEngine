@@ -237,3 +237,8 @@ O resultado informa evidência, incerteza, passos de reprodução propostos, pro
 ## Lacunas funcionais no painel
 
 A seção Lacunas de verificação funcional consulta a análise OBSERVE do snapshot selecionado. Informe módulo relativo opcional e clique Analisar lacunas funcionais; navegue pelas páginas e abra a prova da declaração ou os critérios de validação propostos. O estado permanece não verificado/informativo. A análise não executa cenários, comprova defeitos nem aprova o projeto. Ao trocar módulo ou snapshot, a prova selecionada é limpa; ausência de declarações é informada sem concluir ausência de funcionalidades.
+## Preservar análise funcional
+
+functional-retain <snapshot-id> --module <caminho> --limit <n> --offset <n> salva explicitamente a página analisada como registro imutável. functional-record <id> lê e verifica o registro. MCP usa pie_functional_retain e pie_functional_record_get; API usa POST /v1/functional-records (mesma entrada da análise) e GET /v1/functional-records/:id. Salvar é operação distinta da consulta funcional, que continua sem gravar.
+
+Registros preservam pedido, resultado paginado, data, snapshot e hash canônico; validam fatos/evidências contra o snapshot. Não são prova runtime e não representam páginas omitidas. Mesmo ID não pode substituir conteúdo histórico. PostgreSQL exige migration 202610160005 antes destas operações. Listagem paginada de análises, contestação e interface de retenção ainda estão pendentes.

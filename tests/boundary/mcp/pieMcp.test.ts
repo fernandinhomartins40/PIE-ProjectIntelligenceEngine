@@ -127,6 +127,35 @@ async function verifyFunctional(
       ).stdout,
     ),
   ).toEqual(functional.structuredContent);
+  const retained = await client.callTool({
+    name: "pie_functional_retain",
+    arguments: { snapshotId },
+  });
+  expect(retained.isError).not.toBe(true);
+  const record = retained.structuredContent as { id: string; result: unknown };
+  expect(record.result).toEqual(functional.structuredContent);
+  const read = await client.callTool({
+    name: "pie_functional_record_get",
+    arguments: { id: record.id },
+  });
+  expect(read.structuredContent).toEqual(retained.structuredContent);
+  const schema = catalog.find((item) => item.name === "pie_functional_retain")!;
+  expect(
+    ajv.compile(schema.outputSchema as AnySchema)(retained.structuredContent),
+  ).toBe(true);
+  expect(
+    JSON.parse(
+      (
+        await exec(process.execPath, [
+          script,
+          "functional-record",
+          record.id,
+          "--db",
+          db,
+        ])
+      ).stdout,
+    ),
+  ).toEqual(retained.structuredContent);
 }
 
 function verifySchemas(

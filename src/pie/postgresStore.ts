@@ -1,6 +1,11 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import canonicalize from "canonicalize";
+import {
+  functionalRecordSchema,
+  validateFunctional,
+  validateStoredFunctional,
+} from "./functionalRecord.js";
 import { PieError, type Snapshot } from "./contracts.js";
 import { verifyEvidence } from "./evidence.js";
 import { pageSchema } from "./graph.js";
@@ -45,6 +50,44 @@ export class PostgresPieStore implements PiePersistence {
   }
   async close(): Promise<void> {
     await this.#client.$disconnect();
+  }
+  async saveFunctional(input: unknown) {
+    const parsed = functionalRecordSchema.parse(input);
+    const record = validateFunctional(
+      parsed,
+      await this.snapshot(parsed.snapshotId),
+    );
+    await this.#client
+      .$executeRaw`INSERT INTO pie_functional_records(id,snapshot_id,created_at,payload) VALUES(${record.id}::uuid,${record.snapshotId}::uuid,${new Date(record.createdAt)},${JSON.stringify(record)}::jsonb) ON CONFLICT (id) DO NOTHING`;
+    const stored = await this.functionalRecord(record.id);
+    if (canonicalize(stored) !== canonicalize(record))
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "Análise funcional histórica não pode ser substituída.",
+      );
+    return stored;
+  }
+  async functionalRecord(id: string) {
+    const rows = await this.#client.$queryRaw<
+      Array<{
+        id: string;
+        snapshot_id: string;
+        created_at: Date;
+        payload: unknown;
+      }>
+    >`SELECT id::text,snapshot_id::text,created_at,payload FROM pie_functional_records WHERE id=${id}::uuid`;
+    const row = rows[0];
+    if (!row)
+      throw new PieError("NOT_FOUND", "Análise funcional não encontrada.");
+    return validateStoredFunctional(
+      {
+        id: row.id,
+        snapshotId: row.snapshot_id,
+        createdAt: row.created_at.toISOString(),
+        payload: row.payload,
+      },
+      await this.snapshot(row.snapshot_id),
+    );
   }
   async assertOutside(_root: string): Promise<void> {
     // A PostgreSQL connection owns no file path inside the audited repository.

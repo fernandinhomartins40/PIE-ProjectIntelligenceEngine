@@ -162,6 +162,8 @@ export async function runPie(args: string[]): Promise<void> {
       "graph",
       "declarations",
       "functional",
+      "functional-retain",
+      "functional-record",
       "trace",
       "evidence",
       "verification",
@@ -298,6 +300,18 @@ export async function runPie(args: string[]): Promise<void> {
           ...paging,
           modulePath: parsed.values.module ?? "",
         });
+        break;
+      case "functional-retain":
+        result = await service.retainFunctional({
+          snapshotId: target!,
+          ...paging,
+          modulePath: parsed.values.module ?? "",
+        });
+        break;
+      case "functional-record":
+        result = await service.functionalRecord(
+          z.string().uuid().parse(target!),
+        );
         break;
       case "trace":
         result = await service.trace({
