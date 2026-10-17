@@ -472,6 +472,10 @@ Reteste final acrescentou negativa ESM→CommonJS: nenhuma chamada/rota composta
 
 Foi adicionado grant discriminado v2 com bindings explícitos teste→declaração: arquivo precisa estar no grant e declaração no snapshot; duplicatas são recusadas. V1 permanece aceito. O registro/evidence digest preserva o grant completo, mas binding continua declarado e não equivale a cobertura comprovada. O teste Windows encontrou contorno do isolamento quando a mesma raiz era apresentada como nome Unicode longo e caminho 8.3; a fronteira de cópia agora usa `realpathSync.native`, e a regressão verifica que preparar workspace dentro do alvo é recusado. `check:fast`, `pie:build`, `toolSchemaValidity` (15/15), boundaries (8 passou, 3 skips por plataforma/Docker), formato e gate docs passaram. Próximo: expor bindings declarados com semântica explícita na comparação e avançar para cobertura funcional real; T4.1 não está completo.
 
+# Baseline local de segurança — 17/10/2026
+
+Plano e relatório em `docs/SECURITY_IMPLEMENTATION_PLAN.md` e `docs/SECURITY_VALIDATION_REPORT.md`. API/jobs: 6 pass e 1 PostgreSQL skip; sessões: 3 pass. Cobertura limita-se à API/painel PIE local, sem SAST/SCA/segredos, pentest, multi-tenant ou conclusão LGPD. T4.3 permanece pendente; próximo passo é matriz rota × identidade × escopo × efeito e testes negativos relacionados.
+
 # Painel de Produto/UX — 17/10/2026
 
 O painel consome o relatório `product` de forma real, com seleção de módulo e paginação; abre Evidence vinculada e expõe origem/hash/limitações usando o endpoint de leitura existente. Boundary Playwright real do PIE (1/1) passou com login local, Evidence e hash consultados, troca de escopo e viewports 360/1440 sem overflow. Não contém mock nem inventa jornada, fricção ou recomendação. `check:fast`, `pie:build`, typecheck direto de `apps/web`, format check e boundaries CLI/API/MCP passaram. Próximo: obter decisão de escopo de mantenedor para integração de captura Playwright que executa o alvo; enquanto isso, aprofundar motores estáticos de T4 sem marcar jornada observada.

@@ -12,6 +12,10 @@ Runs VERIFY persistidos v1/v2 agora s?o exportados sem reexecu??o via `verificat
 
 # PIE — Plano mestre de implementação integral
 
+## Baseline técnico do motor de segurança — 17/10/2026
+
+Inspecionados controles locais da API/painel PIE e adicionados `docs/SECURITY_IMPLEMENTATION_PLAN.md` + `docs/SECURITY_VALIDATION_REPORT.md`, conforme o protocolo universal. Testes `pieBrowserSessions` (3/3), `pieApi` + `pieJobs` (6 passaram, 1 PostgreSQL skipped) verificam autenticação/origem/CSRF, expiração, rate limit, evicção e escopo local de jobs. `check:fast`, `docs:check` e `format:check` passaram. Isso é revisão parcial do produto PIE, não um motor de segurança para qualquer projeto nem pentest; matriz completa de rotas, SAST/SCA/segredos, retenção/privacidade e eventuais novos modelos comerciais permanecem pendentes. T4.3 continua pendente.
+
 ## Motor inicial de evidência de Produto/UX — 17/10/2026
 
 `PieService.product`, CLI `product-review`, POST autenticado `/v1/product` e MCP `pie_product_review` compartilham contrato paginado. A análise liga cada declaração de página/endpoint à Evidence estática e marca jornada como não observada, os cinco movimentos como não avaliados e a oportunidade como insuficiente evidência; não inventa fricção ou melhoria. Testes de descoberta Next real e projeto vazio validam origem, paginação e recusa de snapshot divergente; testes HTTP/MCP com schema Ajv verificam paridade CLI. T4.2 passa a parcial: captura de jornadas, passos, acessibilidade/UI, mobile/desktop, hipótese, impacto/custo/dependências/risco e oportunidades verificáveis permanecem pendentes.
