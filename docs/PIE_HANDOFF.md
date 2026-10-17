@@ -319,3 +319,11 @@ Na consulta seguinte, PIE integration terminou com falha no passo “Verify inst
 ## Continuação — Result de erro de sintaxe AST — 17/10/2026
 
 `readCodeFactsResult` converte somente `BABEL_PARSER_SYNTAX_ERROR` em `Result` tagged `invalid_syntax`; falhas inesperadas relançam. `discoverProject` mantém o nó inventariado, registra limitação e não inventa relações. Build PIE, `check:fast`, `docs:check:built`, `format:check` e boundaries `pieAdapters`/`pieFoundation` (16) passaram. T1.1 continua parcial; adotar Result em todas as falhas esperadas ainda pendente.
+
+## Continuação — reexports de routers Express — 17/10/2026
+
+ESM relativos `export ... from` são seguidos recursivamente até router local único. `calls` aponta para o relay inicial; `depends` existentes mantêm o caminho até o endpoint terminal. `validateSnapshot` exige que Evidence do reexport tenha dependência AST correspondente. Cadeia de dois relays/trace e ciclo passaram nas boundaries (17/17); `pie:build`, `check:fast`, docs/formatação passaram. CI do SHA e commit ainda pendentes. T2.2 permanece parcial.
+
+Medição única após o reexport: frio 29,676 s/22,875 s CPU; quente 13,781 s/11,437 s CPU; 4.273 enumerados/4.250 examinados, 49.999.686 bytes, cobertura parcial, cache 4.244 hits/2.968.772 bytes retidos; pico RSS cumulativo 513 MiB. Anterior: 23,897/19,578 s frio e 12,711/10,688 s quente; diferença observada (+24,2%/+16,8% frio, +8,4%/+7,0% quente) não é causal, pois foi uma rodada única sem controlar conteúdo/carga. Família Git e tokens não medidos.
+
+CI pública observada do commit anterior `4b69794de`: PIE integration passou (39013301108), Release falhou pela política de criação de PR do Actions, CI geral estava em execução. A falha de browser no SHA `1f4ea65c9` foi superada pelo integration success posterior; a origem histórica não foi apurada por falta de acesso aos logs privados.

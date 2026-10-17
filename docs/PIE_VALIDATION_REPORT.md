@@ -6,6 +6,14 @@
 
 CI do SHA anterior `1f4ea65c9f2e34c2f4c92c58e04b207afdef7f64`: [PIE integration](https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/39012738931) falhou no passo “Verify installed browser and panel”; log detalhado requer permissão administrativa segundo a API pública (403), então a causa raiz não foi verificada. [Release](https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/39012738860) falhou porque o repositório não permite que GitHub Actions crie/aprove pull requests; etapas de Release Please/publicação foram ignoradas. A CI geral estava em fila na última consulta. Nenhuma dessas falhas foi atribuída à alteração atual de parser.
 
+## Cadeia de reexports Express — 17/10/2026
+
+`pie:build`, `check:fast`, `docs:check:built` e `format:check` passaram. As boundaries `pieExpressCrossFile`, `pieAdapters` e `pieTrace` passaram (17 testes) usando AST, Git e snapshots reais no harness; cobrem dois relays `export ... from`, Evidence da exportação intermediária, aresta de dependência em cada relay, composição no endpoint terminal, trace até a rota e cadeia cíclica sem `calls`/composição. Não executa o Express real. CI do novo SHA ainda não executada.
+
+Medição única do checkout após a implementação: frio 29,676 s/22,875 s CPU; quente 13,781 s/11,437 s CPU; 4.273 enumerados, 4.250 examinados, 49.999.686 bytes, cobertura parcial, 16.150 arestas, 372 declarações, 615 limitações, cache quente 4.244 hits/2.968.772 bytes retidos, pico RSS cumulativo Node 513 MiB. Medição anterior equivalente no mesmo checkout registrada como 23,897 s/19,578 s frio e 12,711 s/10,688 s quente. Variações observadas +24,2%/+16,8% frio e +8,4%/+7,0% quente; conteúdo atual e carga do host não foram controlados, não atribuir causalidade. Família Git e tokens não medidos.
+
+CI do SHA imediatamente anterior `4b69794def9689c65b4ef4c79d886194f4c21a91`: [PIE integration](https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions/runs/39013301108) passou; Release falhou outra vez por permissão de criação de PR; CI geral ainda estava em execução. Isso valida a entrega anterior, não o código de reexports atual.
+
 ## Baseline upstream CLI/MCP/pacote — 17/10/2026
 
 Validados no checkout real com Node 24.18.0 e npm 11.16.0 (`npx`). `node scripts/verify-windows-native-artifact.mjs` aprovou o addon `rea-agents@6.5.0` restaurado do tarball da versão exata: Windows x64, ABI 1, Node-API 8, SHA-256 `665c57ab90aef0712a6aafc423c7992a88bf608bea63b370cb30c695900f9aed`. `npx.cmd --yes npm@11.16.0 run build:cached` passou. `node scripts/pie.mjs --help` e `node scripts/rea.mjs --help` responderam; processo REA MCP stdio real completou initialize/tools/list, anunciando `rea@6.5.0`, protocolo 2025-03-26 e 207 tools. `tests/boundary/mcp/pieMcp.test.ts` passou (1 teste com CLI/MCP e Ajv); Evidence/Ledger upstream passou 36 testes (27+9).

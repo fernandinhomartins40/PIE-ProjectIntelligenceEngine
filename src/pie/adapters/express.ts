@@ -27,6 +27,12 @@ export type ExpressRouterExport = {
   localName: string;
   line: number;
 };
+export type ExpressRouterReExport = {
+  exportName: string;
+  importedName: string;
+  specifier: string;
+  line: number;
+};
 export type ExpressLocalRouterMount = {
   receiver: string;
   prefix: string;
@@ -41,6 +47,7 @@ export type ExpressRead = AdapterRead & {
   crossFileMounts: ExpressCrossFileMount[];
   routerMounts: ExpressLocalRouterMount[];
   routerExports: ExpressRouterExport[];
+  routerReExports: ExpressRouterReExport[];
   omittedCrossFileFacts: number;
 };
 type RouterDerivation = {
@@ -343,8 +350,30 @@ export function readExpressDeclarations(
   const bindings = new Map<string, Binding>();
   const importedRouters = new Map<string, ExpressRouterImport>();
   const exportCandidates: ExpressRouterExport[] = [];
+  const reExportCandidates: ExpressRouterReExport[] = [];
   for (const statement of tree.program.body) {
     if (statement.type === "ExportNamedDeclaration") {
+      if (
+        statement.source &&
+        statement.source.value.startsWith(".") &&
+        statement.exportKind !== "type"
+      )
+        for (const specifier of statement.specifiers)
+          if (
+            specifier.type === "ExportSpecifier" &&
+            specifier.exportKind !== "type"
+          ) {
+            const importedName = memberName(specifier.local);
+            const exportName = memberName(specifier.exported);
+            if (importedName && exportName)
+              reExportCandidates.push({
+                exportName,
+                importedName,
+                specifier: statement.source.value,
+                line:
+                  specifier.loc?.start.line ?? statement.loc?.start.line ?? 1,
+              });
+          }
       const declaration = statement.declaration;
       if (declaration?.type === "VariableDeclaration")
         for (const variable of declaration.declarations)
@@ -362,7 +391,7 @@ export function readExpressDeclarations(
             exportCandidates.push({
               exportName,
               localName,
-              line: specifier.loc?.start.line ?? statement.loc?.start.line ?? 1,
+              line: statement.loc?.start.line ?? specifier.loc?.start.line ?? 1,
             });
         }
     } else if (
@@ -430,13 +459,16 @@ export function readExpressDeclarations(
     line: mount.line,
   }));
   const boundedRouterExports = routerExports.slice(0, limit);
+  const routerReExports = reExportCandidates.slice(0, limit);
   const omittedCrossFileFacts =
     crossFileMounts.length -
     boundedCrossFileMounts.length +
     localMounts.length -
     routerMounts.length +
     routerExports.length -
-    boundedRouterExports.length;
+    boundedRouterExports.length +
+    reExportCandidates.length -
+    routerReExports.length;
   let unresolvedMounts = 0;
   for (const route of routes) {
     const resolved =
@@ -490,12 +522,13 @@ export function readExpressDeclarations(
     crossFileMounts: boundedCrossFileMounts,
     routerMounts,
     routerExports: boundedRouterExports,
+    routerReExports,
     omittedCrossFileFacts,
     limitations:
       bindings.size || declarations.length
         ? [
             "Express AST: somente bindings const/import e chamadas diretas no escopo superior com caminho literal; prefixos literais de app.use/router.use são compostos quando o router é alcançável por montagens estáticas. Isso não comprova instalação, handler válido, autorização, listen ou disponibilidade HTTP.",
-            "Mounts por import relativo default/named para export literal de router em módulo rastreado geram relação cross-file, mas o prefixo não é composto no nome do endpoint. Reexports, namespaces, require cross-file, escopos aninhados, aliases mutáveis, factories, cadeias route(), caminhos dinâmicos/arrays/regex e efeitos de código chamado continuam não examinados; ausência de fato não prova ausência de endpoint.",
+            "Mounts por import relativo default/named compõem prefixos quando a cadeia estática chega a um export local único de router. Reexports relativos são seguidos com dependências e Evidence por arquivo; ciclos, ambiguidades e destinos não observados permanecem sem resolução. Namespaces, require cross-file, escopos aninhados, aliases mutáveis, factories, cadeias route(), caminhos dinâmicos/arrays/regex e efeitos de código chamado continuam não examinados; ausência de fato não prova ausência de endpoint.",
             ...(unresolvedMounts
               ? [
                   `${unresolvedMounts} rotas pertencem a routers sem montagem literal resolvida, wildcard ou em ciclo; seus caminhos podem permanecer locais ao router.`,

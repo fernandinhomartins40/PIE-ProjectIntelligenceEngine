@@ -27,6 +27,13 @@ export const expressRouterExportObservation = (
 ) =>
   `Express AST router export ${JSON.stringify([exportName, localName])}; tipo de retorno não inspecionado em runtime.`;
 
+export const expressRouterReExportObservation = (
+  exportName: string,
+  importedName: string,
+  specifier: string,
+) =>
+  `Express AST router re-export ${JSON.stringify([exportName, importedName, specifier])}; a cadeia estática não comprova retorno em runtime.`;
+
 export const expressRouterMountEdgeId = (
   from: string,
   to: string,

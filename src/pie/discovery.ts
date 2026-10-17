@@ -31,6 +31,7 @@ import {
 import { declarationIdentity } from "./adapters/identity.js";
 import {
   expressRouterExportObservation,
+  expressRouterReExportObservation,
   expressRouterMountEdgeId,
   expressRouterMountObservation,
 } from "./adapters/expressEvidence.js";
@@ -38,6 +39,7 @@ import {
   joinExpressRoute,
   type ExpressLocalRouterMount,
   type ExpressCrossFileMount,
+  type ExpressRouterReExport,
   type ExpressRouterExport,
 } from "./adapters/express.js";
 
@@ -178,6 +180,7 @@ export async function discoverProject(
     mounts: ExpressCrossFileMount[];
     routerMounts: ExpressLocalRouterMount[];
     exports: ExpressRouterExport[];
+    reExports: ExpressRouterReExport[];
   }> = [];
   const limitations = [
     "Somente arquivos rastreados pelo Git; arquivos novos não rastreados não foram examinados.",
@@ -265,10 +268,11 @@ export async function discoverProject(
           mounts: parsed.value.express.crossFileMounts,
           routerMounts: parsed.value.express.routerMounts,
           exports: parsed.value.express.routerExports,
+          reExports: parsed.value.express.routerReExports,
         });
         if (parsed.value.express.omittedCrossFileFacts > 0)
           limitations.push(
-            `${parsed.value.express.omittedCrossFileFacts} fatos de mount/export Express usados na resolução cross-file omitidos pelo limite de análise em ${path}.`,
+            `${parsed.value.express.omittedCrossFileFacts} fatos de mount/export/re-export Express usados na resolução cross-file omitidos pelo limite de análise em ${path}.`,
           );
         const declared = collectDeclarations(item, parsed.value.declarations);
         evidence.push(...declared.evidence);
@@ -378,6 +382,53 @@ export async function discoverProject(
   const moduleByPath = new Map(
     expressModules.map((module) => [module.path, module]),
   );
+  type ResolvedRouterExport = {
+    terminalPath: string;
+    terminalExport: ExpressRouterExport;
+    first:
+      | { kind: "local"; export: ExpressRouterExport }
+      | { kind: "re-export"; export: ExpressRouterReExport };
+  };
+  const resolveRouterExport = (
+    path: string,
+    exportName: string,
+    visiting: ReadonlySet<string> = new Set(),
+  ): ResolvedRouterExport | null => {
+    const identity = JSON.stringify([path, exportName]);
+    if (visiting.has(identity)) return null;
+    const module = moduleByPath.get(path);
+    if (!module) return null;
+    const direct = module.exports.filter(
+      (item) => item.exportName === exportName,
+    );
+    const reExports = module.reExports.filter(
+      (item) => item.exportName === exportName,
+    );
+    if (direct.length + reExports.length !== 1) return null;
+    const nextVisiting = new Set(visiting).add(identity);
+    const local = direct[0];
+    if (local)
+      return {
+        terminalPath: path,
+        terminalExport: local,
+        first: { kind: "local", export: local },
+      };
+    const reExport = reExports[0]!;
+    const target = resolveRelativeTarget(
+      relativeNodeIndex,
+      path,
+      reExport.specifier,
+    );
+    if (!target) return null;
+    const nested = resolveRouterExport(
+      target.path,
+      reExport.importedName,
+      nextVisiting,
+    );
+    return nested
+      ? { ...nested, first: { kind: "re-export", export: reExport } }
+      : null;
+  };
   const importProofsByTuple = new Map<string, Evidence>();
   for (const item of evidence) {
     if (!item.observation.startsWith("Import AST ")) continue;
@@ -442,15 +493,15 @@ export async function discoverProject(
       const targetModule = targetPath
         ? moduleByPath.get(targetPath.path)
         : undefined;
-      const exports = targetModule?.exports.filter(
-        (item) => item.exportName === mount.importedName,
-      );
+      const resolvedExport = targetPath
+        ? resolveRouterExport(targetPath.path, mount.importedName)
+        : null;
       const sourceNode = fileNodesByPath.get(module.path);
       const sourceEvidence = evidenceByPath.get(module.path);
       if (
         !targetPath ||
         !targetModule ||
-        exports?.length !== 1 ||
+        !resolvedExport ||
         !sourceNode ||
         !sourceEvidence
       ) {
@@ -463,7 +514,7 @@ export async function discoverProject(
       }
       const targetNode = fileNodesByPath.get(targetPath.path);
       const targetEvidence = evidenceByPath.get(targetPath.path);
-      const exported = exports[0]!;
+      const exported = resolvedExport.terminalExport;
       if (!targetNode || !targetEvidence) {
         unresolvedExpressMounts++;
         continue;
@@ -494,15 +545,27 @@ export async function discoverProject(
         mount.mountLine,
         expressRouterMountObservation(mountFact),
       );
+      const exportLine = resolvedExport.first.export.line;
+      const exportObservation =
+        resolvedExport.first.kind === "local"
+          ? expressRouterExportObservation(
+              exported.exportName,
+              exported.localName,
+            )
+          : expressRouterReExportObservation(
+              resolvedExport.first.export.exportName,
+              resolvedExport.first.export.importedName,
+              resolvedExport.first.export.specifier,
+            );
       const exportProof = makeDerivedEvidence(
         targetEvidence,
-        exported.line,
-        expressRouterExportObservation(exported.exportName, exported.localName),
+        exportLine,
+        exportObservation,
       );
       evidence.push(mountProof, exportProof);
       resolvedExpressMounts.push({
         sourcePath: module.path,
-        targetPath: targetPath.path,
+        targetPath: resolvedExport.terminalPath,
         mountLine: mount.mountLine,
         prefix: mount.prefix,
         exported,
@@ -513,7 +576,7 @@ export async function discoverProject(
           targetNode.id,
           mountFact,
           mount.mountLine,
-          exported.line,
+          exportLine,
         ),
         from: sourceNode.id,
         to: targetNode.id,

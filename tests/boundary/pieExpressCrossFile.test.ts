@@ -239,6 +239,30 @@ it("não cria relação quando o import relativo não exporta um router literal"
   }
 });
 
+it("does not resolve a cyclic static router re-export chain", async () => {
+  clearAnalysisCache();
+  const root = await mkdtemp(join(tmpdir(), "pie-express-reexport-cycle-"));
+  try {
+    await exec("git", ["init", root]);
+    await writeFile(
+      join(root, "main.ts"),
+      "import express from 'express';\nimport api from './a.js';\nconst app = express();\napp.use('/api', api);\n",
+    );
+    await writeFile(join(root, "a.ts"), "export {default} from './b.js';\n");
+    await writeFile(join(root, "b.ts"), "export {default} from './a.js';\n");
+    await exec("git", ["-C", root, "add", "."]);
+    const snapshot = await discoverFixture(root);
+    expect(snapshot.edges.some((edge) => edge.kind === "calls")).toBe(false);
+    expect(snapshot.coverage.limitations.join(" ")).toContain(
+      "mounts Express importados não foram resolvidos para um export de router único",
+    );
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+  } finally {
+    clearAnalysisCache();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("composes local router mounts before the exported router prefix", async () => {
   clearAnalysisCache();
   const root = await mkdtemp(join(tmpdir(), "pie-express-nested-cross-file-"));
@@ -309,6 +333,81 @@ it("keeps cyclic router mounts uncomposed across files", async () => {
       "mounts cíclicos não foram compostos cross-file",
     );
     expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+  } finally {
+    clearAnalysisCache();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("resolves a static router re-export through its import chain", async () => {
+  clearAnalysisCache();
+  const root = await mkdtemp(join(tmpdir(), "pie-express-reexport-"));
+  try {
+    await exec("git", ["init", root]);
+    await mkdir(join(root, "routes"), { recursive: true });
+    await writeFile(
+      join(root, "main.ts"),
+      "import express from 'express';\nimport {api as routeApi} from './routes/index.js';\nconst app = express();\napp.use('/api', routeApi);\n",
+    );
+    await writeFile(
+      join(root, "routes", "index.ts"),
+      "export {api} from './router.js';\n",
+    );
+    await writeFile(
+      join(root, "routes", "router.ts"),
+      "export {default as api} from './health.js';\n",
+    );
+    await writeFile(
+      join(root, "routes", "health.ts"),
+      "import {Router as createRouter} from 'express';\nconst router = createRouter();\nrouter.get('/health', handler);\nexport default router;\n",
+    );
+    await exec("git", ["-C", root, "add", "."]);
+    const snapshot = await discoverFixture(root);
+    expect(snapshot.declarations).toContainEqual(
+      expect.objectContaining({
+        name: "GET /api/health",
+        source: expect.objectContaining({ path: "routes/health.ts" }),
+        derivations: expect.arrayContaining([
+          expect.objectContaining({ sourcePath: "main.ts", prefix: "/api" }),
+        ]),
+      }),
+    );
+    expect(snapshot.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "calls",
+          from: snapshot.nodes.find((node) => node.path === "main.ts")?.id,
+          to: snapshot.nodes.find((node) => node.path === "routes/index.ts")
+            ?.id,
+        }),
+        expect.objectContaining({
+          kind: "depends",
+          from: snapshot.nodes.find((node) => node.path === "routes/index.ts")
+            ?.id,
+          to: snapshot.nodes.find((node) => node.path === "routes/router.ts")
+            ?.id,
+        }),
+        expect.objectContaining({
+          kind: "depends",
+          from: snapshot.nodes.find((node) => node.path === "routes/router.ts")
+            ?.id,
+          to: snapshot.nodes.find((node) => node.path === "routes/health.ts")
+            ?.id,
+        }),
+      ]),
+    );
+    expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    const traced = traceSnapshot(snapshot, {
+      snapshotId: snapshot.id,
+      nodeId: snapshot.nodes.find((node) => node.path === "main.ts")!.id,
+      direction: "both",
+    });
+    expect(
+      traced.nodes.items.some(
+        (node) =>
+          node.path === "routes/health.ts" && node.label === "GET /api/health",
+      ),
+    ).toBe(true);
   } finally {
     clearAnalysisCache();
     await rm(root, { recursive: true, force: true });

@@ -12,6 +12,7 @@ import {
 import { declarationIdentity } from "./adapters/identity.js";
 import {
   expressRouterExportObservation,
+  expressRouterReExportObservation,
   expressRouterMountEdgeId,
   expressRouterMountObservation,
 } from "./adapters/expressEvidence.js";
@@ -186,8 +187,10 @@ function validateExpressMountEdges(snapshot: Snapshot) {
     const importProof = proofs.find((item) =>
       item?.observation.startsWith("Import AST "),
     );
-    const exportProof = proofs.find((item) =>
-      item?.observation.startsWith("Express AST router export "),
+    const exportProof = proofs.find(
+      (item) =>
+        item?.observation.startsWith("Express AST router export ") ||
+        item?.observation.startsWith("Express AST router re-export "),
     );
     const mountMatch = mountProof
       ? /^Express AST cross-file router mount (.+); importação estática não comprova registro em runtime\.$/.exec(
@@ -204,6 +207,11 @@ function validateExpressMountEdges(snapshot: Snapshot) {
           exportProof.observation,
         )
       : null;
+    const reExportMatch = exportProof
+      ? /^Express AST router re-export (.+); a cadeia estática não comprova retorno em runtime\.$/.exec(
+          exportProof.observation,
+        )
+      : null;
     let mountTuple: unknown;
     let importTuple: unknown;
     let exportTuple: unknown;
@@ -211,6 +219,7 @@ function validateExpressMountEdges(snapshot: Snapshot) {
       mountTuple = JSON.parse(mountMatch?.[1] ?? "null");
       importTuple = JSON.parse(importMatch?.[1] ?? "null");
       exportTuple = JSON.parse(exportMatch?.[1] ?? "null");
+      if (reExportMatch) exportTuple = JSON.parse(reExportMatch[1]!);
     } catch {
       mountTuple = null;
       importTuple = null;
@@ -223,7 +232,9 @@ function validateExpressMountEdges(snapshot: Snapshot) {
     )
       ? importTuple
       : [];
-    const [exportName, exportLocalName] = Array.isArray(exportTuple)
+    const [exportName, exportLocalName, reExportSpecifier] = Array.isArray(
+      exportTuple,
+    )
       ? exportTuple
       : [];
     const sourceFile = sourceNode
@@ -260,7 +271,9 @@ function validateExpressMountEdges(snapshot: Snapshot) {
       importKind !== "relative-file" ||
       importTarget !== targetPath ||
       !Array.isArray(exportTuple) ||
-      exportTuple.length !== 2 ||
+      (exportMatch && exportTuple.length !== 2) ||
+      (reExportMatch && exportTuple.length !== 3) ||
+      (!exportMatch && !reExportMatch) ||
       exportName !== importedName ||
       typeof exportLocalName !== "string" ||
       mountProof.source.path !== sourceNode.path ||
@@ -288,8 +301,46 @@ function validateExpressMountEdges(snapshot: Snapshot) {
           prefix,
           targetPath,
         }) ||
-      exportProof.observation !==
-        expressRouterExportObservation(exportName, exportLocalName) ||
+      (exportMatch &&
+        exportProof.observation !==
+          expressRouterExportObservation(exportName, exportLocalName)) ||
+      (reExportMatch &&
+        (typeof reExportSpecifier !== "string" ||
+          !reExportSpecifier.startsWith(".") ||
+          exportProof.observation !==
+            expressRouterReExportObservation(
+              exportName,
+              exportLocalName,
+              reExportSpecifier,
+            ) ||
+          !snapshot.edges.some(
+            (dependency) =>
+              dependency.kind === "depends" &&
+              dependency.from === targetNode.id &&
+              dependency.evidenceIds.some((id) => {
+                const proof = evidence.get(id);
+                if (
+                  !proof?.observation.startsWith("Import AST ") ||
+                  proof.source.path !== targetNode.path ||
+                  proof.source.line !== exportProof.source.line
+                )
+                  return false;
+                try {
+                  const match =
+                    /^Import AST (.+); não comprova carregamento em runtime\.$/.exec(
+                      proof.observation,
+                    );
+                  const tuple: unknown = JSON.parse(match?.[1] ?? "null");
+                  return (
+                    Array.isArray(tuple) &&
+                    tuple[0] === reExportSpecifier &&
+                    tuple[1] === "relative-file"
+                  );
+                } catch {
+                  return false;
+                }
+              }),
+          ))) ||
       edge.id !==
         expressRouterMountEdgeId(
           sourceNode.id,
