@@ -86,6 +86,22 @@ async function verifyInvalidServicePolicy() {
   }
 }
 
+async function verifyMissingServiceRoot() {
+  const { root, repo, policy } = await fixture();
+  const store = await openStore(join(root, "missing-root.sqlite"), repo);
+  try {
+    await expect(
+      new PieService(store).discover({
+        ...policy,
+        repositoryRoot: join(repo, "missing"),
+      }),
+    ).rejects.toMatchObject({ constructor: PieError, code: "IO_ERROR" });
+    expect(store.projects().total).toBe(0);
+  } finally {
+    store.close();
+  }
+}
+
 async function verifyPersistedSnapshot(
   root: string,
   repo: string,
@@ -300,6 +316,12 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
     expect(() =>
       admitOperation({ ...verify, environment: "production" }, "execute"),
     ).toThrow();
+  });
+});
+
+describe("PIE: validação de raiz no serviço", () => {
+  it("classifica raiz ausente sem persistir projeto parcial", async () => {
+    await verifyMissingServiceRoot();
   });
 });
 

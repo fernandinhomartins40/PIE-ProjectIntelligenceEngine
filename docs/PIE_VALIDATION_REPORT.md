@@ -512,3 +512,9 @@ Precisão de dialect: gramática php-parser fixada em PHP 8.4. Rejeição por es
 - O serviço preserva a razão de cancelamento chamando `throwIfAborted()` quando recebe a tag `cancelled`.
 
 - Correção adicional antes da execução completa: validação inválida enviada ao `PieService.discover` retorna `PieError(INVALID_INPUT)`, coberta por teste real de serviço/SQLite; boundary passou 12/12.
+
+# Validação incremental — erro esperado de raiz ausente — 17/10/2026
+
+- `npm run pie:build`: passou.
+- `node scripts/run-exact-tests.mjs tests/boundary/pieFoundation.test.ts`: 13/13 passou; teste adicional confirma `PieError(IO_ERROR)` e ausência de projeto persistido para raiz inexistente.
+- Gates `check:fast`, `docs:check:built`, `format:check` e `git diff --check` serão executados sobre o conjunto final antes da publicação.

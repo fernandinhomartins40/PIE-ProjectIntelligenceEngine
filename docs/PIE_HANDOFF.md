@@ -391,3 +391,5 @@ Precisão de versão: php-parser foi configurado com gramática PHP 8.4; invalid
 `discoverProjectResult` converte somente falhas previstas em tags e deixa falhas inesperadas propagarem; `PieService` traduz as tags mantendo a razão original de cancelamento do sinal. Build PIE e boundary de fundação passaram (11 testes) no Windows. Cobertura desta rodada: input inválido, caminho ausente e cancelamento prévio. Result ainda não foi uniformizado nos demais serviços/runners; T1.1 segue parcial.
 
 A validação inicial de política em `PieService.discover` também foi ajustada para produzir `PieError(INVALID_INPUT)` estável. Regressão de serviço com SQLite real passou dentro dos 12 testes de `pieFoundation`.
+
+A resolução inicial da raiz em `PieService.discover` agora converte errnos esperados em `PieError(IO_ERROR)`; erro não reconhecido continua propagando. Teste com SQLite confirma que raiz inexistente não cria projeto parcial. `pie:build` e `pieFoundation` passaram (13/13); T1.1 permanece parcial.

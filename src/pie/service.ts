@@ -60,6 +60,21 @@ function policyValue(input: unknown): Policy {
   return parsed.data;
 }
 
+async function repositoryRoot(policy: Policy): Promise<string> {
+  try {
+    return await realpath(resolve(policy.repositoryRoot));
+  } catch (cause) {
+    if (
+      cause instanceof Error &&
+      ["EACCES", "EIO", "ENOENT", "ENOTDIR", "EPERM"].includes(
+        (cause as NodeJS.ErrnoException).code ?? "",
+      )
+    )
+      throw new PieError("IO_ERROR", "Raiz do repositório indisponível.");
+    throw cause;
+  }
+}
+
 /** Shared application workflow used by CLI and MCP; no target code execution. */
 export class PieService {
   readonly #active = new Map<AbortController, Promise<unknown>>();
@@ -146,7 +161,7 @@ export class PieService {
   async #discover(input: unknown, signal: AbortSignal) {
     signal.throwIfAborted();
     const policy = policyValue(input);
-    const root = await realpath(resolve(policy.repositoryRoot));
+    const root = await repositoryRoot(policy);
     await this.store.assertOutside(root);
     const project = await this.store.addProject(
       randomUUID(),
