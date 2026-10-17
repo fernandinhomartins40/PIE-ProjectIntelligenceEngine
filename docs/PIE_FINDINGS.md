@@ -13,14 +13,14 @@ Registro inicial baseado em evidências do código e dos testes locais/CI já do
 - **Estado:** resolvido no código e publicado na `main` dos dois remotos; sem validação Linux/macOS.
 - **Limite residual:** sem teste de concorrência com mutação do diretório `.git` durante leitura; snapshot inteiro não é atômico.
 
-## PIE-2026-002 — instalação/update do pacote não verificados neste host Windows
+## PIE-2026-002 — lacuna de verificação do pacote Windows
 
 - **Severidade:** informativa (lacuna de validação T0.2/T0.3).
-- **Observado:** `npm run verify:package` criou tarball, mas a preparação falhou com `EPERM` ao criar symlink de fixture antes da etapa de instalação/update, conforme auditoria upstream registrada.
-- **Reprodução:** usar host Windows com a configuração de permissões observada e executar `npm run verify:package`; a evidência disponível não inclui instalação global, atualização, uninstall ou smoke MCP do pacote instalado.
-- **Causa-raiz:** o ambiente impediu a criação do symlink da fixture. Não está demonstrado que seja defeito do instalador nem que a instalação funcione.
-- **Correção/estado:** não corrigido; bloqueio de verificação do host, não finding de runtime. Seguir por CI Linux/Windows apropriada ou mecanismo de fixture que preserve o teste sem symlink, depois fazer instalação limpa e upgrade.
-- **Risco residual:** CLI/MCP distribuídos, setup reversível e rollback permanecem não comprovados.
+- **Observado:** `npm run verify:package` genérico criou tarball, mas parou com `EPERM` na criação de symlink da fixture. Depois, `npm run verify:package:windows` passou em Node 24.18/npm 11.16, exercitando instalação do tarball, CLI/MCP, setup, uninstall e update exato.
+- **Reprodução:** `npm run verify:package` reproduz o bloqueio do caso de symlink; `npm run verify:package:windows`, com Node 24.18.0 e npm 11.16.0, verifica o fluxo de distribuição Windows sem depender daqueles casos.
+- **Causa-raiz:** o host não autorizou symlinks no verifier genérico; isso é independente do instalador. O verifier específico Windows comprovou o escopo de distribuição acima.
+- **Correção/estado:** lacuna de evidência de instalação/update Windows resolvida pelo verifier específico, sem alterar o verifier genérico nem seus casos de symlink. Resultado publicado em `PIE_VALIDATION_REPORT.md`.
+- **Risco residual:** Linux/macOS, casos de symlink, rollback do update e outros cenários do verifier genérico continuam sem validação local neste finding; revisão legal permanece separada.
 
 ## Findings de aplicações auditadas
 

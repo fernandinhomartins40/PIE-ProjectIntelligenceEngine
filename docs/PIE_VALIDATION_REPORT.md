@@ -1,4 +1,12 @@
-# PIE — Registro de validação contínua## Leitura limitada do grant HTTP pela CLI — 17/10/2026
+# PIE — Registro de validação contínua
+
+## Instalação, setup e update do pacote no Windows — 17/10/2026
+
+- `npm.cmd run verify:package:windows`, sob Node 24.18.0/npm 11.16.0: passou. Instalou tarball local em prefixo temporário e verificou CLI help, catálogo MCP completo (207 ferramentas), setup de OpenCode/VS Code/Copilot CLI, idempotência, uninstall e update para a versão exata via registry fixture local.
+- O primeiro ensaio sob Node 22.17.1 falhou em `build:cached` ao importar `.ts`, antes da instalação. No ensaio aprovado, Node 24 foi fixado também para comandos npm descendentes. O pacote declara engines compatíveis com Node 24.18.0.
+- Limites: não executa casos de symlink do verifier genérico, Linux/macOS, PostgreSQL, Docker ou providers REA reais. T0.3 e T6.2 permanecem parciais.
+
+## Leitura limitada do grant HTTP pela CLI — 17/10/2026
 
 - Leitor compartilhado HTTP/Node limita a 1 MB, exige UTF-8/JSON válidos e ambos os schemas mapeiam entrada inválida para `INVALID_INPUT` antes de abrir banco ou runner. Rejeita arquivo acima do limite e diretório; o grant é fixture de teste.
 - `NODE_NO_WARNINGS=1 node scripts/run-exact-tests.mjs tests/boundary/pieHttpGrantFile.test.ts tests/boundary/pieVerifyCli.test.ts tests/boundary/mcp/pieMcp.test.ts`: 3 passaram, 2 skipped Linux/Docker. Inclui caminho positivo CLI/MCP com persistência local real.

@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Distribuição Windows do pacote — 17/10/2026
+
+`npm run verify:package:windows` passou em Node 24.18.0/npm 11.16.0. Confirmados tarball instalado em prefixo temporário, help CLI, catálogo MCP completo (207 ferramentas), setup OpenCode/VS Code/Copilot CLI, idempotência, uninstall e update exato. O Node 22.17.0 inicial falhou no build antes da instalação; o rerun fixou Node 24 também para npm descendente. O verifier genérico e seus casos de symlink, Linux/macOS, providers e Compose continuam pendentes.
+
 ## Leitura limitada do grant HTTP no CLI — 17/10/2026
 
 `http-probe-run` deixou de ler grant JSON sem limite: lê até 1 MB por descritor regular, exige UTF-8 válido e valida o schema estrito antes de abrir a persistência. Teste boundary cobre grant válido, arquivo acima do limite e diretório; o teste MCP/CLI real mantém o fluxo positivo. `pieHttpGrantFile` + `pieMcp`: 2/2; `pie:build` passou antes da correção exclusiva de tipagem do teste; `check:fast` (2/2) passou depois. PostgreSQL/runtime de alvo não envolvidos.
