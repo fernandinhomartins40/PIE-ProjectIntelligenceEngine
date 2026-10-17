@@ -32,6 +32,9 @@ const findingSchema = z.strictObject({
   state: z.literal("suspected"),
   severity: z.enum(["high", "critical"]),
   kind: secretKind,
+  condition: z.string(),
+  impact: z.string(),
+  probability: z.literal("unassessed"),
   source: z.strictObject({
     path: z.string(),
     line: z.number().int().positive(),
@@ -39,6 +42,11 @@ const findingSchema = z.strictObject({
   evidenceIds: z.array(z.string().uuid()).min(1),
   observation: z.string(),
   uncertainty: z.array(z.string()),
+  reproduction: z.array(z.string()),
+  remediation: z.string(),
+  regression: z.array(z.string()),
+  verificationStatus: z.literal("not_run"),
+  owner: z.null(),
 });
 const authorizationSurfaceSchema = z.strictObject({
   declaration: adapterFactSchema,
@@ -152,6 +160,10 @@ function analyzeDynamicCode(
       state: "suspected",
       severity: "high",
       kind,
+      condition: `Uma chamada global direta ${kind} foi encontrada em AST.`,
+      impact:
+        "Se o valor for influenciado por entrada não confiável e o trecho for alcançável, pode ocorrer execução de código arbitrário.",
+      probability: "unassessed",
       source: { path, line },
       evidenceIds: [evidenceId],
       observation: `Foi observada chamada compatível com ${kind}; fluxo de dados e alcançabilidade não foram analisados.`,
@@ -159,6 +171,18 @@ function analyzeDynamicCode(
         "A presença da chamada não prova que dados controlados por usuário cheguem ao argumento nem que o trecho seja alcançável.",
         "Aliases, propriedades globais, outras linguagens e sinks não reconhecidos não são cobertos.",
       ],
+      reproduction: [
+        "Inspecionar a linha e os chamadores na revisão do mesmo snapshot, sem executar o projeto.",
+        "Em fixture isolada e com dados inertes, testar se entrada não confiável pode alcançar o argumento antes de qualquer conclusão.",
+      ],
+      remediation:
+        "Preferir parser de formato e operações permitidas explícitas; remover execução dinâmica quando não for requisito funcional.",
+      regression: [
+        "Adicionar teste estático para impedir retorno acidental da chamada dinâmica após a correção.",
+        "Se a funcionalidade exigir expressão dinâmica, testar lista permitida e entradas inválidas sem executar código externo.",
+      ],
+      verificationStatus: "not_run",
+      owner: null,
     });
   };
   traverse(tree as unknown as Node, {
@@ -226,6 +250,10 @@ function analyzeFile(
         state: "suspected",
         severity: pattern.severity,
         kind: pattern.kind,
+        condition: `A linha contém material compatível com o formato ${pattern.kind}.`,
+        impact:
+          "Se for um segredo ativo, sua exposição no repositório pode permitir uso não autorizado do serviço ou recurso associado.",
+        probability: "unassessed",
         source: { path, line: index + 1 },
         evidenceIds: [evidenceId],
         observation: `Foi observado material compatível com o formato ${pattern.kind}; o valor foi omitido do relatório.`,
@@ -233,6 +261,18 @@ function analyzeFile(
           "A análise é estática e não valida se o valor é autêntico, ativo, autorizado ou já revogado.",
           "Formatos diferentes, valores codificados, montados em runtime ou fornecidos por secret managers não são cobertos por esta regra.",
         ],
+        reproduction: [
+          "Inspecionar a linha na revisão e verificar pelo canal autorizado se o valor é credencial ativa, sem copiá-lo para logs ou relatórios.",
+          "Revisar o histórico e os locais de distribuição do segredo com o responsável pelo sistema.",
+        ],
+        remediation:
+          "Se confirmado ativo, revogar/rotacionar conforme o provedor, remover do código e usar o mecanismo de segredos aprovado pelo projeto.",
+        regression: [
+          "Adicionar fixture redigida que confirma a detecção sem persistir o valor.",
+          "Validar que a aplicação continua obtendo configuração pelo mecanismo de segredos após a remoção.",
+        ],
+        verificationStatus: "not_run",
+        owner: null,
       });
       if (findings.length >= maxFindings) {
         truncated = true;

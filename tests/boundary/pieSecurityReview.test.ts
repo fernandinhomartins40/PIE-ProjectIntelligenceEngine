@@ -161,6 +161,16 @@ async function verifySecurityFindings(
     ]),
   );
   expect(allFindings.findings.items).toHaveLength(5);
+  expect(allFindings.findings.items[0]).toMatchObject({
+    condition: expect.any(String),
+    impact: expect.any(String),
+    probability: "unassessed",
+    reproduction: expect.arrayContaining([expect.any(String)]),
+    remediation: expect.any(String),
+    regression: expect.arrayContaining([expect.any(String)]),
+    verificationStatus: "not_run",
+    owner: null,
+  });
   return { request, expected };
 }
 
