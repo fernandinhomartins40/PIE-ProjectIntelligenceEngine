@@ -28,9 +28,27 @@ const comparedCaseSchema = z.strictObject({
     "environment_changed",
   ]),
 });
+const declaredBindingSchema = z.strictObject({
+  testFile: z.string(),
+  declarationId: z.string(),
+  declaration: z.strictObject({
+    adapter: z.string(),
+    kind: z.string(),
+    name: z.string(),
+    parent: z.string().nullable(),
+    sourcePath: z.string(),
+    line: z.number().int().positive().nullable(),
+    evidenceId: z.string().uuid(),
+  }),
+  interpretation: z.literal("declared_unverified"),
+});
+const declaredBindingSetSchema = z.strictObject({
+  state: z.enum(["unknown", "declared_unverified"]),
+  bindings: pagedOutput(declaredBindingSchema),
+});
 
 export const verificationComparisonOutput = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   engine: z.literal("regression"),
   state: z.enum([
     "regression_observed",
@@ -50,6 +68,11 @@ export const verificationComparisonOutput = z.strictObject({
     completedAt: z.iso.datetime({ precision: 3 }),
   }),
   cases: pagedOutput(comparedCaseSchema),
+  declaredBindings: z.strictObject({
+    before: declaredBindingSetSchema,
+    after: declaredBindingSetSchema,
+    limitations: z.array(z.string()),
+  }),
   coverage: z.strictObject({
     beforeFiles: z.number().int().nonnegative(),
     afterFiles: z.number().int().nonnegative(),
@@ -79,6 +102,37 @@ type CaseMap = Map<string, TestCase[]>;
 
 function authorizedFiles(run: VerificationRun): Set<string> | null {
   return run.schemaVersion === 2 ? new Set(run.authorization.testFiles) : null;
+}
+
+function declaredBindings(
+  run: VerificationRun,
+  snapshot: Snapshot,
+  input: { offset: number; limit: number },
+) {
+  const paging = { offset: input.offset, limit: input.limit };
+  if (run.schemaVersion !== 2 || run.authorization.schemaVersion !== 2)
+    return { state: "unknown" as const, bindings: page([], paging) };
+  const facts = new Map(snapshot.declarations.map((fact) => [fact.id, fact]));
+  const bindings = run.authorization.testBindings.map((binding) => {
+    const fact = facts.get(binding.declarationId)!;
+    return {
+      ...binding,
+      declaration: {
+        adapter: fact.adapter,
+        kind: fact.kind,
+        name: fact.name,
+        parent: fact.parent,
+        sourcePath: fact.source.path,
+        line: fact.source.line,
+        evidenceId: fact.evidenceId,
+      },
+      interpretation: "declared_unverified" as const,
+    };
+  });
+  return {
+    state: "declared_unverified" as const,
+    bindings: page(bindings, paging),
+  };
 }
 
 function sourcePath(file: string | null): string | null {
@@ -171,6 +225,9 @@ export function compareVerificationRuns(
     limitations.push(
       "Registro legado sem grant VERIFY completo; a seleção de arquivos não pode ser comprovada.",
     );
+  limitations.push(
+    "Bindings teste→declaração são intenção registrada no grant; não comprovam que um caso executado cobre a declaração.",
+  );
 
   const sharedFiles =
     beforeFiles && afterFiles
@@ -302,6 +359,9 @@ export function compareVerificationRuns(
     limitations.push(
       "Há identidades de teste duplicadas; elas não foram alinhadas por ordem ou linha.",
     );
+
+  const beforeBindings = declaredBindings(before, beforeSnapshot, input);
+  const afterBindings = declaredBindings(after, afterSnapshot, input);
   if (onlyBefore > 0 || onlyAfter > 0)
     limitations.push(
       "Casos sem contraparte exata podem ter sido adicionados, removidos ou renomeados; permanecem sem classificação.",
@@ -329,7 +389,7 @@ export function compareVerificationRuns(
         : "inconclusive";
 
   return verificationComparisonOutput.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     engine: "regression",
     state,
     before: {
@@ -345,6 +405,19 @@ export function compareVerificationRuns(
       completedAt: after.completedAt,
     },
     cases: page(compared, { offset: input.offset, limit: input.limit }),
+    declaredBindings: {
+      before: beforeBindings,
+      after: afterBindings,
+      limitations: [
+        "Binding é declaração do operador entre arquivo autorizado e fato estático do snapshot; não é uma aresta `covers` comprovada por execução.",
+        ...(beforeBindings.state === "unknown" ||
+        afterBindings.state === "unknown"
+          ? [
+              "Execução legada ou grant v1 não preserva bindings; a relação correspondente permanece desconhecida.",
+            ]
+          : []),
+      ],
+    },
     coverage: {
       beforeFiles: beforeFiles?.size ?? 0,
       afterFiles: afterFiles?.size ?? 0,

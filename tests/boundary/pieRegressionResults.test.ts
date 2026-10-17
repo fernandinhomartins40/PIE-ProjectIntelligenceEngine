@@ -15,11 +15,14 @@ import { nodeTestGrantSchema } from "../../src/pie/execution/contracts.js";
 import { sha256 } from "../../src/pie/evidence.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
+import type { Snapshot } from "../../src/pie/contracts.js";
+import type { VerificationRun } from "../../src/pie/execution/runContracts.js";
 import { verificationRunSchema } from "../../src/pie/execution/runContracts.js";
 import {
   runEvidence,
   verifyRunEvidence,
 } from "../../src/pie/execution/runEvidence.js";
+import { validateVerificationRun } from "../../src/pie/execution/runIntegrity.js";
 import { openStore } from "../../src/pie/store.js";
 
 const exec = promisify(execFile);
@@ -31,10 +34,11 @@ async function persistRun(
   snapshot: Awaited<ReturnType<typeof store.snapshot>>,
   outcomes: Array<{ name: string; outcome: "passed" | "failed" }>,
   runImage = image,
+  declarationId?: string,
 ) {
   const id = randomUUID();
   const authorization = nodeTestGrantSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: declarationId === undefined ? 1 : 2,
     profile: "VERIFY",
     allowTargetExecution: true,
     environment: "local",
@@ -44,6 +48,11 @@ async function persistRun(
     image: runImage,
     expiresAt: new Date(Date.now() + 60_000).toISOString(),
     testFiles: ["feature.test.mjs"],
+    ...(declarationId === undefined
+      ? {}
+      : {
+          testBindings: [{ testFile: "feature.test.mjs", declarationId }],
+        }),
     limits: {
       timeoutMs: 10_000,
       memoryMiB: 256,
@@ -224,12 +233,114 @@ async function assertComparisonAdapters(input: {
   );
 }
 
+function expectDeclaredBindings(
+  result: Awaited<ReturnType<PieService["verificationComparison"]>>,
+  beforeId: string,
+  afterId: string,
+) {
+  expect(result.declaredBindings).toMatchObject({
+    before: {
+      state: "declared_unverified",
+      bindings: {
+        total: 1,
+        items: [
+          {
+            testFile: "feature.test.mjs",
+            declarationId: beforeId,
+            declaration: { name: "verify-feature" },
+            interpretation: "declared_unverified",
+          },
+        ],
+      },
+    },
+    after: {
+      state: "declared_unverified",
+      bindings: {
+        total: 1,
+        items: [
+          {
+            testFile: "feature.test.mjs",
+            declarationId: afterId,
+            declaration: { name: "check-feature" },
+            interpretation: "declared_unverified",
+          },
+        ],
+      },
+    },
+  });
+}
+
+function expectInvalidStoredBinding(run: VerificationRun, snapshot: Snapshot) {
+  if (run.schemaVersion !== 2 || run.authorization.schemaVersion !== 2)
+    throw new Error("v2 run fixture required");
+  const { evidence: _proof, ...payload } = run;
+  const authorization = {
+    ...run.authorization,
+    testBindings: [{ testFile: "feature.test.mjs", declarationId: "missing" }],
+  };
+  const forgedPayload = {
+    ...payload,
+    authorization,
+    authorizationDigest: sha256(canonicalize(authorization)!),
+  };
+  const forgedRun = verifyRunEvidence(
+    verificationRunSchema.parse({
+      ...forgedPayload,
+      evidence: runEvidence(forgedPayload, snapshot, "local"),
+    }),
+  );
+  expect(() => validateVerificationRun(forgedRun, snapshot)).toThrow(
+    "Bindings VERIFY",
+  );
+}
+
+async function assertAllComparisonAdapters(input: {
+  apiUrl: string;
+  beforeRunId: string;
+  afterRunId: string;
+  client: Client;
+  mcpServer: ReturnType<typeof createPieMcp>;
+  db: string;
+  expected: Awaited<ReturnType<PieService["verificationComparison"]>>;
+  output: ReturnType<typeof vi.spyOn>;
+  token: string;
+  projectId: string;
+  service: PieService;
+  latestRunId: string;
+  latestSnapshotId: string;
+}) {
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await Promise.all([
+    input.client.connect(clientTransport),
+    input.mcpServer.connect(serverTransport),
+  ]);
+  const ajv = new Ajv2020({
+    allErrors: true,
+    strict: false,
+    validateFormats: false,
+  });
+  await assertComparisonAdapters({ ...input, ajv });
+  await assertProjectHistoryAdapters({
+    ...input,
+    ajv,
+    runCli: async (args) => {
+      await runPie(args);
+      return JSON.parse(String(input.output.mock.calls.at(-1)?.[0]));
+    },
+  });
+}
+
 it("compara execuções persistidas por casos e compartilha API, CLI e MCP", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-regression-results-"));
   const repo = join(root, "repo");
   await mkdir(repo);
   await exec("git", ["init", repo]);
   await writeFile(join(repo, "service.ts"), "export const value=1;\n");
+  await writeFile(
+    join(repo, "package.json"),
+    JSON.stringify({ scripts: { "verify-feature": "node --test" } }),
+  );
   await writeFile(
     join(repo, "feature.test.mjs"),
     "import {test} from 'node:test'; test('save',()=>{});\n",
@@ -242,8 +353,6 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
   const api = await startPieApi(service, { root: repo, token });
   const mcpServer = createPieMcp(service, repo);
   const client = new Client({ name: "pie-regression-test", version: "1" });
-  const [clientTransport, serverTransport] =
-    InMemoryTransport.createLinkedPair();
   const cliOutput = vi.spyOn(console, "log").mockImplementation(() => {});
   try {
     const policy = {
@@ -253,19 +362,41 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     };
     const before = await service.discover(policy);
     const beforeSnapshot = await store.snapshot(before.snapshot.id);
-    const beforeRun = await persistRun(store, beforeSnapshot, [
-      { name: "save", outcome: "passed" },
-      { name: "load", outcome: "passed" },
-    ]);
+    const beforeDeclaration = beforeSnapshot.declarations.find(
+      (item) => item.kind === "script" && item.name === "verify-feature",
+    )!;
+    const beforeRun = await persistRun(
+      store,
+      beforeSnapshot,
+      [
+        { name: "save", outcome: "passed" },
+        { name: "load", outcome: "passed" },
+      ],
+      image,
+      beforeDeclaration.id,
+    );
 
     await writeFile(join(repo, "service.ts"), "export const value=2;\n");
+    await writeFile(
+      join(repo, "package.json"),
+      JSON.stringify({ scripts: { "check-feature": "node --test" } }),
+    );
     const after = await service.discover(policy);
     const afterSnapshot = await store.snapshot(after.snapshot.id);
-    const afterRun = await persistRun(store, afterSnapshot, [
-      { name: "save", outcome: "failed" },
-      { name: "load", outcome: "passed" },
-      { name: "new case", outcome: "passed" },
-    ]);
+    const afterDeclaration = afterSnapshot.declarations.find(
+      (item) => item.kind === "script" && item.name === "check-feature",
+    )!;
+    const afterRun = await persistRun(
+      store,
+      afterSnapshot,
+      [
+        { name: "save", outcome: "failed" },
+        { name: "load", outcome: "passed" },
+        { name: "new case", outcome: "passed" },
+      ],
+      image,
+      afterDeclaration.id,
+    );
 
     const input = {
       beforeRunId: beforeRun.id,
@@ -274,7 +405,7 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     };
     const expected = await service.verificationComparison(input);
     expect(expected).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       engine: "regression",
       state: "regression_observed",
       cases: {
@@ -298,42 +429,24 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
         onlyAfter: 1,
       },
     });
+    expectDeclaredBindings(expected, beforeDeclaration.id, afterDeclaration.id);
 
-    await Promise.all([
-      client.connect(clientTransport),
-      mcpServer.connect(serverTransport),
-    ]);
-    const ajv = new Ajv2020({
-      allErrors: true,
-      strict: false,
-      validateFormats: false,
-    });
-    await assertComparisonAdapters({
+    await assertAllComparisonAdapters({
       apiUrl: api.url,
       beforeRunId: beforeRun.id,
       afterRunId: afterRun.id,
       client,
+      mcpServer,
       db,
       expected,
       output: cliOutput,
       token,
-      ajv,
-    });
-    await assertProjectHistoryAdapters({
-      apiUrl: api.url,
-      client,
-      db,
       projectId: before.project.id,
       service,
-      token,
       latestRunId: afterRun.id,
       latestSnapshotId: after.snapshot.id,
-      ajv,
-      runCli: async (args) => {
-        await runPie(args);
-        return JSON.parse(String(cliOutput.mock.calls.at(-1)?.[0]));
-      },
     });
+    expectInvalidStoredBinding(afterRun, afterSnapshot);
 
     const stableRun = await persistRun(store, afterSnapshot, [
       { name: "save", outcome: "failed" },
@@ -347,6 +460,10 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     expect(stable).toMatchObject({
       state: "no_regression_observed",
       coverage: { regressions: 0, unchanged: 3, onlyBefore: 0, onlyAfter: 0 },
+      declaredBindings: {
+        before: { state: "declared_unverified" },
+        after: { state: "unknown" },
+      },
     });
   } finally {
     cliOutput.mockRestore();

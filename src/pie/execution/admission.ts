@@ -8,6 +8,7 @@ import {
 import type { Snapshot } from "../contracts.js";
 import { validateSnapshot } from "../snapshotIntegrity.js";
 import { nodeTestGrantSchema, type NodeTestGrant } from "./contracts.js";
+import { hasValidTestBindings } from "./testBindings.js";
 
 export type AdmissionError = AnalysisInputError | AnalysisArtifactChangedError;
 export interface AdmittedNodeTests {
@@ -119,24 +120,12 @@ export async function admitNodeTests(
           "Teste deve ser um arquivo JavaScript/TypeScript observado.",
       }),
     );
-  if (grant.schemaVersion === 2) {
-    const declarations = new Set(snapshot.declarations.map((item) => item.id));
-    const bindings = new Set<string>();
-    for (const binding of grant.testBindings) {
-      const key = JSON.stringify([binding.testFile, binding.declarationId]);
-      if (
-        !grant.testFiles.includes(binding.testFile) ||
-        !declarations.has(binding.declarationId) ||
-        bindings.has(key)
-      )
-        return err(
-          new AnalysisInputError("pie.verify", {
-            userMessage:
-              "Binding deve referenciar arquivo autorizado e declaração observada, sem duplicidade.",
-          }),
-        );
-      bindings.add(key);
-    }
-  }
+  if (!hasValidTestBindings(grant, snapshot))
+    return err(
+      new AnalysisInputError("pie.verify", {
+        userMessage:
+          "Binding deve referenciar arquivo autorizado e declaração observada, sem duplicidade.",
+      }),
+    );
   return ok({ grant, snapshot });
 }

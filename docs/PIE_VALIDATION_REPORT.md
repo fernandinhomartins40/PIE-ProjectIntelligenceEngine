@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Comparação rastreável de bindings VERIFY — 17/10/2026
+
+- Resposta `verification-diff` v2 preserva, de cada execução, bindings declarados do grant, declaração observada e Evidence de origem; cada lado é paginado. V1/legado permanece `unknown`; v2 é `declared_unverified`. Validação de registros persistidos recusa binding cujo arquivo não está no grant ou cujo ID não existe no snapshot, mesmo com hash/Evidence recalculados.
+- `NODE_NO_WARNINGS=1 node scripts/run-exact-tests.mjs tests/boundary/pieRegressionResults.test.ts tests/boundary/pieExecutionAdmission.test.ts tests/boundary/pieRunPersistence.test.ts`: 8 passaram e 2 foram skipped (symlink Windows e PostgreSQL sem URL). `pieRegressionResults` verifica resposta idêntica via serviço, API HTTP, CLI e MCP, schema MCP da resposta e binding inválido adulterado. `toolSchemaValidity.test.ts`: 15/15, validando schemas MCP gerais e catálogo de 207 ferramentas.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast` (2/2) e `npm.cmd run mcp-catalog:check` passaram. A comparação não afirma cobertura caso→capacidade nem runtime; PostgreSQL e Docker reais não foram executados.
+
 ## Grant VERIFY v2 e isolamento do workspace no Windows — 17/10/2026
 
 - Grant v2 tem união JSON Schema discriminada: bindings teste→declaração são obrigatórios (podem estar vazios), v1 não os aceita. Admissão confere arquivo autorizado, ID observado e unicidade. Persistência/evidência usa o grant integral; os bindings são declarações do operador, não prova de cobertura executada.

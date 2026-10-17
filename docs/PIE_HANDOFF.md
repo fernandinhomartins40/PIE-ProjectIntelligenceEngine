@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Comparação de bindings VERIFY — 17/10/2026
+
+O comparador de execuções agora tem schema v2 e publica, nas mesmas respostas CLI/API/MCP, os bindings teste→declaração de cada grant, os fatos estáticos e Evidence de origem. Pagina cada lado; execução legada/grant v1 fica `unknown`, e v2 é `declared_unverified`. Leitura persistida verifica novamente que os arquivos pertencem ao grant e as declarações ao snapshot. Boundary `pieRegressionResults` passou 2/2 incluindo igualdade dos três adapters e registro adulterado com hash/Evidence recalculados recusado por ID ausente; `pieExecutionAdmission` 5/1 skip, `pieRunPersistence` 1/1 skip; schemas gerais MCP 15/15. `check:fast`, `pie:build` e `mcp-catalog:check` passaram. Essa associação ainda não prova cobertura runtime nem cria `covers`; seguir com uma fonte real de execução de capacidades e ampliar o motor funcional.
+
 ## Distribuição Windows do pacote — 17/10/2026
 
 `npm run verify:package:windows` passou em Node 24.18.0/npm 11.16.0. Confirmados tarball instalado em prefixo temporário, help CLI, catálogo MCP completo (207 ferramentas), setup OpenCode/VS Code/Copilot CLI, idempotência, uninstall e update exato. O Node 22.17.0 inicial falhou no build antes da instalação; o rerun fixou Node 24 também para npm descendente. O verifier genérico e seus casos de symlink, Linux/macOS, providers e Compose continuam pendentes.

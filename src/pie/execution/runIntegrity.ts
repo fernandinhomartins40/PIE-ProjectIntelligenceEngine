@@ -3,6 +3,7 @@ import { verificationRunSchema, type VerificationRun } from "./runContracts.js";
 import { verifyRunEvidence } from "./runEvidence.js";
 import canonicalize from "canonicalize";
 import { verifyEvidence } from "../evidence.js";
+import { hasValidTestBindings } from "./testBindings.js";
 
 export function validateVerificationRun(
   input: unknown,
@@ -28,6 +29,14 @@ export function validateVerificationRun(
     throw new PieError(
       "INTEGRITY_ERROR",
       "Autorização não corresponde ao conteúdo ou raiz observados.",
+    );
+  if (
+    run.schemaVersion === 2 &&
+    !hasValidTestBindings(run.authorization, snapshot)
+  )
+    throw new PieError(
+      "INTEGRITY_ERROR",
+      "Bindings VERIFY não correspondem ao grant ou às declarações do snapshot.",
     );
   return run;
 }
