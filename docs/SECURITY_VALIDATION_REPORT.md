@@ -14,13 +14,13 @@ Data: 17/10/2026. Escopo: implementação da API/painel local do PIE, conforme c
 
 - `node scripts/run-exact-tests.mjs tests/boundary/pieBrowserSessions.test.ts`: 3 testes passaram, cobrindo cookie sem segredo, leitura versus escrita com CSRF/origin, rejeição de token incorreto, expiração, rate limit e evicção bounded.
 - `node scripts/run-exact-tests.mjs tests/boundary/pieApi.test.ts tests/boundary/pieJobs.test.ts`: 6 testes passaram e 1 PostgreSQL foi skipped por configuração ausente. A API verifica ausência de autenticação, Origin externa, VERIFY sem configuração, corpo oversized e paginação inválida; jobs usam fila/worker SQLite real, com um caminho opcional indisponível/skipped. Isso não é teste entre dois tenants.
-- `pieApiScope.test.ts` reproduziu inicialmente `200` em `/v1/graph/:snapshotId` entre duas raízes na mesma base. Após correção, testes negativos de snapshots, Evidence, projetos, análises, exportações e listas retornam `404` para dados externos; projetos listados ficam limitados à raiz configurada. `pieApiScope`, `pieApi` e `pieJobs`: 7 passaram, 1 PostgreSQL skipped.
+- `pieApiScope.test.ts` reproduziu inicialmente `200` em `/v1/graph/:snapshotId` entre duas raízes na mesma base. Após correção, testes negativos de snapshots, Evidence, projetos, análises, exportações e listas retornam `404` para dados externos; projetos listados ficam limitados à raiz configurada. `pieApiScope`, `pieApi` e `pieJobs`: 7 passaram localmente, 1 PostgreSQL skipped pela ausência de `PIE_TEST_DATABASE_URL`. Separadamente, `PIE integration` run `39063676154` no GitHub Actions passou no SHA `b7f9d53b3`; essa lane executou o teste PostgreSQL real (ownership e paginação entre duas raízes) e o conjunto full PIE.
 - `tests/boundary/pieProductWeb.test.ts` percorreu sessão real do painel local e leitura autenticada de Evidence; é evidência da jornada do painel PIE, não de um projeto-alvo.
 - Inventário de licenças roda em `docs:check`; não equivale a scanner de vulnerabilidades.
 
 ## Lacunas e limitações
 
-1. A matriz de leituras históricas por raiz foi testada; falta validação PostgreSQL real, revisão final de efeitos de escrita, fuzzing, concorrência e coverage externa.
+1. A matriz de leituras históricas por raiz passou em SQLite local e PostgreSQL real na CI; falta revisão final de efeitos de escrita, fuzzing, concorrência e cobertura externa.
 2. Não foram executados SAST/SCA, scanner de segredos, fuzzing, teste de carga, pentest, varredura externa nem teste multi-tenant. Não alegar que esses controles passaram.
 3. Retenção, descarte, backups, finalidade e atendimento a direitos LGPD precisam de inventário próprio; código não substitui decisões do controlador ou avaliação jurídica.
 4. O relatório não se aplica a sistemas que o PIE analisa. O motor de segurança universal permanece incompleto e T4.3 não está concluído.
