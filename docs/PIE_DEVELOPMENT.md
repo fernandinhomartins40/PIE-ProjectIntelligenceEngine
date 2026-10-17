@@ -223,3 +223,9 @@ A descoberta reconhece nginx.conf, nginx.*.conf e arquivos .conf sob diretório 
 
 O lexer não expande includes/variáveis nem acessa destinos externos. Comentários, aspas, escapes e blocos são interpretados estaticamente, com profundidade máxima 128. Sintaxe incompleta deixa limitação explícita. A leitura não substitui nginx -t nem comprova configuração efetiva, precedência, TLS ou funcionamento de proxy. Referências: [guia Nginx](https://nginx.org/en/docs/beginners_guide.html) e [lexer oficial](https://github.com/nginx/nginx/blob/master/src/core/ngx_conf_file.c).
 Userinfo de autenticação em URI de transporte é substituído por [REDACTED]; caminho, destino e parâmetros restantes permanecem preservados. Outros valores não são redigidos por inferência de nomes.
+
+## Conteúdo dos relatórios de snapshot
+
+export <snapshot-id> --format md/html inclui arquivos com IDs, declarações com contexto/linha, relações do grafo registrado, evidências e seus hashes/metadados, cobertura e limitações. O export valida a integridade antes de serializar e não relê nem executa as fontes. O JSON preserva o snapshot completo. O HTML escapa conteúdo externo e usa CSP sem scripts.
+
+São relatórios de observação estática. Resultados VERIFY persistidos separadamente ainda não são incorporados a esse artefato; consulte verification/verifications para interpretá-los. Ausência de relação ou declaração não comprova ausência de comportamento.

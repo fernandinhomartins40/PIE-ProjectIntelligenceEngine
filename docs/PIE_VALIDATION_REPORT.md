@@ -1,5 +1,11 @@
 # PIE — Registro de validação contínua
 
+## Exportação com declarações, relações e provas — 16/10/2026
+
+Relatórios Markdown/HTML deixam de conter somente arquivos: incluem declarações de todos os adapters, relações registradas pelo mesmo buildKnowledgeGraph dos consumidores, IDs dos arquivos, contexto/linha, hashes e metadados completos das evidências, limitações e contagem de relações não resolvidas. Raiz, treeDigest, estado Git, cobertura de arquivos e bytes também são exibidos. Não reinterpreta fontes nem transforma inventário em aprovação. O relatório de snapshot informa explicitamente que não incorpora resultados VERIFY separados. JSON mantém o snapshot integral.
+
+renderSnapshot usa validateSnapshot como dono da verificação de integridade, recusando prova adulterada antes de serializar qualquer formato. Tabelas compartilham a representação entre HTML/Markdown e escapam conteúdo externo; HTML mantém CSP sem execução de scripts. Testes Git/SQLite confirmam declarações Nginx/provas/IDs/arestas no relatório, integridade, escape e compatibilidade CLI/MCP. Rodada adapters/comparação/MCP: 11 passaram (13,02s). Build PIE e typecheck completo passaram; lint focado sem avisos/erros. Limites de módulos: 2053 fontes; descoberta: 1463 testes. CI 38991181811 da entrega anterior 59559290f terminou com sucesso. Nova entrega aguarda CI. Relatório unificado de auditorias/VERIFY, demais runners/motores e aceite integral permanecem pendentes. Custos de relatórios grandes e medições CPU/memória ainda não medidos; goal ativo.
+
 ## Correção estrutural do lexer Nginx — 16/10/2026
 
 Revisão do produtor identificou recusa incorreta de } dentro de token e de ) após argumento entre aspas. Lexer agora mantém um dono explícito do estado de token, escape, aspas, comentários, posições e blocos; fechamento de bloco ocorre somente em fronteira de token. Parêntese após aspas é preservado como token separado conforme o comportamento da fonte Nginx consultada. Sem reparos nos consumidores e sem representação antiga mantida. Os avisos anteriores de tamanho/complexidade do lexer foram eliminados pela separação do estado, com lint focado sem avisos/erros.

@@ -13,6 +13,7 @@ import { PieService } from "../../src/pie/service.js";
 import { DatabaseSync } from "node:sqlite";
 import { readCodeFacts } from "../../src/pie/codeFacts.js";
 import { nginxDirectives } from "../../src/pie/adapters/nginxSyntax.js";
+import { renderSnapshot } from "../../src/pie/reports.js";
 
 it("Next App Router usa exports AST, uma árvore e prova rastreável sem executar código", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-next-"));
@@ -242,6 +243,29 @@ it("Nginx integra inventário Git, evidência e trace sem ler include externo", 
     expect(snapshot.coverage.limitations.join(" ")).toContain(
       "include não expandidas",
     );
+    for (const format of ["md", "html"] as const) {
+      const report = renderSnapshot(snapshot, format);
+      expect(report).toContain("nginx-config");
+      expect(report).toContain(proxy.id);
+      expect(report).toContain(proxy.evidenceId);
+      expect(report).toContain(
+        snapshot.evidence.find((item) => item.id === proxy.evidenceId)!.sha256,
+      );
+      expect(report).toContain("declared_in");
+      expect(report).toContain(snapshot.nodes[0]!.id);
+      expect(report).toContain("não incorpora resultados VERIFY");
+    }
+    expect(() =>
+      renderSnapshot(
+        {
+          ...snapshot,
+          evidence: snapshot.evidence.map((proof, index) =>
+            index === 0 ? { ...proof, observation: "adulterado" } : proof,
+          ),
+        },
+        "html",
+      ),
+    ).toThrow();
   } finally {
     await service.close();
     await rm(root, { recursive: true, force: true });
