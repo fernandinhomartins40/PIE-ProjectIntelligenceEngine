@@ -134,6 +134,38 @@ async function verifyPostgresHttpProbe(details: {
   ).rejects.toThrow("immutable");
 }
 
+async function verifyPostgresProjectScope(
+  store: PostgresPieStore,
+  peer: PostgresPieStore,
+  root: string,
+  snapshot: Awaited<ReturnType<PostgresPieStore["snapshot"]>>,
+) {
+  const otherProject = await store.addProject(
+    randomUUID(),
+    join(root, "other-authorized-root"),
+    "other-authorized-root",
+  );
+  expect(await peer.project(otherProject.id)).toEqual(otherProject);
+  expect(await peer.projectsForRoot(snapshot.root, { limit: 1 })).toMatchObject(
+    {
+      total: 1,
+      offset: 0,
+      nextOffset: null,
+      items: [{ id: snapshot.projectId, root: snapshot.root }],
+    },
+  );
+  expect(
+    await peer.projectsForRoot(snapshot.root, { offset: 1, limit: 1 }),
+  ).toMatchObject({ total: 1, offset: 1, items: [], nextOffset: null });
+  expect(await peer.projectsForRoot(otherProject.root)).toMatchObject({
+    total: 1,
+    items: [{ id: otherProject.id, root: otherProject.root }],
+  });
+  expect(await peer.evidenceSnapshotId(snapshot.evidence[0]!.id)).toBe(
+    snapshot.id,
+  );
+}
+
 const url = process.env.PIE_TEST_DATABASE_URL;
 
 // No fake database: explicitly skipped when a dedicated real server is absent.
@@ -172,6 +204,7 @@ it.skipIf(!url)(
         repositoryRoot: repo,
       });
       const snapshot = await store.snapshot(run.snapshot.id);
+      await verifyPostgresProjectScope(store, peer, root, snapshot);
       await verifyPostgresHttpProbe({
         store,
         peer,
