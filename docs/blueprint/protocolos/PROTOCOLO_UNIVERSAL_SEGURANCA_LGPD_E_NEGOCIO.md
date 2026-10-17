@@ -110,8 +110,8 @@ Verifique trilhas de auditoria de ações críticas, alertas de falhas de login,
 
 Crie `docs/SECURITY_IMPLEMENTATION_PLAN.md` com tabela:
 
-| ID | ÁREA | EVIDÊNCIA | RISCO | SEVERIDADE | CORREÇÃO | TESTE | STATUS |
-|---|---|---|---|---|---|---|---|
+| ID  | ÁREA | EVIDÊNCIA | RISCO | SEVERIDADE | CORREÇÃO | TESTE | STATUS |
+| --- | ---- | --------- | ----- | ---------- | -------- | ----- | ------ |
 
 Priorize falhas exploráveis de acesso a dados, isolamento, autenticação, autorização, bypass de pagamento e exposição de segredos. Implemente correções seguras automaticamente e na menor alteração suficiente, preservando UX e regras comerciais legítimas. Para mudanças sensíveis, registre plano de rollback.
 

@@ -1115,21 +1115,27 @@ Não peça aprovação por rotina.
 Interrompa somente se houver:
 
 ### Operação destrutiva
+
 Exclusão de dados, volumes, backups, imagens necessárias ao rollback ou infraestrutura real.
 
 ### Acesso externo
+
 SSH, painel, registry, provedor, banco remoto ou credencial necessária e indisponível.
 
 ### Mudança com custo
+
 Nova VPS, serviço pago, storage externo, CI pago ou infraestrutura adicional.
 
 ### Decisão arquitetural irreversível
+
 Mudança relevante sem caminho seguro de compatibilidade ou rollback.
 
 ### Produção
+
 Alteração que necessariamente precisa ser aplicada diretamente em produção e possa causar indisponibilidade ou perda.
 
 ### Uso não determinável
+
 Um serviço parece removível, mas seu uso externo não pode ser confirmado.
 
 Nesses casos:

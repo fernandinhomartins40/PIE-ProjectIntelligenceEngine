@@ -679,21 +679,27 @@ Não peça aprovação por rotina.
 Pare somente quando ocorrer pelo menos uma destas situações:
 
 ### Decisão de negócio
+
 Existem duas ou mais opções válidas e o repositório não permite determinar qual corresponde à intenção do produto.
 
 ### Operação destrutiva
+
 A solução exige apagar ou alterar irreversivelmente dados, volumes, backups ou infraestrutura real.
 
 ### Credencial externa
+
 A tarefa depende de token, senha, chave, conta ou acesso que não está disponível.
 
 ### Mudança incompatível
+
 A solução exige quebrar contrato público, API externa, banco ou compatibilidade importante e não existe migração segura evidente.
 
 ### Custo externo
+
 A implementação exige contratar serviço, aumentar infraestrutura ou gerar custo recorrente relevante.
 
 ### Informação impossível de inferir
+
 Um requisito essencial não existe no código, documentação ou comportamento atual.
 
 Nesses casos:
@@ -1151,8 +1157,8 @@ Use IDs `OP-XX` quando for útil diferenciá-las.
 
 Inclua, quando aplicável:
 
-| ID | TIPO | SITUAÇÃO ATUAL | OPORTUNIDADE | ESFORÇO ELIMINADO | BENEFÍCIO | SOLUÇÃO | PRIORIDADE | RISCO | TESTE | STATUS |
-|---|---|---|---|---|---|---|---|---|---|---|
+| ID  | TIPO | SITUAÇÃO ATUAL | OPORTUNIDADE | ESFORÇO ELIMINADO | BENEFÍCIO | SOLUÇÃO | PRIORIDADE | RISCO | TESTE | STATUS |
+| --- | ---- | -------------- | ------------ | ----------------- | --------- | ------- | ---------- | ----- | ----- | ------ |
 
 Tipos sugeridos:
 
@@ -1200,4 +1206,3 @@ O agente deve conseguir demonstrar:
 - como essas mudanças reduzem esforço do usuário.
 
 ---
-
