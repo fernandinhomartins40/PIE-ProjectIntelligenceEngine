@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { lstat, readFile, realpath } from "node:fs/promises";
-import { basename, resolve } from "node:path";
+import { basename, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import {
   PieError,
@@ -125,51 +125,81 @@ async function git(
     }
     if (isUnbornHeadRevisionFailure(args, cause)) {
       try {
-        const headReference = await git(
-          root,
-          ["symbolic-ref", "--quiet", "HEAD"],
-          timeout,
-          signal,
+        const gitDirectory = (
+          await git(root, ["rev-parse", "--absolute-git-dir"], timeout, signal)
+        )
+          .toString("utf8")
+          .trim();
+        const headContents = await readFile(
+          resolve(gitDirectory, "HEAD"),
+          "utf8",
         );
-        const symbolicReference = headReference.toString("utf8").trim();
-        if (symbolicReference.startsWith("refs/heads/")) {
-          const gitDirectory = (
-            await git(
-              root,
-              ["rev-parse", "--absolute-git-dir"],
-              timeout,
-              signal,
-            )
-          )
-            .toString("utf8")
-            .trim();
+        const headReference = /^ref: (refs\/heads\/[^\r\n]+)\r?\n?$/.exec(
+          headContents,
+        )?.[1];
+        if (headReference && !headReference.split("/").includes("..")) {
+          await git(root, ["check-ref-format", headReference], timeout, signal);
           const referencePath = resolve(
             gitDirectory,
-            ...symbolicReference.split("/"),
+            ...headReference.split("/"),
           );
+          const relativeReferencePath = relative(gitDirectory, referencePath);
+          if (
+            relativeReferencePath === "" ||
+            relativeReferencePath === ".." ||
+            relativeReferencePath.startsWith(`..${sep}`)
+          )
+            throw new PieError(
+              "IO_ERROR",
+              "A referência HEAD está fora do Git.",
+            );
           try {
             const reference = await lstat(referencePath);
             if (reference.isFile()) {
               const objectId = (await readFile(referencePath, "utf8")).trim();
               const objectIdPattern = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/i;
-              if (!objectIdPattern.test(objectId)) return Buffer.alloc(0);
+              if (!objectIdPattern.test(objectId)) {
+                throw new PieError(
+                  "IO_ERROR",
+                  "A referência Git simbólica possui formato inválido.",
+                );
+              }
             }
           } catch (referenceFailure) {
             if (
               referenceFailure instanceof Error &&
               Reflect.get(referenceFailure, "code") === "ENOENT"
-            )
+            ) {
+              const packedReferencesPath = resolve(gitDirectory, "packed-refs");
+              try {
+                const packedReferences = await readFile(
+                  packedReferencesPath,
+                  "utf8",
+                );
+                if (
+                  packedReferences
+                    .split(/\r?\n/)
+                    .some((line) => line.split(" ").at(1) === headReference)
+                )
+                  throw new PieError(
+                    "IO_ERROR",
+                    "A referência HEAD empacotada não resolveu uma revisão.",
+                  );
+              } catch (packedFailure) {
+                if (
+                  !(packedFailure instanceof Error) ||
+                  Reflect.get(packedFailure, "code") !== "ENOENT"
+                )
+                  throw packedFailure;
+              }
               return Buffer.alloc(0);
+            }
             throw referenceFailure;
           }
         }
       } catch (verificationFailure) {
         if (signal?.aborted) throw signal.reason ?? verificationFailure;
-        if (
-          verificationFailure instanceof PieError &&
-          verificationFailure.code === "LIMIT_EXCEEDED"
-        )
-          throw verificationFailure;
+        if (verificationFailure instanceof PieError) throw verificationFailure;
       }
     }
     throw new PieError(

@@ -160,6 +160,7 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
     await writeFile(branchReference, "not-an-object-id");
     await expect(discoverProject(policy, randomUUID())).rejects.toMatchObject({
       code: "IO_ERROR",
+      message: "A referência Git simbólica possui formato inválido.",
     });
   });
 
