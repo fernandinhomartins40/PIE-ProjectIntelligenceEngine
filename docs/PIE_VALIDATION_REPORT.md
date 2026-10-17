@@ -1,5 +1,10 @@
 # PIE — Registro de validação contínua
 
+## Reconciliação factual da matriz T2.2 — 17/10/2026
+
+- A linha da matriz T2.2 foi corrigida: havia uma afirmação global de CommonJS cross-file pendente apesar do suporte parcial Express CommonJS registrado e testado. O escopo validado é top-level com require literal e exports estáticos suportados; reexports CommonJS, interop ESM/CJS, mutabilidade/shadowing e specifiers calculados continuam limitações.
+- Conferência de fonte/testes: `src/pie/adapters/express.ts`, `src/pie/discovery.ts` e `tests/boundary/pieExpressCrossFile.test.ts`; sem nova alegação de execução runtime.
+
 ## Status de comparação sem viés de paginação — 17/10/2026
 
 - Mudanças de declarações são avaliadas no conjunto inteiro antes da página; status `changed` decorre de mudança de bytes ou declaração observada, enquanto snapshot parcial/ambiguidade isolados não são promovidos a alteração comprovada.

@@ -1,5 +1,9 @@
 # PIE — Continuidade
 
+## Reconciliação do escopo CommonJS em T2.2 — 17/10/2026
+
+A tabela mestre agora reconhece o suporte de composição Express CommonJS top-level já validado: require literal e export default/nomeado estático em CommonJS. Permanecem pendentes reexports CommonJS, interop ESM/CJS, bindings mutáveis/sombreados, specifiers calculados e outros frameworks. Nenhuma relação `covers` é criada a partir de import; dependência estrutural não prova que um teste verifica uma capacidade.
+
 ## Estado agregado de comparação e paginação — 17/10/2026
 
 O status global compara todas as mudanças declarativas antes de paginar; alterações confirmadas continuam visíveis como `changed`, e apenas lacunas/ambiguidades sem mudança de bytes mantêm `inconclusive`. Boundary `pieComparison` (3/3), `pie:build`, `check:fast` (2/2), `docs:check:built`, `format:check` e `git diff --check` passaram. Próximo: seguir com cobertura entre casos e capacidades quando houver relação de origem verificável; T4.1 não está concluído.
