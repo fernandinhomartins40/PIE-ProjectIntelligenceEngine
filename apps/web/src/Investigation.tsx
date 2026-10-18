@@ -5,6 +5,7 @@ import { FunctionalReview } from "./FunctionalReview.js";
 import { ProductReview } from "./ProductReview.js";
 import { InfrastructureReview } from "./InfrastructureReview.js";
 import { DataReview } from "./DataReview.js";
+import { SecurityReview } from "./SecurityReview.js";
 import { DeclarationChanges } from "./DeclarationChanges.js";
 import { RetestPlan } from "./RetestPlan.js";
 import { PlanTriage } from "./PlanTriage.js";
@@ -536,6 +537,11 @@ export function Investigation({
         snapshotId={snapshotId}
       />
       <ProductReview key={`product-${snapshotId}`} snapshotId={snapshotId} />
+      <SecurityReview
+        key={`security-${snapshotId}`}
+        snapshotId={snapshotId}
+        onEvidence={(id) => void showEvidence(id)}
+      />
       <InfrastructureReview
         key={`infrastructure-${snapshotId}`}
         snapshotId={snapshotId}

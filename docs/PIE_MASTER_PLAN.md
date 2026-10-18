@@ -633,3 +633,13 @@ Adapter registra paths e project_directory de include no nivel do arquivo, e ser
 ### Redes Compose declaradas — T2.3/T4.4 — 18/10/2026
 
 O inventário Compose registra `network_mode`, redes vinculadas a serviços (aliases e endereços literais selecionados) e definições top-level com nome, driver e flags estruturais conhecidas. Evidence aponta para a declaração original. Opções IPAM/driver arbitrárias não são retidas, e nenhuma rede é criada, resolvida ou considerada ativa. T2.3/T4.4 permanecem parciais; expansão Compose e validação de rede/runtime continuam pendentes.
+
+## Finding de host networking Compose — T4.3 — 18/10/2026
+
+O motor de seguranca schemaVersion 4 anuncia `containerConfigurationPatterns: partial` e consome o fato Compose `network_mode` ja validado pelo adapter. Valor literal `host` gera finding suspeito com Evidence atual, sem reinterpretar YAML. A boundary integrada confirma `compose.yaml` com Evidence atual, CLI/API/MCP e schemas Ajv; ao alterar o arquivo, o finding some e `filesSkipped` aumenta. `pieSecurityReview`: 2/2.
+
+A regra nao cobre include/extends, overrides, interpolacao, `privileged`, capabilities, namespaces, Dockerfiles, runtime ou exposicao externa. `pie:build`, `check:fast`, `docs:check`, `format:check` e typecheck web, check:fast, docs:check, format:check e boundary Chrome passaram nesta entrega. T4.3 continua parcial.
+
+### Apresentacao web de Security Review
+
+A investigacao do painel agora consulta security-review, apresenta findings suspeitos paginados, superficies de autorizacao unverified, incertezas, remediacoes, cobertura e acesso as Evidence. O E2E Chrome percorre host networking Compose ate a Evidence persistida. A ampliacao revelou overflow do titulo longo de triagem; CSS passou a permitir quebra sem deslocar o badge, mantendo 360/1440 px sem overflow. Nada disso representa seguranca de runtime ou avaliacao LGPD completa.

@@ -14,6 +14,7 @@ export type InfrastructureReview = Awaited<
   ReturnType<PieService["infrastructure"]>
 >;
 export type DataReview = Awaited<ReturnType<PieService["dataReview"]>>;
+export type SecurityReview = Awaited<ReturnType<PieService["security"]>>;
 export type FunctionalRecord = Awaited<
   ReturnType<PieService["functionalRecord"]>
 >;

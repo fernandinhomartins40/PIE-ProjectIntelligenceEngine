@@ -653,3 +653,11 @@ Adapter preserva include path/project_directory e extends service/file com Evide
 ## Redes Compose estáticas — T2.3/T4.4 — 18/10/2026
 
 Adapter emite modo de rede, anexos do serviço com aliases/endereço literal selecionado, e definições top-level restritas a nome/driver/external/internal/attachable/IPv6. Valores estruturais retidos não representam conectividade efetiva; IPAM e opções arbitrárias são omitidos. `npm.cmd run pie:build` passou; adapter/infrastructure/MCP/Chrome focused: 23/23. Include/extends continuam sem expansão; rede runtime e Docker/Compose real não foram verificados. `check:fast`, `docs:check`, `format:check` e `pie:web:typecheck` passaram; ap?s o build do painel, Chrome passou 1/1. T2.3/T4.4 permanecem parciais.
+
+## Host networking em Compose — T4.3 — 18/10/2026
+
+`security-review` usa o fato Compose existente e, quando o arquivo ainda corresponde a Evidence, emite finding `compose_host_network_mode` para valor literal `host`. Categoria `container_configuration`, severidade alta, probabilidade `unassessed`; nao prova ativacao ou exposicao. Contrato schemaVersion 4 anuncia cobertura parcial. `pieSecurityReview` passou 2/2 incluindo paridade CLI/API/MCP/Ajv e omissao do finding quando o hash do arquivo muda. Docker/runtime e outros modos privilegiados nao foram verificados; T4.3 parcial.
+
+### Painel Security Review
+
+O painel pt-BR consulta o schema compartilhado, marca findings como suspeitos/nao verificados, separa superficies de autorizacao unverified, mostra incertezas e links para Evidence. Chrome percorreu o finding Compose network_mode: host, abriu sua Evidence e validou viewports 360/1440; a boundary detectou e levou a correcao de quebra responsiva em titulo longo do plano de triagem.

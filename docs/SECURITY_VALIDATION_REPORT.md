@@ -48,3 +48,13 @@ Data: 17/10/2026. Escopo: implementação da API/painel local do PIE, conforme c
 ## Próximos passos
 
 Executar `pieApi.test.ts` e boundaries de `scopedJob`; mapear a tabela de rotas e seus efeitos; investigar scanners locais autorizados; depois adicionar regressões negativas para qualquer lacuna reproduzida. Registrar como finding confirmado somente comportamento reproduzido e vinculado à Evidence.
+
+## Finding estatico de host networking Compose — 18/10/2026
+
+O engine de seguranca agora reconhece somente `network_mode: host` literal quando o arquivo Compose continua igual ao hash da Evidence do snapshot. O resultado e `suspected`, severidade alta e probabilidade `unassessed`; nao afirma que o servico foi ativado, que a rede suporta o modo ou que o host esta exposto. A regra nao reinterpreta YAML e nao le includes/extends.
+
+Validacao: `npm.cmd run pie:build`; `npm.cmd run test:focused -- tests/boundary/pieSecurityReview.test.ts` passou 2/2. O teste integrado percorreu Git/SQLite, CLI, API autenticada, MCP stdio/Ajv e invalidacao ao editar `compose.yaml`. Docker real, overrides, rede efetiva e runtime nao foram verificados.
+
+## Painel Security Review do PIE - 18/10/2026
+
+A investigacao web local agora consulta o contrato comum do motor de seguranca e mostra findings suspeitos, superfícies de autorizacao nao verificadas e Evidence acessivel. E2E Chrome percorreu finding Compose network_mode: host, abriu Evidence e validou larguras 360/1440 sem overflow apos correcao de titulo longo na triagem. Isso valida a UI do PIE, nao a seguranca runtime de um alvo nem conformidade LGPD.

@@ -6,7 +6,10 @@ import { inventoryPath } from "./inventoryPath.js";
 import { readInventoryFile } from "./readFile.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
-import { adapterFactSchema } from "./adapters/contracts.js";
+import {
+  adapterFactSchema,
+  parseComposeServiceSettingName,
+} from "./adapters/contracts.js";
 import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
 import type { Node } from "@babel/types";
@@ -35,6 +38,7 @@ const secretKind = z.enum([
   "workflow_write_all_permissions",
   "mutable_git_dependency_reference",
   "unpinned_github_reference",
+  "compose_host_network_mode",
 ]);
 
 const findingSchema = z.strictObject({
@@ -45,6 +49,7 @@ const findingSchema = z.strictObject({
     "insecure_tls_configuration",
     "workflow_privilege",
     "supply_chain_configuration",
+    "container_configuration",
   ]),
   state: z.literal("suspected"),
   severity: z.enum(["high", "critical"]),
@@ -73,7 +78,7 @@ const authorizationSurfaceSchema = z.strictObject({
 });
 
 export const securityOutput = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   engine: z.literal("security"),
   snapshotId: z.string().uuid(),
   state: z.enum(["suspected_findings", "no_patterns_observed", "incomplete"]),
@@ -95,6 +100,7 @@ export const securityOutput = z.strictObject({
     dynamicCodePatterns: z.literal("partial"),
     workflowPermissionPatterns: z.literal("partial"),
     supplyChainPatterns: z.literal("partial"),
+    containerConfigurationPatterns: z.literal("partial"),
     astFilesExamined: z.number().int().nonnegative(),
     astFilesSkipped: z.number().int().nonnegative(),
     authorization: z.literal("unverified"),
@@ -597,6 +603,17 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
     limitations.push(
       "Limite de findings atingido; referências mutáveis de dependências restantes não foram analisadas.",
     );
+  const composeHostNetwork = composeHostNetworkFindings(
+    snapshot,
+    currentFiles,
+    MAX_FINDINGS - findings.length,
+  );
+  findings.push(...composeHostNetwork.findings);
+  findingsTruncated ||= composeHostNetwork.truncated;
+  if (composeHostNetwork.truncated)
+    limitations.push(
+      "Limite de findings atingido; declaracoes Compose de rede host restantes nao foram analisadas.",
+    );
   return {
     findings,
     limitations,
@@ -827,6 +844,66 @@ function workflowPermissionFindings(
   return { findings, truncated: facts.length > findings.length };
 }
 
+function composeHostNetworkFindings(
+  snapshot: Snapshot,
+  currentFiles: ReadonlySet<string>,
+  remaining: number,
+) {
+  const evidenceById = new Map(
+    snapshot.evidence.map((evidence) => [evidence.id, evidence]),
+  );
+  const facts = snapshot.declarations.filter((fact) => {
+    if (
+      fact.adapter !== "compose" ||
+      fact.kind !== "config_directive" ||
+      !currentFiles.has(fact.source.path)
+    )
+      return false;
+    const setting = parseComposeServiceSettingName(fact.name);
+    return setting?.key === "network_mode" && setting.value === "host";
+  });
+  const findings = facts.slice(0, remaining).flatMap((fact) => {
+    const setting = parseComposeServiceSettingName(fact.name)!;
+    const evidence = evidenceById.get(fact.evidenceId);
+    if (!evidence || fact.source.line === null) return [];
+    return findingSchema.parse({
+      id: `security:compose-host-network:${identity(
+        fact.source.path,
+        fact.source.line ?? 1,
+        fact.parent ?? setting.value,
+        evidence.source.sha256,
+      )}`,
+      category: "container_configuration",
+      state: "suspected",
+      severity: "high",
+      kind: "compose_host_network_mode",
+      condition: `O serviço Compose ${JSON.stringify(fact.parent)} declara network_mode: host.`,
+      impact:
+        "Se aplicada, a configuração pode compartilhar a pilha de rede do host e reduzir o isolamento entre o container e outros serviços locais.",
+      probability: "unassessed",
+      source: { path: fact.source.path, line: fact.source.line },
+      evidenceIds: [fact.evidenceId],
+      observation:
+        "O snapshot contém a declaração network_mode: host e a Evidence do arquivo permanece atual; nenhum container foi iniciado ou inspecionado.",
+      uncertainty: [
+        "A análise não resolve Compose include/extends, interpolação, overrides por arquivo/perfil ou configuração efetiva.",
+        "A declaração não prova que o serviço seja ativado, que o runtime suporte o modo, nem que o host esteja exposto externamente.",
+      ],
+      reproduction: [
+        "Revisar o serviço na linha indicada e confirmar em configuração de implantação autorizada se esse modo é necessário.",
+      ],
+      remediation:
+        "Preferir uma rede Compose isolada e publicar somente as portas necessárias; manter host networking apenas quando houver requisito documentado.",
+      regression: [
+        "Adicionar uma verificação de configuração que rejeite network_mode: host fora dos serviços explicitamente aprovados.",
+      ],
+      verificationStatus: "not_run",
+      owner: null,
+    });
+  });
+  return { findings, truncated: facts.length > findings.length };
+}
+
 function authorizationReviewPage(
   snapshot: Snapshot,
   input: z.infer<typeof securityInput>,
@@ -862,7 +939,7 @@ function securityReport(
 ) {
   const authorization = authorizationReviewPage(snapshot, input);
   return securityOutput.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     engine: "security",
     snapshotId: snapshot.id,
     state: reportState(snapshot, scan),
@@ -877,6 +954,7 @@ function securityReport(
       dynamicCodePatterns: "partial",
       workflowPermissionPatterns: "partial",
       supplyChainPatterns: "partial",
+      containerConfigurationPatterns: "partial",
       astFilesExamined: scan.astFilesExamined,
       astFilesSkipped: scan.astFilesSkipped,
       authorization: "unverified",
@@ -894,6 +972,7 @@ function securityReport(
         "AST JavaScript/TypeScript cobre somente chamadas diretas globais eval/Function; não realiza análise de fluxo, alcançabilidade ou outros sinks.",
         "Permissões GitHub Actions: somente write-all literal em arquivo atual que passou pelo hash da Evidence; configuração efetiva, eventos e permissões granulares permanecem fora da análise.",
         "Supply chain: referências Git de package.json são comparadas apenas ao package-lock npm v2/v3 atual com spec raiz idêntica; actions GitHub remotas só geram suspeita sem SHA literal. Outros lockfiles, aliases, workspaces, Docker, expressões, conteúdo remoto e CVEs não são analisados.",
+        "Container: detecta somente network_mode: host literal em Compose com Evidence atual; includes/extends, overrides, outros modos privilegiados e estado efetivo nao sao avaliados.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },

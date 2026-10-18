@@ -230,6 +230,14 @@ pre.path {
 }
 .plan-item-heading h3 {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+.plan-item-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+.plan-item-heading > .badge {
+  flex-shrink: 0;
 }
 .plan-triage-form {
   display: grid;

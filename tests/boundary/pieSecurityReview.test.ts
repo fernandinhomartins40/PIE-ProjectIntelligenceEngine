@@ -129,7 +129,7 @@ async function expectStaleLockNotToSuppress(
     '{"lockfileVersion":3,"packages":{"":{"dependencies":{"lockedMutable":"github:owner/locked#main"}}}}\n',
   );
   const staleLock = await service.security({ snapshotId, limit: 20 });
-  expect(staleLock.findings.total).toBe(12);
+  expect(staleLock.findings.total).toBe(13);
   expect(
     staleLock.findings.items.some(
       (finding) =>
@@ -273,9 +273,16 @@ function expectExtendedSecurityFindings(
           'O job "build" usa action GitHub remota sem referência a SHA completo.',
         source: { path: ".github/workflows/action-refs.yml", line: 10 },
       }),
+      expect.objectContaining({
+        category: "container_configuration",
+        kind: "compose_host_network_mode",
+        condition: 'O servi\u00e7o Compose "api" declara network_mode: host.',
+        source: { path: "compose.yaml", line: 3 },
+        evidenceIds: [expect.any(String)],
+      }),
     ]),
   );
-  expect(report.findings.items).toHaveLength(14);
+  expect(report.findings.items).toHaveLength(15);
   expect(
     report.findings.items.some(
       (finding) =>
@@ -295,6 +302,25 @@ function expectExtendedSecurityFindings(
   });
 }
 
+async function expectStaleComposeNotToReport(
+  service: PieService,
+  repo: string,
+  snapshotId: string,
+) {
+  await writeFile(
+    join(repo, "compose.yaml"),
+    "services:\n  api:\n    network_mode: bridge\n",
+  );
+  const report = await service.security({ snapshotId });
+  expect(report.findings.total).toBe(12);
+  expect(
+    report.findings.items.some(
+      (item) => item.kind === "compose_host_network_mode",
+    ),
+  ).toBe(false);
+  expect(report.coverage.filesSkipped).toBe(4);
+}
+
 async function verifySecurityFindings(
   service: PieService,
   snapshotId: string,
@@ -303,11 +329,11 @@ async function verifySecurityFindings(
   const request = { snapshotId, limit: 1 };
   const expected = await service.security(request);
   expect(expected).toMatchObject({
-    schemaVersion: 3,
+    schemaVersion: 4,
     engine: "security",
     state: "suspected_findings",
     findings: {
-      total: 14,
+      total: 15,
       items: [
         {
           category: "credential_like_material",
@@ -339,9 +365,10 @@ async function verifySecurityFindings(
       dynamicCodePatterns: "partial",
       workflowPermissionPatterns: "partial",
       supplyChainPatterns: "partial",
+      containerConfigurationPatterns: "partial",
       astFilesExamined: 4,
       astFilesSkipped: 0,
-      filesExamined: 10,
+      filesExamined: 11,
       filesSkipped: 0,
       runtime: false,
     },
@@ -434,6 +461,10 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     'name: Control character job\non: [push]\njobs:\n  "deploy\\nINJECTED":\n    permissions: write-all\n    steps: []\n',
   );
   await writeActionReferenceWorkflow(repo);
+  await writeFile(
+    join(repo, "compose.yaml"),
+    "services:\n  api:\n    network_mode: host\n",
+  );
   await exec("git", ["-C", repo, "add", "."]);
 
   const store = await openStore(db, repo);
@@ -472,7 +503,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(12);
+    expect(stale.findings.total).toBe(13);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
@@ -491,7 +522,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       snapshotId: discovered.snapshot.id,
       limit: 20,
     });
-    expect(staleWorkflow.findings.total).toBe(11);
+    expect(staleWorkflow.findings.total).toBe(12);
     expect(
       staleWorkflow.findings.items.some(
         (finding) =>
@@ -501,6 +532,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     ).toBe(false);
     expect(staleWorkflow.coverage.filesSkipped).toBe(2);
     await expectStaleLockNotToSuppress(service, repo, discovered.snapshot.id);
+    await expectStaleComposeNotToReport(service, repo, discovered.snapshot.id);
   } finally {
     await client.close();
     await mcp.close();

@@ -882,3 +882,9 @@ Boundary adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1. Profile
 - Compose registra `network_mode`, `network_attachment` e `network_definition` com Evidence da origem. Opções arbitrárias IPAM/driver não são retidas; nenhuma conectividade ou recurso runtime é inferido.
 - `npm.cmd run pie:build` passou. `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts tests/boundary/mcp/pieMcp.test.ts tests/boundary/pieInfrastructureWeb.test.ts` passou: 23/23 com Git/SQLite, MCP e Chrome.
 - Compose/Docker real, IPAM, recursos externos e conectividade não foram validados. T2.3/T4.4 continuam parciais.
+
+## UI de seguranca e correcao responsiva - 18/10/2026
+
+- O painel de investigacao apresenta Security Review com findings paginados, superficies de autorizacao unverified, limitacoes, incertezas, remediacao e links para Evidence.
+- Chrome real percorreu finding Compose network_mode: host e abriu Evidence persistida. Viewports 360/1440 validam ausencia de overflow horizontal; a boundary revelou titulo longo deslocando badge de triagem, corrigido com quebra de linha/min-width flex.
+- npm.cmd run pie:web:typecheck, npm.cmd run pie:web:build e npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts passaram. Seguranca/runtime do alvo nao foram verificados.
