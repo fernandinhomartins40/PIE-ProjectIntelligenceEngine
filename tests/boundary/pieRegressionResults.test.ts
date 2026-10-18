@@ -75,12 +75,16 @@ let nextRunTime = Date.now();
 async function persistRun(
   store: Awaited<ReturnType<typeof openStore>>,
   snapshot: Awaited<ReturnType<typeof store.snapshot>>,
-  outcomes: Array<{ name: string; outcome: "passed" | "failed" }>,
+  outcomes: Array<{
+    name: string;
+    outcome: "passed" | "failed" | "skipped" | "todo";
+  }>,
   runImage = image,
   declarationId?: string,
   runtimeLocations: Array<{ sourcePath: string; line: number }> = [],
   runtimeInstrumentation = true,
   runtimeReportComplete = true,
+  testReportComplete = true,
 ) {
   const id = randomUUID();
   const authorization = nodeTestGrantSchema.parse({
@@ -120,15 +124,23 @@ async function persistRun(
     cancelled: 0,
     failed: outcomes.filter((item) => item.outcome === "failed").length,
     passed: outcomes.filter((item) => item.outcome === "passed").length,
-    skipped: 0,
+    skipped: outcomes.filter((item) => item.outcome === "skipped").length,
     suites: 0,
     tests: outcomes.length,
-    todo: 0,
+    todo: outcomes.filter((item) => item.outcome === "todo").length,
     topLevel: outcomes.length,
   };
   const failed = counts.failed > 0;
+  const allPassed =
+    outcomes.length > 0 &&
+    counts.passed === outcomes.length &&
+    testReportComplete;
   const nodeResult = {
-    state: failed ? ("failed" as const) : ("passed" as const),
+    state: failed
+      ? ("failed" as const)
+      : allPassed
+        ? ("passed" as const)
+        : ("inconclusive" as const),
     counts,
     cases: outcomes.map((item) => ({
       protocolVersion: 1 as const,
@@ -144,7 +156,7 @@ async function persistRun(
     exitCode: failed ? 1 : 0,
     signal: null,
     coverage: {
-      reportComplete: true,
+      reportComplete: testReportComplete,
       processCompleted: true,
       truncated: false,
       limitations: [],
@@ -215,6 +227,12 @@ async function expectLegacyRunUninstrumented(input: {
               state: "line_not_observed",
               evidenceId: input.instrumentedRun.evidence.id,
             },
+            testExecution: {
+              state: "failed_cases_observed",
+              counts: { passed: 2, failed: 1, skipped: 0, todo: 0 },
+              complete: true,
+              evidenceId: input.instrumentedRun.evidence.id,
+            },
           },
         ],
       },
@@ -224,6 +242,12 @@ async function expectLegacyRunUninstrumented(input: {
         items: [
           {
             runtimeObservation: { state: "not_instrumented", evidenceId: null },
+            testExecution: {
+              state: "all_reported_cases_passed",
+              counts: { passed: 2, failed: 0, skipped: 0, todo: 0 },
+              complete: true,
+              evidenceId: legacyRun.evidence.id,
+            },
           },
         ],
       },
@@ -255,8 +279,141 @@ async function expectLegacyRunUninstrumented(input: {
         state: "unknown",
         evidenceId: incompleteRun.evidence.id,
       },
+      testExecution: {
+        state: "all_reported_cases_passed",
+        counts: { passed: 2, failed: 0, skipped: 0, todo: 0 },
+        complete: true,
+        evidenceId: incompleteRun.evidence.id,
+      },
     },
   ]);
+}
+
+async function expectBindingIntegrityAndLegacyObservations(input: {
+  store: Awaited<ReturnType<typeof openStore>>;
+  snapshot: Snapshot;
+  service: PieService;
+  run: VerificationRun;
+  declarationId: string;
+}) {
+  expectInvalidStoredBinding(input.run, input.snapshot);
+  await expectLegacyRunUninstrumented({
+    store: input.store,
+    snapshot: input.snapshot,
+    service: input.service,
+    instrumentedRun: input.run,
+    declarationId: input.declarationId,
+  });
+}
+
+async function expectStableComparison(input: {
+  store: Awaited<ReturnType<typeof openStore>>;
+  snapshot: Snapshot;
+  service: PieService;
+  baselineRun: VerificationRun;
+}) {
+  const stableRun = await persistRun(input.store, input.snapshot, [
+    { name: "save", outcome: "failed" },
+    { name: "load", outcome: "passed" },
+    { name: "new case", outcome: "passed" },
+  ]);
+  const stable = await input.service.verificationComparison({
+    beforeRunId: input.baselineRun.id,
+    afterRunId: stableRun.id,
+  });
+  expect(stable).toMatchObject({
+    state: "no_regression_observed",
+    coverage: { regressions: 0, unchanged: 3, onlyBefore: 0, onlyAfter: 0 },
+    declaredBindings: {
+      before: { state: "declared_unverified" },
+      after: { state: "unknown" },
+    },
+  });
+}
+
+async function expectBoundTestExecutionStates(input: {
+  store: Awaited<ReturnType<typeof openStore>>;
+  snapshot: Snapshot;
+  service: PieService;
+  declarationId: string;
+  baselineRunId: string;
+}) {
+  const skippedRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [
+      { name: "skipped case", outcome: "skipped" },
+      { name: "todo case", outcome: "todo" },
+    ],
+    image,
+    input.declarationId,
+  );
+  const skippedComparison = await input.service.verificationComparison({
+    beforeRunId: input.baselineRunId,
+    afterRunId: skippedRun.id,
+  });
+  expect(skippedComparison.declaredBindings.after.bindings.items).toMatchObject(
+    [
+      {
+        testExecution: {
+          state: "skipped_or_todo_observed",
+          counts: { passed: 0, failed: 0, skipped: 1, todo: 1 },
+          complete: true,
+          evidenceId: skippedRun.evidence.id,
+        },
+      },
+    ],
+  );
+
+  const emptyRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [],
+    image,
+    input.declarationId,
+  );
+  const emptyComparison = await input.service.verificationComparison({
+    beforeRunId: input.baselineRunId,
+    afterRunId: emptyRun.id,
+  });
+  expect(emptyComparison.declaredBindings.after.bindings.items).toMatchObject([
+    {
+      testExecution: {
+        state: "no_cases_reported",
+        counts: { passed: 0, failed: 0, skipped: 0, todo: 0 },
+        complete: true,
+        evidenceId: emptyRun.evidence.id,
+      },
+    },
+  ]);
+
+  const partialRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [{ name: "partial case", outcome: "passed" }],
+    image,
+    input.declarationId,
+    [],
+    true,
+    true,
+    false,
+  );
+  const partialComparison = await input.service.verificationComparison({
+    beforeRunId: input.baselineRunId,
+    afterRunId: partialRun.id,
+  });
+  expect(partialComparison.declaredBindings.after.bindings.items).toMatchObject(
+    [
+      {
+        testExecution: {
+          state: "partial",
+          counts: { passed: 1, failed: 0, skipped: 0, todo: 0 },
+          complete: false,
+          evidenceId: partialRun.evidence.id,
+        },
+      },
+    ],
+  );
 }
 
 async function assertProjectHistoryAdapters(input: {
@@ -386,6 +543,12 @@ function expectDeclaredBindings(
               state: "line_observed",
               evidenceId: expect.any(String),
             },
+            testExecution: {
+              state: "all_reported_cases_passed",
+              counts: { passed: 2, failed: 0, skipped: 0, todo: 0 },
+              complete: true,
+              evidenceId: expect.any(String),
+            },
           },
         ],
       },
@@ -402,6 +565,12 @@ function expectDeclaredBindings(
             interpretation: "declared_unverified",
             runtimeObservation: {
               state: "line_not_observed",
+              evidenceId: expect.any(String),
+            },
+            testExecution: {
+              state: "failed_cases_observed",
+              counts: { passed: 2, failed: 1, skipped: 0, todo: 0 },
+              complete: true,
               evidenceId: expect.any(String),
             },
           },
@@ -643,7 +812,7 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     );
     const expected = await service.verificationComparison(input);
     expect(expected).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       engine: "regression",
       state: "regression_observed",
       cases: {
@@ -684,32 +853,27 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
       latestRunId: afterRun.id,
       latestSnapshotId: after.snapshot.id,
     });
-    expectInvalidStoredBinding(afterRun, afterSnapshot);
-
-    await expectLegacyRunUninstrumented({
+    await expectBoundTestExecutionStates({
       store,
       snapshot: afterSnapshot,
       service,
-      instrumentedRun: afterRun,
+      declarationId: afterDeclaration.id,
+      baselineRunId: afterRun.id,
+    });
+
+    await expectBindingIntegrityAndLegacyObservations({
+      store,
+      snapshot: afterSnapshot,
+      service,
+      run: afterRun,
       declarationId: afterDeclaration.id,
     });
 
-    const stableRun = await persistRun(store, afterSnapshot, [
-      { name: "save", outcome: "failed" },
-      { name: "load", outcome: "passed" },
-      { name: "new case", outcome: "passed" },
-    ]);
-    const stable = await service.verificationComparison({
-      beforeRunId: afterRun.id,
-      afterRunId: stableRun.id,
-    });
-    expect(stable).toMatchObject({
-      state: "no_regression_observed",
-      coverage: { regressions: 0, unchanged: 3, onlyBefore: 0, onlyAfter: 0 },
-      declaredBindings: {
-        before: { state: "declared_unverified" },
-        after: { state: "unknown" },
-      },
+    await expectStableComparison({
+      store,
+      snapshot: afterSnapshot,
+      service,
+      baselineRun: afterRun,
     });
   } finally {
     cliOutput.mockRestore();

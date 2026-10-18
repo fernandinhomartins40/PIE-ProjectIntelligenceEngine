@@ -19,6 +19,13 @@
 
 # PIE — Registro de validação contínua
 
+## Resultados de teste por arquivo vinculado — schema v4 — 18/10/2026
+
+- Cada binding VERIFY agora projeta o resultado dos casos do arquivo autorizado exato: contagens por estado, completude do relatório e referência ao Evidence do run. Casos falhos e skipped/TODO permanecem observações distintas; ausência com relatório completo vira apenas `no_cases_reported`, e resultado completo com todos os casos aprovados não declara semântica da asserção nem cobertura da capacidade.
+- Boundary local percorreu comparação persistida pelo serviço, API autenticada, CLI e MCP e validou o output MCP com Ajv; após corrigir o fixture para não chamar relatório incompleto de aprovado, `pieRegressionResults.test.ts`: 2/2. `toolSchemaValidity.test.ts`: 15/15 (schema convertido/catálogo); PostgreSQL e Docker não foram exercitados porque esta projeção lê Evidence persistida.
+- Na suíte focused idêntica, o Vitest reportou 52,72 s em uma execução anterior e 46,99 s após agrupar casos por arquivo; uma amostra por versão não atribui a diferença à mudança. A boundary da comparação levou 4,986 s e a validação MCP 38,886 s na última rodada. CPU e memória de pico não foram medidas; a suíte pequena não comprova carga máxima.
+- Limitação aberta: o binding ainda associa apenas arquivo autorizado à declaração; correspondência caso→asserção→capacidade e aresta `covers` verificável seguem sem implementação.
+
 ## Recuperação de notices por revisão exata do upstream — 18/10/2026
 
 - Os tarballs fixados de `@radix-ui/react-compose-refs@1.1.2`, `@radix-ui/react-use-layout-effect@1.1.1` e `remeda@2.33.4` foram baixados como dados, tiveram os SRI comparados ao lockfile e não continham documentos `LICENSE`/`NOTICE` reconhecidos. O registro npm fornece `gitHead` para cada versão; o texto raiz `LICENSE` foi recuperado dos commits correspondentes e SHA-256 preservado em `licenses/upstream-sources.json`.
@@ -26,6 +33,8 @@
 - Os READMEs exatos de `pg-types@2.2.0` (`d9d9dfb87eb50914043cbc178c301b7dd3b0c50d`) e `pgpass@1.0.5` (`4230ed5e417ba6044ea7eb80b7c33db9ec301398`) também contêm o MIT completo e copyright explícito. O `gitHead` do registro npm confere; os trechos foram preservados com SHA-256 e inseridos nas entradas runtime. Permanecem dois `UPSTREAM_NOTICE_GAP` (`@prisma/dev@0.24.17` e `postgres@3.4.7`), sem substituição por licença presumida.
 
 - `postgres@3.4.7` declara `Unlicense` nos metadados do pacote e do lockfile; `npm view` confirma o `gitHead` `9b92b65da6a5121545581a6dd5de859c2a70177f`. Como archive e revisão exata não fornecem notice standalone, o texto oficial SPDX foi preservado separadamente com commit e SHA-256 fixados. Ele é rotulado como referência canônica, não como texto original do pacote; o gap de fonte/notice e a revisão jurídica permanecem abertos.
+
+- Investigação adicional de `@prisma/dev@0.24.17`: `npm view` confirma license `ISC` e author, mas não retorna `repository` ou `gitHead`; a API `/-/npm/v1/attestations/@prisma%2fdev@0.24.17` respondeu HTTP 404. O commit oficial [prisma/orm@67ee5dc](https://github.com/prisma/orm/commit/67ee5dc) apenas atualiza o consumidor para a versão 0.24.17 e não estabelece a revisão fonte da publicação. Sem origem exata, o notice gap permanece; copyright/ano não foram inferidos.
 
 ## Comparação de observação de linha por binding — schema v3 — 18/10/2026
 
