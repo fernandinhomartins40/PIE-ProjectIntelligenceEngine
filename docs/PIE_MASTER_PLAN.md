@@ -643,3 +643,7 @@ As regras nao cobrem include/extends, overrides, interpolacao, capabilities fora
 ### Apresentacao web de Security Review
 
 A investigacao do painel agora consulta security-review, apresenta findings suspeitos paginados, superficies de autorizacao unverified, incertezas, remediacoes, cobertura e acesso as Evidence. O E2E Chrome percorre host networking Compose ate a Evidence persistida. A ampliacao revelou overflow do titulo longo de triagem; CSS passou a permitir quebra sem deslocar o badge, mantendo 360/1440 px sem overflow. Nada disso representa seguranca de runtime ou avaliacao LGPD completa.
+
+## Fail-closed para DDL destrutivo fora do parser — T4.5 — 18/10/2026
+
+O parser de migrations agora registra `ALTER TABLE` fora do subconjunto suportado e DDL `DROP`/`TRUNCATE`/`RENAME` como limitacao com caminho e linha. `data-review` usa essa proveniencia para marcar migration inventory incomplete e seletores inconclusivos; nao promove constraints antigas a estado final depois de uma remocao nao interpretada. `pieDataReview`: 2/2; `pieAdapters` validado junto nesta entrega. PostgreSQL runtime nao foi executado (sem psql/servico local). O reducer completo de migrations, schemas, SQL dinamico e estado aplicado continuam pendentes.

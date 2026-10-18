@@ -216,6 +216,11 @@ function referencedTables(tokens: Token[]) {
 /** Reads a bounded PostgreSQL migration subset; unsupported SQL stays unknown. */
 export function readSqlMigration(source: string): AdapterRead {
   const declarations: Declaration[] = [];
+  const limitations: string[] = [];
+  const markUnsupportedDdl = (statement: Token[]) =>
+    limitations.push(
+      `Migration SQL DDL fora do subconjunto suportado na linha ${statement[0]?.line ?? 1}; estado final permanece inconclusivo.`,
+    );
   const add = (
     kind: Declaration["kind"],
     name: string,
@@ -264,19 +269,25 @@ export function readSqlMigration(source: string): AdapterRead {
                 ? { field: null, sourceFields: columns, targetFields: null }
                 : undefined,
             );
-          }
+          } else markUnsupportedDdl(statement);
         }
         continue;
       }
       index++;
       if (keyword(statement[index], "if")) index += 3;
       const target = qualifiedName(statement, index);
-      if (!target) continue;
+      if (!target) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       table = target.name;
       bodyStart = statement.findIndex(
         (token, tokenIndex) => keyword(token, "(") && tokenIndex >= target.next,
       );
-      if (bodyStart < 0) continue;
+      if (bodyStart < 0) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       add("model", table, table, statement[0]!.line);
     } else if (
       keyword(statement[0], "alter") &&
@@ -284,9 +295,13 @@ export function readSqlMigration(source: string): AdapterRead {
     ) {
       let index = keyword(statement[2], "only") ? 3 : 2;
       const target = qualifiedName(statement, index);
-      if (!target) continue;
+      if (!target) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       table = target.name;
       index = target.next;
+      let understood = false;
       if (keyword(statement[index], "add")) {
         index++;
         if (keyword(statement[index], "constraint")) index += 2;
@@ -306,6 +321,7 @@ export function readSqlMigration(source: string): AdapterRead {
               ? { field: null, sourceFields: columns, targetFields: null }
               : undefined,
           );
+          understood = true;
         } else if (kind === "unique") {
           const open = statement.findIndex(
             (token, tokenIndex) =>
@@ -321,8 +337,10 @@ export function readSqlMigration(source: string): AdapterRead {
               ? { field: null, sourceFields: columns, targetFields: null }
               : undefined,
           );
-        } else if (kind === "foreign" && keyword(statement[index + 1], "key"))
-          for (const reference of referencedTables(statement))
+          understood = true;
+        } else if (kind === "foreign" && keyword(statement[index + 1], "key")) {
+          const references = referencedTables(statement);
+          for (const reference of references)
             add(
               "schema_relation",
               reference.target,
@@ -334,7 +352,15 @@ export function readSqlMigration(source: string): AdapterRead {
                 targetFields: reference.targetFields,
               },
             );
+          understood = references.length > 0;
+        }
       }
+      if (!understood) markUnsupportedDdl(statement);
+      continue;
+    } else if (
+      ["drop", "truncate", "rename"].includes(statement[0]?.value ?? "")
+    ) {
+      markUnsupportedDdl(statement);
       continue;
     } else continue;
 
@@ -417,6 +443,7 @@ export function readSqlMigration(source: string): AdapterRead {
   return {
     declarations,
     limitations: [
+      ...limitations,
       "PostgreSQL migration: reconhece CREATE TABLE, PRIMARY KEY, UNIQUE, REFERENCES com colunas literais, CREATE UNIQUE INDEX e ALTER TABLE ADD destas formas estaticas; nao calcula estado final, nao interpreta SQL dinamico e nao comprova migrations aplicadas ao banco.",
     ],
   };

@@ -665,3 +665,5 @@ O painel pt-BR consulta o schema compartilhado, marca findings como suspeitos/na
 O adapter também registra `privileged` booleano declarado como `privileged_mode`, sem resolver configuração efetiva. O finding `compose_privileged_container` aparece no painel junto à Evidence atual. Validação desta extensão: `pie:build`, boundaries de adapter/infra/security, `pie:web:typecheck`, build web e Chrome 1/1; Docker/Compose runtime continua não executado.
 
 Compose security schemaVersion 6 tambem registra `capability_add`/`capability_drop` e detecta somente SYS_ADMIN, SYS_MODULE, SYS_RAWIO, SYS_PTRACE e NET_ADMIN. Adapter/infra/security 23/23; Chrome 1/1. Docker/runtime nao validado; T4.3 continua parcial.
+
+Data Review: DDL de migration nao reconhecido em `ALTER TABLE` e operacoes `DROP`/`TRUNCATE`/`RENAME` causam estado incompleto, preservando selector como inconclusivo. Fixture Git/SQLite confirma PK criada e posteriormente removida por DDL nao suportado. `pieDataReview` 2/2 e `pieAdapters` 20/20. PostgreSQL runtime indisponivel localmente e ainda pendente; o parser nao calcula estado final completo.

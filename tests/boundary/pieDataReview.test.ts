@@ -682,3 +682,53 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("mantem seletores inconclusivos diante de DDL destrutivo nao suportado", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-destructive-"));
+  const repo = join(root, "repo");
+  await mkdir(repo);
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id String @id", "}"].join("\n"),
+  );
+  const initial = join(repo, "prisma", "migrations", "001_init");
+  const destructive = join(repo, "prisma", "migrations", "002_drop_key");
+  await mkdir(initial, { recursive: true });
+  await mkdir(destructive, { recursive: true });
+  await writeFile(
+    join(initial, "migration.sql"),
+    'CREATE TABLE "User" ("id" TEXT PRIMARY KEY);\n',
+  );
+  await writeFile(
+    join(destructive, "migration.sql"),
+    'ALTER TABLE "User" DROP CONSTRAINT "User_pkey";\n',
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items).toEqual([
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "User" }),
+        state: "migration_inventory_incomplete",
+        selectors: expect.objectContaining({ state: "inconclusive" }),
+      }),
+    ]);
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+    expect(review.coverage.limitations.join(" ")).toContain(
+      "Migration SQL DDL fora do subconjunto suportado na linha 1",
+    );
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

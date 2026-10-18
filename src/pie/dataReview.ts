@@ -114,7 +114,8 @@ function schemaFileIncomplete(snapshot: Snapshot, path: string): boolean {
       limitation.includes(path) &&
       (normalized.includes("omitidas por") ||
         normalized.includes("formato declarativo nao analisado") ||
-        normalized.includes("acima do limite"))
+        normalized.includes("acima do limite") ||
+        normalized.includes("migration sql ddl fora do subconjunto suportado"))
     );
   });
 }
@@ -545,7 +546,7 @@ function reviewValidatedData(
       limitations: [
         "A analise consome fatos estaticos do snapshot; nao conecta nem consulta banco.",
         "Diretivas reconhecidas: @id, @@id, @unique e @@unique. Ausencia observada gera item informativo unverified, nunca defeito confirmado.",
-        "Migrations: reconhece um subconjunto de PostgreSQL e compara colunas de FKs quando Prisma/SQL as declaram literalmente; unique constraints sao apenas observadas por tabela. Nao calcula estado final, renames, schemas SQL, SQL dinamico ou aplicacao no banco.",
+        "Migrations: reconhece um subconjunto de PostgreSQL e compara constraints literais observadas; DDL destrutivo/alteracao de tabela fora do subconjunto marca o arquivo inconclusivo. Nao calcula estado final completo, renames, schemas SQL, SQL dinamico ou aplicacao no banco.",
         ...snapshot.coverage.limitations,
       ],
     },

@@ -895,3 +895,7 @@ Boundary adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1. Profile
 ## Compose capabilities declaradas - 18/10/2026
 
 cap_add/cap_drop literais agora sao fatos com Evidence; security-review schemaVersion 6 detecta cinco capabilities selecionadas sem inferir permissoes efetivas. pie:build; boundaries adapter/infra/security 23/23; pie:web:typecheck; boundary Chrome 1/1. `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram; completion ledger permanece `complete=false`. Docker/Compose runtime nao foi executado.
+
+## DDL de migration fora do subconjunto — 18/10/2026
+
+`ALTER TABLE` nao reconhecido e DDL `DROP`/`TRUNCATE`/`RENAME` agora marcam a migration com limitacao de caminho/linha. Data Review torna o inventario de migrations incompleto e seletores inconclusivos; boundary Git/SQLite comprova `CREATE TABLE ... PRIMARY KEY` seguido de `ALTER TABLE ... DROP CONSTRAINT`. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts`: 2/2; `pieAdapters`: 20/20. Isso e fail-closed para DDL nao suportado, nao calculo integral de migrations nem verificacao PostgreSQL aplicada.
