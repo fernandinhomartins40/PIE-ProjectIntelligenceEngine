@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { chromium } from "playwright-core";
+import { chromium, type Page } from "playwright-core";
 import { expect, it } from "vitest";
 import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
@@ -22,6 +22,29 @@ const executablePath =
     ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
     : "/usr/bin/google-chrome");
 
+async function verifyDataReviewPanel(page: Page) {
+  const dataReview = page.getByRole("region", {
+    name: "Dados e integrações",
+  });
+  await dataReview
+    .getByRole("heading", { name: "Seletores e migrations por modelo" })
+    .waitFor();
+  await dataReview
+    .getByText("Colunas alinhadas nas fontes observadas", { exact: true })
+    .waitFor();
+  await dataReview
+    .getByText("Esperado (primary_key): id", { exact: true })
+    .waitFor();
+  await dataReview
+    .getByText("Observado (primary_key): id", { exact: true })
+    .waitFor();
+  await dataReview
+    .getByRole("button", { name: /Consultar Evidence/ })
+    .first()
+    .click();
+  await page.locator("aside.evidence").waitFor();
+}
+
 it.skipIf(!existsSync(executablePath))(
   "painel funcional usa fatos reais, pagina módulo e abre evidência sem aprovação",
   async () => {
@@ -32,6 +55,17 @@ it.skipIf(!existsSync(executablePath))(
     await writeFile(
       join(repo, "app", "api", "route.ts"),
       "export function GET(){throw new Error('não executar')}\nexport const POST=()=>null;",
+    );
+    await mkdir(join(repo, "prisma", "migrations", "0001_init"), {
+      recursive: true,
+    });
+    await writeFile(
+      join(repo, "prisma", "schema.prisma"),
+      'model Widget {\n  id String @id\n  @@map("widgets")\n}\n',
+    );
+    await writeFile(
+      join(repo, "prisma", "migrations", "0001_init", "migration.sql"),
+      'CREATE TABLE "widgets" ("id" TEXT, PRIMARY KEY ("id"));\n',
     );
     for (let index = 0; index < 11; index++) {
       await mkdir(join(repo, "app", `page${index}`));
@@ -66,6 +100,7 @@ it.skipIf(!existsSync(executablePath))(
       await page.goto(server.url);
       await page.getByLabel("Credencial do serviço local").fill(token);
       await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      await verifyDataReviewPanel(page);
       const section = page.getByRole("region", {
         name: "Análise funcional estática",
       });
@@ -159,7 +194,7 @@ it.skipIf(!existsSync(executablePath))(
       await rm(root, { recursive: true, force: true });
     }
   },
-  30_000,
+  60_000,
 );
 
 it.skipIf(process.platform !== "linux" || !existsSync(executablePath))(

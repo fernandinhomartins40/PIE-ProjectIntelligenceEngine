@@ -546,3 +546,11 @@ O adapter SQL agora preserva, com Evidence, listas ordenadas de colunas literais
 `data-review` agora preserva as colunas de `@id`/`@unique`/`@@id`/`@@unique` e compara as listas ordenadas às PKs/UNIQUE literais reconhecidas em migrations, através do contrato público schemaVersion 5. Aplica `@@map` de tabela e `@map` de campo quando literais. Resultado do seletor é `aligned_observed`, `mismatch_observed`, `not_observed`, `inconclusive` ou `not_declared`; a resposta inclui Evidence dos dois lados e limitações explícitas. `not_observed` não significa ausência no banco, e `aligned_observed` não prova estado final nem constraint aplicada.
 
 O mesmo `PieService.dataReview` alimenta CLI, API e MCP. Fixtures Git/SQLite exercitam PK simples, `@@id` composta, `@unique` com coluna mapeada, `@@unique` composta, mismatch, índice funcional com coluna não comparável e mapping dinâmico inconclusivo. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 12/12. T4.5 continua parcial: sem redução da sequência completa de migrations, schemas SQL ou consulta a PostgreSQL aplicado; resultados permanecem `unverified`.
+
+## Integração de Data Review ao painel — 18/10/2026
+
+O painel pt-BR agora consulta automaticamente POST /v1/data-review para o snapshot aberto, exibe cobertura, comparações de seletores PK/UNIQUE, relações Prisma/FK e modelos sem seletor, com paginação e ações para abrir Evidence persistida. As mensagens distinguem fontes observadas de estado do banco; a interface não promove unverified a validado.
+
+Validação executada: npm.cmd run pie:web:typecheck, npm.cmd run pie:web:build e npm.cmd run test:focused -- tests/boundary/pieWeb.test.ts. O Chrome Windows abriu o snapshot com schema/migration no repositório Git/SQLite, mostrou seletor e colunas observadas e carregou Evidence ao selecionar. Resultado do arquivo: 4 testes passaram, 1 cenário Linux-only foi skipped. T1.5/T4.5 permanecem parciais pelas lacunas de runtime e resolução final de migrations já descritas.
+
+Gates finais da integração web: check:fast, format:check, docs:check, pie:web:typecheck e git diff --check passaram. pieWeb no Chrome Windows: 4 passaram, 1 Linux-only skipped. O ledger global ainda informa complete=false; o objetivo PIE permanece em andamento.

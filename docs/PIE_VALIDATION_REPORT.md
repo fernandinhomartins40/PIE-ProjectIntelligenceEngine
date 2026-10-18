@@ -777,3 +777,19 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - Factos Prisma de `@id`, `@unique`, `@@id`, `@@unique` agora preservam colunas literais; migrations preservam PK/UNIQUE ordenados. `data-review` compara seletores com `@@map`/`@map` literal e retorna Evidence de ambas as fontes mais `uncertainty`. Mismatch é observação de fontes; `not_observed` não declara ausência no PostgreSQL; índice funcional e diretiva/mapping não literal permanecem inconclusivos.
 - `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 2 arquivos, 12 testes passaram. Cobertura inclui PK e UNIQUE simples/compostos, coluna mapeada, mismatch, expressão `lower(email)`, schema dinâmico, Evidence e paridade service/CLI/API/MCP com validação Ajv.
 - `check:fast`, `format:check`, `docs:check` e `git diff --check` serão executados antes da publicação. Não houve validação PostgreSQL real; o estado final/aplicado das migrations segue desconhecido. T4.5 permanece parcial.
+
+## Data Review no painel — 18/10/2026
+
+- Implementação web: chamada autenticada existente POST /v1/data-review, estados observacionais traduzidos para pt-BR, coverage e incertezas apresentados, Evidence vinculada navegável e paginação para modelos, migrations e relações.
+- npm.cmd run pie:web:typecheck: passou. npm.cmd run pie:web:build: passou.
+- npm.cmd run test:focused -- tests/boundary/pieWeb.test.ts: 4 passaram, 1 skipped por ser cenário Linux-only. Chrome real em Windows verificou schema/migration descobertos por Git/SQLite, seletor alinhado e abertura de Evidence.
+- Limites: o teste de navegador usa fixture de projeto e não conecta PostgreSQL; o painel mostra fatos estáticos do snapshot. Naquele momento os gates ainda aguardavam execução; a atualização final abaixo registra os resultados concluídos.
+
+Atualização de gates finais — 18/10/2026
+
+- npm.cmd run check:fast: passou (typecheck e lint).
+- npm.cmd run format:check: passou em 4.149 arquivos.
+- npm.cmd run docs:check: passou; readmeConsistency passou 5/5; catálogo e inventário de licenças válidos (902 pacotes lockfile, 365 runtime).
+- npm.cmd run pie:web:typecheck e git diff --check: passaram.
+- npm.cmd run test:focused -- tests/boundary/pieWeb.test.ts: 4 passaram, 1 cenário Linux-only skipped. pie:web:build também passou.
+- O ledger do projeto permanece complete=false e T1.5/T4.5 parciais.
