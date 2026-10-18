@@ -34,6 +34,7 @@ const secretKind = z.enum([
   "tls_verification_disabled",
   "workflow_write_all_permissions",
   "mutable_git_dependency_reference",
+  "unpinned_github_reference",
 ]);
 
 const findingSchema = z.strictObject({
@@ -72,7 +73,7 @@ const authorizationSurfaceSchema = z.strictObject({
 });
 
 export const securityOutput = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   engine: z.literal("security"),
   snapshotId: z.string().uuid(),
   state: z.enum(["suspected_findings", "no_patterns_observed", "incomplete"]),
@@ -574,6 +575,17 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
     limitations.push(
       "Limite de findings atingido; configurações de permissão de workflows restantes não foram analisadas.",
     );
+  const githubActions = unpinnedGitHubActionFindings(
+    snapshot,
+    currentFiles,
+    MAX_FINDINGS - findings.length,
+  );
+  findings.push(...githubActions.findings);
+  findingsTruncated ||= githubActions.truncated;
+  if (githubActions.truncated)
+    limitations.push(
+      "Limite de findings atingido; referências GitHub Actions restantes não foram analisadas.",
+    );
   const mutableGitDependencies = mutableGitDependencyFindings(
     snapshot,
     currentFiles,
@@ -686,6 +698,71 @@ function mutableGitDependencyFindings(
   return { findings, truncated: eligibleFacts.length > findings.length };
 }
 
+function unpinnedGitHubActionFindings(
+  snapshot: Snapshot,
+  currentFiles: ReadonlySet<string>,
+  remaining: number,
+) {
+  const evidenceById = new Map(
+    snapshot.evidence.map((item) => [item.id, item]),
+  );
+  const facts = snapshot.declarations.filter(
+    (fact) =>
+      fact.adapter === "github-actions" &&
+      fact.kind === "config_directive" &&
+      (fact.name.startsWith("workflow.action_reference_unpinned:") ||
+        fact.name.startsWith(
+          "workflow.reusable_workflow_reference_unpinned:",
+        )) &&
+      currentFiles.has(fact.source.path),
+  );
+  const findings = facts.slice(0, remaining).flatMap((fact) => {
+    const evidence = evidenceById.get(fact.evidenceId);
+    if (!evidence) return [];
+    return [
+      findingSchema.parse({
+        id: `security:github-action-reference:${identity(
+          fact.source.path,
+          fact.source.line ?? 1,
+          `${fact.parent ?? "job"}:${fact.name}`,
+          evidence.source.sha256,
+        )}`,
+        category: "supply_chain_configuration",
+        state: "suspected",
+        severity: "high",
+        kind: "unpinned_github_reference",
+        condition: fact.name.startsWith(
+          "workflow.reusable_workflow_reference_unpinned:",
+        )
+          ? `O job ${JSON.stringify(fact.parent)} referencia workflow GitHub reutilizável sem SHA completo.`
+          : `O job ${JSON.stringify(fact.parent)} usa action GitHub remota sem referência a SHA completo.`,
+        impact:
+          "Uma tag ou branch pode apontar para código diferente entre execuções; o código de uma action executada pode acessar contexto e permissões concedidos ao job.",
+        probability: "unassessed",
+        source: { path: fact.source.path, line: fact.source.line },
+        evidenceIds: [fact.evidenceId],
+        observation:
+          "O parser YAML observou referência remota sem SHA completo; nenhum repositório ou workflow foi consultado ou executado.",
+        uncertainty: [
+          "Não foi verificado se a referência é tag/branch protegida, se a action executa ou quais secrets/permissões recebem.",
+          "Actions locais, Docker e expressões dinâmicas não são classificadas por esta regra.",
+        ],
+        reproduction: [
+          "Inspecionar a referência na linha indicada e comparar com a revisão aprovada do repositório da action sem executar o workflow.",
+        ],
+        remediation:
+          "Fixar a action ou workflow reutilizável em SHA completo revisado e atualizar a referência por processo controlado.",
+        regression: [
+          "Validar que a referência aprovada permanece fixada ao SHA revisado e que o workflow conserva apenas permissões necessárias.",
+        ],
+        verificationStatus: "not_run",
+        owner: null,
+      }),
+    ];
+  });
+  return { findings, truncated: facts.length > findings.length };
+}
+
 function workflowPermissionFindings(
   snapshot: Snapshot,
   currentFiles: ReadonlySet<string>,
@@ -785,7 +862,7 @@ function securityReport(
 ) {
   const authorization = authorizationReviewPage(snapshot, input);
   return securityOutput.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     engine: "security",
     snapshotId: snapshot.id,
     state: reportState(snapshot, scan),
@@ -816,7 +893,7 @@ function securityReport(
         "Rotas declaradas são inventário de escopo; não determinam se existe ou falta autorização e permanecem unverified sem testes negativos de runtime.",
         "AST JavaScript/TypeScript cobre somente chamadas diretas globais eval/Function; não realiza análise de fluxo, alcançabilidade ou outros sinks.",
         "Permissões GitHub Actions: somente write-all literal em arquivo atual que passou pelo hash da Evidence; configuração efetiva, eventos e permissões granulares permanecem fora da análise.",
-        "Supply chain: referências Git diretas do package.json são comparadas apenas a package-lock npm v2/v3 atual, com spec raiz idêntica e resolução direta em SHA completo; outros lockfiles, aliases, workspaces, conteúdo remoto e CVEs não são analisados.",
+        "Supply chain: referências Git de package.json são comparadas apenas ao package-lock npm v2/v3 atual com spec raiz idêntica; actions GitHub remotas só geram suspeita sem SHA literal. Outros lockfiles, aliases, workspaces, Docker, expressões, conteúdo remoto e CVEs não são analisados.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },

@@ -96,6 +96,29 @@ async function writeDependencyManifest(repo: string) {
   );
 }
 
+async function writeActionReferenceWorkflow(repo: string) {
+  await writeFile(
+    join(repo, ".github", "workflows", "action-refs.yml"),
+    [
+      "name: Action references",
+      "on: [push]",
+      "jobs:",
+      "  reusable:",
+      "    uses: owner/repo/.github/workflows/ci.yml@main",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567",
+      "      - uses: owner/setup@v4",
+      "      - uses: ./local/action",
+      "      - uses: docker://example/image:latest",
+      "      - uses: ${{ inputs.action }}",
+      "      - uses: owner/dynamic@${{ inputs.ref }}",
+      "",
+    ].join("\n"),
+  );
+}
+
 async function expectStaleLockNotToSuppress(
   service: PieService,
   repo: string,
@@ -106,7 +129,7 @@ async function expectStaleLockNotToSuppress(
     '{"lockfileVersion":3,"packages":{"":{"dependencies":{"lockedMutable":"github:owner/locked#main"}}}}\n',
   );
   const staleLock = await service.security({ snapshotId, limit: 20 });
-  expect(staleLock.findings.total).toBe(10);
+  expect(staleLock.findings.total).toBe(12);
   expect(
     staleLock.findings.items.some(
       (finding) =>
@@ -179,72 +202,10 @@ async function verifySecurityAdapters(input: {
   ).toBe(true);
 }
 
-async function verifySecurityFindings(
-  service: PieService,
-  snapshotId: string,
-  canary: string,
+function expectExtendedSecurityFindings(
+  report: Awaited<ReturnType<PieService["security"]>>,
 ) {
-  const request = { snapshotId, limit: 1 };
-  const expected = await service.security(request);
-  expect(expected).toMatchObject({
-    schemaVersion: 2,
-    engine: "security",
-    state: "suspected_findings",
-    findings: {
-      total: 12,
-      items: [
-        {
-          category: "credential_like_material",
-          state: "suspected",
-          kind: "github_token",
-          source: { path: "config.ts", line: 1 },
-          evidenceIds: [expect.any(String)],
-        },
-      ],
-      nextOffset: 1,
-    },
-    authorizationSurfaces: {
-      total: 1,
-      items: [
-        {
-          state: "unverified",
-          declaration: expect.objectContaining({
-            adapter: "express-ast",
-            kind: "endpoint",
-            name: "GET /accounts/:id",
-          }),
-          evidenceIds: [expect.any(String)],
-        },
-      ],
-    },
-    coverage: {
-      authorization: "unverified",
-      authorizationTargets: 1,
-      dynamicCodePatterns: "partial",
-      workflowPermissionPatterns: "partial",
-      supplyChainPatterns: "partial",
-      astFilesExamined: 4,
-      astFilesSkipped: 0,
-      filesExamined: 9,
-      filesSkipped: 0,
-      runtime: false,
-    },
-  });
-  expect(JSON.stringify(expected)).not.toContain(canary);
-  expect(JSON.stringify(expected)).not.toContain("example.invalid");
-
-  const secondPage = await service.security({
-    snapshotId,
-    limit: 1,
-    offset: 1,
-  });
-  expect(secondPage.findings.items[0]).toMatchObject({
-    kind: "aws_access_key_id",
-    source: { path: "config.ts", line: 2 },
-  });
-
-  const allFindings = await service.security({ snapshotId, limit: 20 });
-  expect(allFindings.findings.items).toEqual(
+  expect(report.findings.items).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
         category: "dynamic_code_evaluation",
@@ -298,17 +259,31 @@ async function verifySecurityFindings(
         source: { path: "package.json", line: 3 },
         evidenceIds: [expect.any(String)],
       }),
+      expect.objectContaining({
+        category: "supply_chain_configuration",
+        kind: "unpinned_github_reference",
+        condition:
+          'O job "reusable" referencia workflow GitHub reutilizável sem SHA completo.',
+        source: { path: ".github/workflows/action-refs.yml", line: 5 },
+      }),
+      expect.objectContaining({
+        category: "supply_chain_configuration",
+        kind: "unpinned_github_reference",
+        condition:
+          'O job "build" usa action GitHub remota sem referência a SHA completo.',
+        source: { path: ".github/workflows/action-refs.yml", line: 10 },
+      }),
     ]),
   );
-  expect(allFindings.findings.items).toHaveLength(12);
+  expect(report.findings.items).toHaveLength(14);
   expect(
-    allFindings.findings.items.some(
+    report.findings.items.some(
       (finding) =>
         finding.kind === "mutable_git_dependency_reference" &&
         finding.condition.includes("mismatchedLock"),
     ),
   ).toBe(true);
-  expect(allFindings.findings.items[0]).toMatchObject({
+  expect(report.findings.items[0]).toMatchObject({
     condition: expect.any(String),
     impact: expect.any(String),
     probability: "unassessed",
@@ -318,6 +293,75 @@ async function verifySecurityFindings(
     verificationStatus: "not_run",
     owner: null,
   });
+}
+
+async function verifySecurityFindings(
+  service: PieService,
+  snapshotId: string,
+  canary: string,
+) {
+  const request = { snapshotId, limit: 1 };
+  const expected = await service.security(request);
+  expect(expected).toMatchObject({
+    schemaVersion: 3,
+    engine: "security",
+    state: "suspected_findings",
+    findings: {
+      total: 14,
+      items: [
+        {
+          category: "credential_like_material",
+          state: "suspected",
+          kind: "github_token",
+          source: { path: "config.ts", line: 1 },
+          evidenceIds: [expect.any(String)],
+        },
+      ],
+      nextOffset: 1,
+    },
+    authorizationSurfaces: {
+      total: 1,
+      items: [
+        {
+          state: "unverified",
+          declaration: expect.objectContaining({
+            adapter: "express-ast",
+            kind: "endpoint",
+            name: "GET /accounts/:id",
+          }),
+          evidenceIds: [expect.any(String)],
+        },
+      ],
+    },
+    coverage: {
+      authorization: "unverified",
+      authorizationTargets: 1,
+      dynamicCodePatterns: "partial",
+      workflowPermissionPatterns: "partial",
+      supplyChainPatterns: "partial",
+      astFilesExamined: 4,
+      astFilesSkipped: 0,
+      filesExamined: 10,
+      filesSkipped: 0,
+      runtime: false,
+    },
+  });
+  expect(JSON.stringify(expected)).not.toContain(canary);
+  expect(JSON.stringify(expected)).not.toContain("example.invalid");
+  expect(JSON.stringify(expected)).not.toContain("owner/setup");
+
+  const secondPage = await service.security({
+    snapshotId,
+    limit: 1,
+    offset: 1,
+  });
+  expect(secondPage.findings.items[0]).toMatchObject({
+    kind: "aws_access_key_id",
+    source: { path: "config.ts", line: 2 },
+  });
+
+  const allFindings = await service.security({ snapshotId, limit: 20 });
+  expectExtendedSecurityFindings(allFindings);
   return { request, expected };
 }
 
@@ -389,6 +433,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     join(repo, ".github", "workflows", "control-character-job.yml"),
     'name: Control character job\non: [push]\njobs:\n  "deploy\\nINJECTED":\n    permissions: write-all\n    steps: []\n',
   );
+  await writeActionReferenceWorkflow(repo);
   await exec("git", ["-C", repo, "add", "."]);
 
   const store = await openStore(db, repo);
@@ -427,7 +472,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(10);
+    expect(stale.findings.total).toBe(12);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
@@ -446,7 +491,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       snapshotId: discovered.snapshot.id,
       limit: 20,
     });
-    expect(staleWorkflow.findings.total).toBe(9);
+    expect(staleWorkflow.findings.total).toBe(11);
     expect(
       staleWorkflow.findings.items.some(
         (finding) =>

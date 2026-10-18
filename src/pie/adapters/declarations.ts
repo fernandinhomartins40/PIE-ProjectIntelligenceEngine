@@ -259,7 +259,7 @@ function githubActionsWorkflow(source: string): AdapterRead {
   if (document.errors.length) throw new AdapterParseFailure("invalid_syntax");
   const parsed = object(document.toJS({ maxAliasCount: 50 }));
   if (!parsed) throw new AdapterParseFailure("invalid_structure");
-  const lineAt = (segments: string[]) => {
+  const lineAt = (segments: (string | number)[]) => {
     const parent = document.getIn(segments.slice(0, -1), true);
     if (!isMap(parent)) return 1;
     const key = parent.items.find(
@@ -270,6 +270,36 @@ function githubActionsWorkflow(source: string): AdapterRead {
       : 1;
   };
   const declarations: Declaration[] = [];
+  const addRemoteAction = (segments: (string | number)[], value: unknown) => {
+    if (
+      typeof value !== "string" ||
+      value.startsWith("./") ||
+      value.includes("${{")
+    )
+      return;
+    const separator = value.lastIndexOf("@");
+    if (separator <= 0) return;
+    const repositoryPath = value.slice(0, separator);
+    const reference = value.slice(separator + 1);
+    if (
+      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\/[^@\s]+)?$/u.test(
+        repositoryPath,
+      ) ||
+      /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/iu.test(reference)
+    )
+      return;
+    const jobName = segments[1];
+    if (typeof jobName !== "string") return;
+    const referenceKind =
+      segments[2] === "steps" ? "action" : "reusable_workflow";
+    declarations.push({
+      adapter: "github-actions",
+      kind: "config_directive",
+      name: `workflow.${referenceKind}_reference_unpinned:${sha256(value)}`,
+      parent: jobName,
+      line: lineAt(segments),
+    });
+  };
   const addWriteAll = () => {
     const segments = ["permissions"];
     const node = document.getIn(segments, true);
@@ -300,10 +330,22 @@ function githubActionsWorkflow(source: string): AdapterRead {
       });
     }
   }
+  const parsedJobs = object(parsed.jobs);
+  for (const [jobName, rawJob] of Object.entries(parsedJobs ?? {})) {
+    const job = object(rawJob);
+    if (!job) continue;
+    addRemoteAction(["jobs", jobName, "uses"], job.uses);
+    if (!Array.isArray(job.steps)) continue;
+    for (const [index, rawStep] of job.steps.entries()) {
+      const step = object(rawStep);
+      if (!step) continue;
+      addRemoteAction(["jobs", jobName, "steps", index, "uses"], step.uses);
+    }
+  }
   return {
     declarations,
     limitations: [
-      "GitHub Actions: declara write-all literal no workflow ou job; permissões granulares, eventos, expressões e execução efetiva não são avaliados.",
+      "GitHub Actions: declara write-all literal no workflow/job e action GitHub remota sem SHA completo; permissões granulares, eventos, expressões, action local/Docker e execução efetiva não são avaliados.",
     ],
   };
 }
@@ -649,7 +691,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v11", path, sha256(source), limit],
+    ["pie-declarations-v12", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }
