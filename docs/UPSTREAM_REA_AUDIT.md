@@ -1,5 +1,9 @@
 # Auditoria upstream REA e decisão de derivação PIE
 
+## Diligência incremental mais recente — 18/10/2026
+
+Fetch atualizado: `upstream/main=23f984b1a884baefc3c44e4ab697f6eff61dffb6`, `HEAD` PIE anterior ao cherry-pick `bd8844ee2d2c799b60131b3e7ce840abf1ed40bc`; contagem `upstream/main...HEAD` 104/219. Foi integrada somente a correção de testes `093ce695f fix(tests): preserve temporary fixture ownership` como `068815b30`, após revisão do diff. Boundary sob Node 24.18 passou 7/7; descoberta encontrou os 1.583 testes uma vez e `check:fast` passou. Esta correção de higiene não sincroniza o fork e não resolve os conflitos de processo. Os registros de refs anteriores abaixo são históricos; os 104 commits restantes ainda requerem seleção, análise de conflitos, revisão de dependências/notices e validação.
+
 ## Estado publicado — 17/10/2026
 
 O fork e o projeto PIE foram sincronizados no SHA `9732f293585b4d1ebaed5d3f642e12199331dfe3`; `origin/main` e `rea-fork/main` conferem e `upstream/main` (`926e18b3f`) é ancestral. API confirma `fernandinhomartins40/rea` com `fork=true`, parent `morluto/rea`; `PIE-ProjectIntelligenceEngine` permanece independente (`fork=false`). Apenas `main` local existe. CI do SHA sincronizado está pendente nos dois repositórios; evidências em `PIE_VALIDATION_REPORT.md`.

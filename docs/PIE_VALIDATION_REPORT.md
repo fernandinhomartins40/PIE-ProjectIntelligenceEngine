@@ -19,6 +19,12 @@
 
 # PIE — Registro de validação contínua
 
+## Cherry-pick upstream de ownership dos temporários — 18/10/2026
+
+- Fetch leu `upstream/main=23f984b1a`; contagem relativa ao HEAD antes do cherry-pick: 104 upstream-only / 219 locais-only. Commit selecionado `093ce695f` integrado em `068815b30`, sem nova branch.
+- Em Node global 22.17.1, a boundary upstream falhou porque executa Node diretamente para importar `workspaceFixture.ts` (Node 22 retorna `ERR_UNKNOWN_FILE_EXTENSION`). Não alterei o fixture para contornar o runtime pinado: `.nvmrc` é Node 24.18.0. Reexecução com `npm.cmd exec --yes --package=node@24.18.0 -- npm.cmd run test:focused -- tests/boundary/filesystem/testTempHygiene.test.ts` passou 7/7; a boundary PIE de infraestrutura executada junto passou 1/1.
+- `npm.cmd run verify:test-discovery` descobriu 1.583 testes uma única vez; `npm.cmd run check:fast` passou (typecheck/lint, 2 tarefas). O caso cobre resíduos de arquivos/diretórios, cache, symlink, processo de teste falho e preserva arquivo externo. Não prova a sincronização integral de upstream nem valida provedores runtime.
+
 ## Revalidação do inventário estático de infraestrutura — 18/10/2026
 
 - `npm.cmd run test:focused -- tests/boundary/pieInfrastructure.test.ts`: 1/1 passou. O fixture executa Git e SQLite reais; a boundary verifica paridade de resultado entre PieService, API autenticada, MCP stdio com schemas Ajv e CLI, paginação, Evidence e não retenção de canários de configuração.

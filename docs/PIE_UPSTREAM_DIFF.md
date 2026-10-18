@@ -1,5 +1,9 @@
 # Diferenças PIE em relação ao upstream REA
 
+## Atualização incremental — 18/10/2026
+
+Refs após fetch: `upstream/main=23f984b1a`; cherry-pick seletivo `093ce695f` entrou na main PIE como `068815b30`. O restante da comparação histórica de `c12d9eda8` abaixo não foi refeito commit a commit e não deve ser interpretado como cobertura do novo delta de 104 commits. Ownership de temporários foi validado com Node 24.18, 7 testes; veja `docs/UPSTREAM_REA_AUDIT.md` e `docs/PIE_VALIDATION_REPORT.md`.
+
 ## Base e método
 
 Comparação observada em 17/10/2026 dentro do checkout local:

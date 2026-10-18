@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Próxima frente — auditoria seletiva dos 104 commits REA pendentes — 18/10/2026
+
+Upstream foi atualizado por fetch para `23f984b1a` (104 commits à frente somente de upstream; 219 locais-only antes do cherry-pick). `093ce695f` foi integrado em `068815b30`, com ownership reconhecível nos diretórios temporários e teste de hygiene. Node 24.18 `.nvmrc`: boundary 7/7, descoberta 1.583/1.583, `check:fast` passou. A primeira execução com Node 22 falhou por import direto de `.ts`, resolvido usando o runtime fixado, sem patch no teste. Próximo: classificar os commits upstream restantes por impacto PIE/segurança/compatibilidade, simulando conflitos e selecionando slices sem misturar os quatro conflitos de lifecycle; revalidar licenças/dependências antes de integrar mudanças que os alterem.
+
 ## Próxima frente — medição runtime local de infraestrutura — 18/10/2026
 
 Revalidação da boundary `tests/boundary/pieInfrastructure.test.ts`: 1/1 passou com Git/SQLite reais, cobrindo PieService/API autenticada/MCP stdio + Ajv/CLI, Evidence, paginação e redaction. O teste levou 2,36 s, processo Vitest 15,81 s em uma amostra; não é baseline comparativa. O motor continua estático e todas as métricas do alvo são `NOT_MEASURED`. Próximo: especificar e implementar uma operação runtime separada, opt-in e exclusivamente local, que exija seleção explícita de recursos e produza Evidence ligada à raiz/snapshot; definir ownership e política de cancelamento/cleanup antes de chamar Docker. Não inferir seleção a partir de Compose nem coletar todos os containers do daemon.
