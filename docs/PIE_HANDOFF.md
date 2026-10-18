@@ -666,4 +666,6 @@ O adapter também registra `privileged` booleano declarado como `privileged_mode
 
 Compose security schemaVersion 6 tambem registra `capability_add`/`capability_drop` e detecta somente SYS_ADMIN, SYS_MODULE, SYS_RAWIO, SYS_PTRACE e NET_ADMIN. Adapter/infra/security 23/23; Chrome 1/1. Docker/runtime nao validado; T4.3 continua parcial.
 
-Data Review: DDL de migration nao reconhecido em `ALTER TABLE` e operacoes `DROP`/`TRUNCATE`/`RENAME` causam estado incompleto, preservando selector como inconclusivo. Fixture Git/SQLite confirma PK criada e posteriormente removida por DDL nao suportado. `pieDataReview` 2/2 e `pieAdapters` 20/20. PostgreSQL runtime indisponivel localmente e ainda pendente; o parser nao calcula estado final completo.
+Data Review: DDL de migration nao reconhecido em `ALTER TABLE`, operacoes `DROP`/`TRUNCATE`/`RENAME` e nomes qualificados por schema causam estado incompleto, preservando seletores como inconclusivos. Fixtures Git/SQLite confirmam PK removida e rejeitam associacao `other.User` ao modelo Prisma `User`. `pieDataReview` 3/3 e `pieAdapters` 20/20. PostgreSQL runtime indisponivel localmente e ainda pendente; o parser nao calcula estado final completo.
+
+Atualizacao T4.5: nomes SQL qualificados nao geram facts de tabela/constraint e deixam a migration inconclusiva, evitando cruzar schemas homonimos sem search_path/@@schema suportados. Boundary Git/SQLite cobre DROP de PK e other.User versus Prisma User; Data Review 3/3, adapters 20/20. PostgreSQL runtime continua nao verificado.

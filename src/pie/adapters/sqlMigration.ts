@@ -122,9 +122,12 @@ function identifier(tokens: Token[], index: number): string | null {
 function qualifiedName(tokens: Token[], start: number) {
   const first = identifier(tokens, start);
   if (!first) return null;
-  if (!keyword(tokens[start + 1], ".")) return { name: first, next: start + 1 };
+  if (!keyword(tokens[start + 1], "."))
+    return { name: first, next: start + 1, schemaQualified: false };
   const second = identifier(tokens, start + 2);
-  return second ? { name: second, next: start + 3 } : null;
+  return second
+    ? { name: second, next: start + 3, schemaQualified: true }
+    : null;
 }
 
 function literalColumnList(tokens: Token[], open: number): string[] | null {
@@ -206,6 +209,7 @@ function referencedTables(tokens: Token[]) {
     return [
       {
         target: target.name,
+        schemaQualified: target.schemaQualified,
         sourceFields: sourceColumns,
         targetFields: identifierList(tokens, target.next),
       },
@@ -255,6 +259,10 @@ export function readSqlMigration(source: string): AdapterRead {
           const on = statement.findIndex((token) => keyword(token, "on"));
           const target = qualifiedName(statement, on + 1);
           if (target && hasPair(statement, "unique", "index")) {
+            if (target.schemaQualified) {
+              markUnsupportedDdl(statement);
+              continue;
+            }
             const open = statement.findIndex(
               (token, tokenIndex) =>
                 tokenIndex >= target.next && keyword(token, "("),
@@ -276,7 +284,7 @@ export function readSqlMigration(source: string): AdapterRead {
       index++;
       if (keyword(statement[index], "if")) index += 3;
       const target = qualifiedName(statement, index);
-      if (!target) {
+      if (!target || target.schemaQualified) {
         markUnsupportedDdl(statement);
         continue;
       }
@@ -295,7 +303,7 @@ export function readSqlMigration(source: string): AdapterRead {
     ) {
       let index = keyword(statement[2], "only") ? 3 : 2;
       const target = qualifiedName(statement, index);
-      if (!target) {
+      if (!target || target.schemaQualified) {
         markUnsupportedDdl(statement);
         continue;
       }
@@ -340,7 +348,11 @@ export function readSqlMigration(source: string): AdapterRead {
           understood = true;
         } else if (kind === "foreign" && keyword(statement[index + 1], "key")) {
           const references = referencedTables(statement);
-          for (const reference of references)
+          for (const reference of references) {
+            if (reference.schemaQualified) {
+              markUnsupportedDdl(statement);
+              continue;
+            }
             add(
               "schema_relation",
               reference.target,
@@ -352,6 +364,7 @@ export function readSqlMigration(source: string): AdapterRead {
                 targetFields: reference.targetFields,
               },
             );
+          }
           understood = references.length > 0;
         }
       }
@@ -432,12 +445,17 @@ export function readSqlMigration(source: string): AdapterRead {
             : undefined,
         );
       }
-      for (const reference of referencedTables(definition))
+      for (const reference of referencedTables(definition)) {
+        if (reference.schemaQualified) {
+          markUnsupportedDdl(statement);
+          continue;
+        }
         add("schema_relation", reference.target, table, line, {
           field: null,
           sourceFields: reference.sourceFields,
           targetFields: reference.targetFields,
         });
+      }
     }
   }
   return {

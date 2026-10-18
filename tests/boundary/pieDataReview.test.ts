@@ -732,3 +732,44 @@ it("mantem seletores inconclusivos diante de DDL destrutivo nao suportado", asyn
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("nao associa tabela qualificada por schema ao nome Prisma homonimo", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-schema-"));
+  const repo = join(root, "repo");
+  await mkdir(join(repo, "prisma", "migrations", "001_other_schema"), {
+    recursive: true,
+  });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id String @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(repo, "prisma", "migrations", "001_other_schema", "migration.sql"),
+    'CREATE TABLE other."User" ("id" TEXT PRIMARY KEY);\n',
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+    expect(review.coverage.limitations.join(" ")).toContain(
+      "Migration SQL DDL fora do subconjunto suportado",
+    );
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
