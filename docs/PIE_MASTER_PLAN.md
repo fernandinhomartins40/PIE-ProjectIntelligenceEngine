@@ -675,3 +675,7 @@ Continuidade T4.5 - foreign tables - 18/10/2026
 Continuidade T4.5 - ALTER TABLE com multiplas acoes - 18/10/2026
 
 `ALTER TABLE` com virgula de nivel superior entre acoes agora deixa a migration incompleta e omite todos os facts daquela instrucao. Virgulas dentro das listas de colunas entre parenteses continuam aceitas; fixture integrada comprova que ADD UNIQUE seguido de DROP nao gera alinhamento. Focused Data Review/adapters passou 39/39. PostgreSQL documenta lista `action [, ...]`: https://www.postgresql.org/docs/current/sql-altertable.html .
+
+Continuidade T4.5 - CREATE UNIQUE INDEX ON ONLY - 18/10/2026
+
+O parser ignora o modificador `ONLY` ao resolver a tabela-alvo de `CREATE UNIQUE INDEX ... ON ONLY tabela`; nome de indice qualificado por schema e recusado e marca inventory incompleto (PostgreSQL nao permite schema no nome do indice). Teste Git/SQLite confirma Evidence/fact associado a tabela correta. Um indice UNIQUE observado permanece mismatch para Prisma `@id` que exige primary key; nao se promove uniqueness a PK. Focused Data Review/adapters 41/41. Referencia: https://www.postgresql.org/docs/current/sql-createindex.html .

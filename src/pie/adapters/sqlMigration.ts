@@ -339,8 +339,23 @@ export function readSqlMigration(source: string): AdapterRead {
             markUnsupportedDdl(statement);
             continue;
           }
+          const indexKeyword = statement.findIndex((token) =>
+            keyword(token, "index"),
+          );
           const on = statement.findIndex((token) => keyword(token, "on"));
-          const target = qualifiedName(statement, on + 1);
+          if (
+            on < 0 ||
+            statement
+              .slice(indexKeyword + 1, on)
+              .some((token) => keyword(token, "."))
+          ) {
+            markUnsupportedDdl(statement);
+            continue;
+          }
+          const tableStart = keyword(statement[on + 1], "only")
+            ? on + 2
+            : on + 1;
+          const target = qualifiedName(statement, tableStart);
           if (target && hasPair(statement, "unique", "index")) {
             if (target.schemaQualified) {
               markUnsupportedDdl(statement);

@@ -933,3 +933,8 @@ Validacao geral apos foreign tables: `npm.cmd run pie:build`, `npm.cmd run check
 
 Subcomandos separados por virgula de nivel superior sao tratados como conjunto nao suportado; nenhum fact parcial e retido. A boundary valida ADD UNIQUE mais DROP CONSTRAINT sem alinhamento e mantem listas compostas entre parenteses. Focused Data Review/adapters: 39/39. PostgreSQL runtime nao executado.
 Validacao geral apos ALTER TABLE composto: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; Data Review/adapters focused 39/39.
+
+## CREATE UNIQUE INDEX ON ONLY — T4.5 — 18/10/2026
+
+Resolvida tabela-alvo apos `ON ONLY`; nome de indice com schema qualificado deixa migration incompleta. Boundary integrada valida que o fact pertence a tabela, mantendo UNIQUE versus Prisma PK como mismatch. Focused Data Review/adapters: 41/41. PostgreSQL runtime nao executado.
+Validacao geral apos ON ONLY: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; focused Data Review/adapters 41/41.

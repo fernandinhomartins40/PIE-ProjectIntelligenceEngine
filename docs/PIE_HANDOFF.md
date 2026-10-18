@@ -693,3 +693,6 @@ Revalidacao final foreign tables: focused 37/37; pie:build, check:fast, docs:che
 
 T4.5: ALTER TABLE com varias actions em uma instrucao nao produz facts parciais. Virgulas internas de colunas permanecem suportadas. Boundaries passaram 39/39; gates gerais apos esta mudanca ainda precisam ser executados. PostgreSQL runtime indisponivel. Referencia: https://www.postgresql.org/docs/current/sql-altertable.html .
 Gates gerais ALTER TABLE composto passaram: pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check. Focused Data Review/adapters: 39/39. PostgreSQL runtime nao executado.
+
+T4.5: CREATE UNIQUE INDEX ON ONLY agora resolve a tabela apos ONLY; nome de indice schema-qualified e fail-closed. UNIQUE nao e confundido com PK Prisma. Boundaries: 41/41; gates gerais apos esta mudanca ainda precisam rodar. Fonte: https://www.postgresql.org/docs/current/sql-createindex.html .
+Gates gerais ON ONLY passaram: pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check. Focused Data Review/adapters 41/41. PostgreSQL runtime nao executado.

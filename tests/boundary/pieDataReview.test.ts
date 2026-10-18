@@ -155,6 +155,25 @@ it("nao reduz ALTER TABLE com multiplos subcomandos separados por virgula", () =
   expect(parsed.declarations).toEqual([]);
 });
 
+it("resolve ON ONLY e rejeita nome de indice qualificado por schema", () => {
+  const parsed = readSqlMigration(
+    [
+      'CREATE TABLE "User" ("id" INTEGER);',
+      'CREATE UNIQUE INDEX "User_id_key" ON ONLY "User" ("id");',
+      'CREATE UNIQUE INDEX other."User_id_other_key" ON "User" ("id");',
+    ].join("\n"),
+  );
+  expect(parsed.limitations).toEqual(
+    expect.arrayContaining([expect.stringContaining("linha 3")]),
+  );
+  expect(parsed.declarations.filter((item) => item.name === "unique")).toEqual([
+    expect.objectContaining({
+      parent: "User",
+      relation: expect.objectContaining({ sourceFields: ["id"] }),
+    }),
+  ]);
+});
+
 async function collectDataReviewExport(
   service: PieService,
   snapshotId: string,
@@ -1263,6 +1282,50 @@ it("mantem ALTER TABLE composto inconclusivo no Data Review", async () => {
       selectors: { state: "inconclusive" },
     });
     expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("associa indice UNIQUE ON ONLY sem confundi-lo com PK Prisma", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-index-only-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_index_only");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id Int @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    [
+      'CREATE TABLE "User" ("id" INTEGER);',
+      'CREATE UNIQUE INDEX "User_id_key" ON ONLY "User" ("id");',
+    ].join("\n"),
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "unique_constraint_observed",
+      selectors: {
+        state: "mismatch_observed",
+        observed: [
+          expect.objectContaining({ kind: "unique", columns: ["id"] }),
+        ],
+      },
+    });
   } finally {
     await service.close();
     await rm(root, { recursive: true, force: true });
