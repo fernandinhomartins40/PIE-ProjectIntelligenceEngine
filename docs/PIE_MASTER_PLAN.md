@@ -534,3 +534,9 @@ Validação executada: `npm.cmd run test:focused -- tests/boundary/pieDoctor.tes
 O contrato compartilhado agora aceita durações de lease somente como inteiros seguros entre 100 e 300.000 ms. `claim()` e `heartbeat()` aplicam a mesma validação nos adapters SQLite e PostgreSQL antes de iniciar transações; heartbeat inválido não altera a lease ativa. Isso evita duração fracionária/coerção divergente e falsa confirmação de renovação para zero, negativo ou infinito.
 
 `npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 4 passaram e 1 teste CLI foi skipped por ser Linux-only; fila SQLite real cobriu claim/heartbeat inválidos e preservação da expiração original, além das regressões existentes. PostgreSQL real não executado sem `PIE_TEST_DATABASE_URL`. `check:fast`, format e docs serão registrados após os gates desta entrega. T1.3 continua parcial.
+
+## Colunas literais das constraints UNIQUE em migrations — 18/10/2026
+
+O adapter SQL agora preserva, com Evidence, listas ordenadas de colunas literais observadas em índice UNIQUE, constraint de tabela/coluna e `ALTER TABLE ... ADD ... UNIQUE`. `CREATE UNIQUE INDEX` com expressão mantém a constraint observada, mas deixa `relation` desconhecida; expressões, predicados e formas SQL não suportadas não são reduzidos a colunas presumidas. A chave do cache de declarações foi incrementada para evitar reutilizar fatos sem essa proveniência.
+
+`npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 12/12 passaram em Git/SQLite reais; cobertura inclui índice simples mapeado, lista composta, `ALTER TABLE`, expressão funcional com colunas desconhecidas e consumo dos fatos pelo snapshot/Data Review compartilhado. A interface ainda não compara seletores únicos Prisma com colunas SQL; não comprova constraint efetiva nem estado final das migrations. T4.5 permanece parcial.

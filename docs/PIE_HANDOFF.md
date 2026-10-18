@@ -541,3 +541,7 @@ Doctor e `openPersistence` passaram a exigir a presença das 11 tabelas do schem
 ## Continuidade — contratos da fila persistente
 
 A fila agora valida de forma idêntica as durações de lease em `claim` e `heartbeat` para SQLite/PostgreSQL: inteiros seguros entre 100 e 300.000 ms. `pieJobs` passou 4 testes e pulou 1 cenário Linux-only; PostgreSQL real segue sem validação local por falta de `PIE_TEST_DATABASE_URL`. Próximo: continuar a matriz de lifecycle e execução isolada dos jobs, distinguindo sempre as regressões SQLite da prova PostgreSQL real.
+
+## Continuidade — facts de UNIQUE no motor de dados
+
+O parser de migrations registra colunas literais de índices/constraints UNIQUE no snapshot e deixa expressões desconhecidas sem lista de colunas. `pieDataReview` + `pieAdapters`: 12/12 passaram. A próxima etapa do motor precisa alinhar esses facts aos seletores Prisma com mappings explícitos, mantendo incompletude para sintaxe desconhecida. Não houve validação de PostgreSQL runtime nem cálculo do estado final de migrations.

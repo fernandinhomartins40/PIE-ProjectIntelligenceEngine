@@ -765,3 +765,9 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - Regra única em `src/pie/jobs/contracts.ts`: lease inteira segura de 100 a 300.000 ms, usada por `claim` e `heartbeat` nos adapters SQLite/PostgreSQL. Entrada inválida é recusada antes da transação.
 - `npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 4 passaram, 1 skipped por plataforma Linux; fila SQLite real confirmou que heartbeat inválido não muda a expiração persistida. PostgreSQL real não foi executado porque `PIE_TEST_DATABASE_URL` está ausente.
 - T1.3 segue parcial; a validação uniforme de contrato não comprova concorrência/falhas do adapter PostgreSQL nesta máquina.
+
+## Proveniência de colunas UNIQUE em migrations — 18/10/2026
+
+- O adapter `sql-migration` retém `sourceFields` ordenados em Evidence para índices/constraints UNIQUE literais em `CREATE UNIQUE INDEX`, `CREATE TABLE` e `ALTER TABLE ... ADD ... UNIQUE`. Expressões como `lower(email)` preservam a observação da constraint com `relation: null`, sem inventar a coluna.
+- `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 2 arquivos, 12 testes passaram. Fixture Git/SQLite valida mapeamento de tabela, coluna simples, constraint composta, `ALTER TABLE`, índice funcional desconhecido, Evidence e paridade service/CLI/API/MCP já coberta.
+- Limites: os fatos ainda não são comparados aos seletores `@unique`/`@@unique` do Prisma; migrations não são reduzidas a estado final e nenhuma constraint aplicada no PostgreSQL foi consultada. T4.5 continua parcial.

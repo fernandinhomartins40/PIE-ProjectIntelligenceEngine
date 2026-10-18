@@ -489,7 +489,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v6", path, sha256(source), limit],
+    ["pie-declarations-v7", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }

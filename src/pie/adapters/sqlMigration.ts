@@ -127,6 +127,28 @@ function qualifiedName(tokens: Token[], start: number) {
   return second ? { name: second, next: start + 3 } : null;
 }
 
+function literalColumnList(tokens: Token[], open: number): string[] | null {
+  if (!keyword(tokens[open], "(")) return null;
+  const columns: string[] = [];
+  let expectColumn = true;
+  for (let index = open + 1; index < tokens.length; index++) {
+    const token = tokens[index]!;
+    if (keyword(token, ")"))
+      return !expectColumn && columns.length > 0 ? columns : null;
+    if (keyword(token, ",")) {
+      if (expectColumn) return null;
+      expectColumn = true;
+      continue;
+    }
+    if (!expectColumn) return null;
+    const column = identifier(tokens, index);
+    if (!column) return null;
+    columns.push(column);
+    expectColumn = false;
+  }
+  return null;
+}
+
 function statements(tokens: Token[]): Token[][] {
   const result: Token[][] = [];
   let current: Token[] = [];
@@ -227,8 +249,22 @@ export function readSqlMigration(source: string): AdapterRead {
         ) {
           const on = statement.findIndex((token) => keyword(token, "on"));
           const target = qualifiedName(statement, on + 1);
-          if (target && hasPair(statement, "unique", "index"))
-            add("config_directive", "unique", target.name, statement[0]!.line);
+          if (target && hasPair(statement, "unique", "index")) {
+            const open = statement.findIndex(
+              (token, tokenIndex) =>
+                tokenIndex >= target.next && keyword(token, "("),
+            );
+            const columns = literalColumnList(statement, open);
+            add(
+              "config_directive",
+              "unique",
+              target.name,
+              statement[0]!.line,
+              columns
+                ? { field: null, sourceFields: columns, targetFields: null }
+                : undefined,
+            );
+          }
         }
         continue;
       }
@@ -257,9 +293,22 @@ export function readSqlMigration(source: string): AdapterRead {
         const kind = statement[index]?.quoted ? "" : statement[index]?.value;
         if (kind === "primary" && keyword(statement[index + 1], "key"))
           add("config_directive", "primary_key", table, statement[0]!.line);
-        else if (kind === "unique")
-          add("config_directive", "unique", table, statement[0]!.line);
-        else if (kind === "foreign" && keyword(statement[index + 1], "key"))
+        else if (kind === "unique") {
+          const open = statement.findIndex(
+            (token, tokenIndex) =>
+              tokenIndex >= index + 1 && keyword(token, "("),
+          );
+          const columns = literalColumnList(statement, open);
+          add(
+            "config_directive",
+            "unique",
+            table,
+            statement[0]!.line,
+            columns
+              ? { field: null, sourceFields: columns, targetFields: null }
+              : undefined,
+          );
+        } else if (kind === "foreign" && keyword(statement[index + 1], "key"))
           for (const reference of referencedTables(statement))
             add(
               "schema_relation",
@@ -299,8 +348,30 @@ export function readSqlMigration(source: string): AdapterRead {
       const line = definition[0]!.line;
       if (hasPair(definition, "primary", "key"))
         add("config_directive", "primary_key", table, line);
-      else if (definition.some((token) => keyword(token, "unique")))
-        add("config_directive", "unique", table, line);
+      else if (definition.some((token) => keyword(token, "unique"))) {
+        const uniqueIndex = definition.findIndex((token) =>
+          keyword(token, "unique"),
+        );
+        const open = definition.findIndex(
+          (token, tokenIndex) =>
+            tokenIndex > uniqueIndex && keyword(token, "("),
+        );
+        const columns =
+          open >= 0
+            ? literalColumnList(definition, open)
+            : identifier(definition, 0)
+              ? [identifier(definition, 0)!]
+              : null;
+        add(
+          "config_directive",
+          "unique",
+          table,
+          line,
+          columns
+            ? { field: null, sourceFields: columns, targetFields: null }
+            : undefined,
+        );
+      }
       for (const reference of referencedTables(definition))
         add("schema_relation", reference.target, table, line, {
           field: null,

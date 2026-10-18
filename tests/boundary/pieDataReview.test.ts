@@ -27,6 +27,50 @@ function expectPrismaSelectors(
   expect(snapshot.declarations).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
+        adapter: "sql-migration",
+        kind: "config_directive",
+        name: "unique",
+        parent: "natural_key",
+        relation: {
+          field: null,
+          sourceFields: ["code"],
+          targetFields: null,
+        },
+      }),
+      expect.objectContaining({
+        adapter: "sql-migration",
+        kind: "config_directive",
+        name: "unique",
+        parent: "CompoundUnique",
+        relation: {
+          field: null,
+          sourceFields: ["left", "right"],
+          targetFields: null,
+        },
+      }),
+      expect.objectContaining({
+        adapter: "sql-migration",
+        kind: "config_directive",
+        name: "unique",
+        parent: "Membership",
+        relation: {
+          field: null,
+          sourceFields: ["email"],
+          targetFields: null,
+        },
+      }),
+      expect.objectContaining({
+        adapter: "sql-migration",
+        kind: "config_directive",
+        name: "unique",
+        parent: "Membership",
+        relation: null,
+      }),
+    ]),
+  );
+  expect(snapshot.declarations).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
         adapter: "prisma-schema",
         kind: "config_directive",
         name: "@id",
@@ -184,7 +228,9 @@ async function writeDataReviewFixture(repo: string) {
       'CREATE TABLE "Product" ("id" TEXT NOT NULL, PRIMARY KEY ("id"));',
       'CREATE TABLE "natural_key" ("code" TEXT NOT NULL);',
       'CREATE UNIQUE INDEX "NaturalKey_code_key" ON "natural_key" ("code");',
-      'CREATE TABLE "Membership" ("id" TEXT, "unique" text, note text DEFAULT $tag$UNIQUE fake$tag$);',
+      'CREATE TABLE "Membership" ("id" TEXT, "unique" text, "email" text, note text DEFAULT $tag$UNIQUE fake$tag$);',
+      'ALTER TABLE "Membership" ADD CONSTRAINT "Membership_email_key" UNIQUE ("email");',
+      'CREATE UNIQUE INDEX "Membership_email_lower_key" ON "Membership" (lower("email"));',
       'CREATE TABLE "Pair" ("left" TEXT, "right" TEXT);',
       'ALTER TABLE "Pair" ADD CONSTRAINT "Pair_pkey" PRIMARY KEY ("left", "right");',
       'CREATE TABLE "CompoundUnique" ("left" TEXT, "right" TEXT, UNIQUE ("left", "right"));',
@@ -237,7 +283,7 @@ function expectDataReview(input: unknown) {
       }),
       expect.objectContaining({
         model: expect.objectContaining({ name: "Membership" }),
-        state: "table_observed_without_unique_constraint",
+        state: "unique_constraint_observed",
       }),
       expect.objectContaining({
         model: expect.objectContaining({ name: "Pair" }),
