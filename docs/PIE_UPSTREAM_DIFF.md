@@ -1,8 +1,12 @@
 # Diferenças PIE em relação ao upstream REA
 
+## Snapshot da divergência — 18/10/2026
+
+Fetch observado: upstream `eb2c3b589eeb2884761b30d5b0402aa2d9337b49`, PIE `951755e1fba4588e9a36bbd78e216fafde283f52`, fork `d200b8618d85aecffc359d29a908438a7da28749`. A contagem `upstream/main...HEAD` é `113 239`. O fork é ancestral do HEAD. Simulação de merge identificou quatro conflitos em `src/process/ProviderProcess.ts`, seu teste unitário, boundary de processo e fixture MJS. Nenhuma integração foi feita nesta diligência. A análise anterior abaixo é histórica e não cobre os commits posteriores a `926e18b3f`.
+
 ## Atualização incremental — 18/10/2026
 
-Refs após fetch: `upstream/main=23f984b1a`; cherry-pick seletivo `093ce695f` entrou na main PIE como `068815b30`. O restante da comparação histórica de `c12d9eda8` abaixo não foi refeito commit a commit e não deve ser interpretado como cobertura do novo delta de 104 commits. Ownership de temporários foi validado com Node 24.18, 7 testes; veja `docs/UPSTREAM_REA_AUDIT.md` e `docs/PIE_VALIDATION_REPORT.md`.
+Refs após fetch naquele registro: `upstream/main=23f984b1a`; cherry-pick seletivo `093ce695f` entrou na main PIE como `068815b30`. O delta observado então era 104 commits; este snapshot mais recente registra 113 commits upstream-only. A comparação histórica de `c12d9eda8` abaixo não cobre nenhum dos deltas posteriores. Ownership de temporários foi validado com Node 24.18, 7 testes; veja `docs/UPSTREAM_REA_AUDIT.md` e `docs/PIE_VALIDATION_REPORT.md`.
 
 ## Base e método
 
@@ -28,4 +32,4 @@ O repositório mantém a licença upstream MIT e notices identificados. `THIRD_P
 
 ## Revalidação atual dos refs — 18/10/2026
 
-A descrição acima é histórica e não representa os refs atuais. Após fetch explícito: `origin/main` e HEAD local estão em `80872c6ea0c28d2f835343e5522c754bc4f21404`; `rea-fork/main` está em `d200b8618d85aecffc359d29a908438a7da28749` e é ancestral, 118 commits atrás do HEAD PIE; `upstream/main` está em `c12d9eda87aa5a022ee7e18ea96d8d03bfd12e96`, com base comum `926e18b3fcb334c21d60685546ba8145d35d344e`. O delta é `101` commits upstream-only e `215` locais-only; a linha upstream altera 510 arquivos. `git merge-tree --write-tree HEAD upstream/main` identificou conflitos textuais em quatro arquivos de supervisão de processo: `src/process/ProviderProcess.ts`, `src/process/ProviderProcessOutput.test.ts`, `tests/boundary/process/providerProcessOutput.test.ts` e `tests/fixtures/providerProcess.mjs`. Nenhum merge/cherry-pick ou push para `rea-fork` foi feito. A integração completa permanece pendente de resolução e validação desses conflitos, revisão das mudanças de dependências/notices e caracterização dos commits selecionados. A comparação de 17/10 acima deve ser lida apenas como registro histórico do SHA então testado.
+Registro substituído pelo snapshot atual no início deste documento. Na medição antiga, HEAD era `80872c6ea`, upstream `c12d9eda8` e o delta 101/215; estes valores são históricos e não representam os refs atuais. Nenhum merge/cherry-pick foi feito naquele registro.

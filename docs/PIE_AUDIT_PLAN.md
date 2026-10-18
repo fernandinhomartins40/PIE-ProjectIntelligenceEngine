@@ -1,5 +1,7 @@
 # Plano de auditoria do PIE
 
+Snapshot upstream de 18/10/2026: `upstream/main=eb2c3b589eeb2884761b30d5b0402aa2d9337b49`, HEAD PIE `951755e1fba4588e9a36bbd78e216fafde283f52`; 113 commits upstream-only e 239 PIE-only. A simulação de integração apontou quatro conflitos em lifecycle de processos. Nenhum merge foi aplicado; T0.1 continua parcial enquanto a semântica e a validação desses deltas não forem revisadas. Detalhes em [`UPSTREAM_REA_AUDIT.md`](UPSTREAM_REA_AUDIT.md).
+
 Este arquivo operacionaliza os critérios de `docs/blueprint/` e não substitui o [`PIE_MASTER_PLAN.md`](PIE_MASTER_PLAN.md), que permanece a fonte canônica de status por entrega. Cada gate exige evidência do workflow indicado, na revisão exata; execução estática não aprova runtime.
 
 ## Regras de execução
