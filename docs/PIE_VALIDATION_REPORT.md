@@ -1,3 +1,9 @@
+## Sincronização da descoberta no E2E Chrome — 18/10/2026
+
+- A boundary `pieWeb` falhou uma execução ao consultar opções de snapshots antes da resposta do `POST /v1/discover`. O teste agora aguarda a resposta bem-sucedida antes da asserção de histórico, mantendo Git, SQLite, API e Chrome reais.
+- Após o ajuste: 4 cenários passaram e 1 específico de Linux foi skipped; `pie:web:typecheck`, `pie:web:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. A alteração foi somente no teste e no registro de validação.
+- CI PIE do commit pai `28d4fe606` concluiu success. CI geral do mesmo commit concluiu failure nos cinco shards; as páginas públicas não expõem o conteúdo dos logs (“Sign in to view logs”), e a reprodução integral local apresentou falhas ambientais multiplataforma, então a causa de cada shard permanece sem diagnóstico fechado.
+
 ## Painel de resultados vinculados VERIFY — 18/10/2026
 
 - `Verifications.tsx` apresenta bindings antes/depois, declaração e arquivo de origem, seletor Node exato, estado/outcome do caso, número de correspondências, estado agregado do arquivo, completude, observação runtime e Evidence. A leitura distingue desconhecido, não reportado, ambíguo e ausência de instrumentação, e declara que binding/outcome não prova semântica da asserção nem cobertura.

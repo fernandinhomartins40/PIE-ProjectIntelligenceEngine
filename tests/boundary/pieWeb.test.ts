@@ -97,6 +97,26 @@ async function openVerificationDetails(
   return section.getByRole("article", { name: "Detalhes da verificação" });
 }
 
+async function investigateAndWaitForSnapshot(page: Page) {
+  const investigate = page.getByRole("button", {
+    name: "Nova investigação",
+  });
+  const discovery = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/v1/discover") &&
+      response.request().method() === "POST" &&
+      response.ok(),
+  );
+  await investigate.click();
+  await discovery;
+  await expect.poll(() => page.locator("#snapshot option").count()).toBe(3);
+  await expect
+    .poll(() =>
+      page.getByLabel("Snapshot observado", { exact: true }).isEnabled(),
+    )
+    .toBe(true);
+}
+
 async function saveBlockedVerification(
   root: string,
   store: Awaited<ReturnType<typeof openStore>>,
@@ -615,13 +635,7 @@ it.skipIf(!existsSync(executablePath))(
         .getByRole("table", { name: "Nós alcançados no trace" })
         .waitFor();
       await writeFile(join(repo, "index.ts"), "export const value = 2;");
-      await page.getByRole("button", { name: "Nova investigação" }).click();
-      await expect.poll(() => page.locator("#snapshot option").count()).toBe(3);
-      await expect
-        .poll(() =>
-          page.getByLabel("Snapshot observado", { exact: true }).isEnabled(),
-        )
-        .toBe(true);
+      await investigateAndWaitForSnapshot(page);
       await page.getByRole("button", { name: "Comparar versões" }).click();
       await page
         .getByLabel("Comparar snapshot atual com")
