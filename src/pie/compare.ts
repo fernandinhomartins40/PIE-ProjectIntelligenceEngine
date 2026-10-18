@@ -44,8 +44,19 @@ const moveCandidateSchema = z.strictObject({
   beforeEvidenceIds: z.array(z.string().uuid()).min(1),
   afterEvidenceIds: z.array(z.string().uuid()).min(1),
 });
+const declarationMoveCandidateSchema = z.strictObject({
+  beforePath: z.string(),
+  afterPath: z.string(),
+  adapter: z.string(),
+  kind: z.string(),
+  name: z.string(),
+  parent: z.string().nullable(),
+  basis: z.literal("unique_identical_source_sha256_and_line"),
+  beforeEvidenceIds: z.array(z.string().uuid()).min(1),
+  afterEvidenceIds: z.array(z.string().uuid()).min(1),
+});
 export const comparisonOutput = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   projectId: z.string().uuid(),
   beforeId: z.string().uuid(),
   afterId: z.string().uuid(),
@@ -63,6 +74,7 @@ export const comparisonOutput = z.strictObject({
     nextOffset: z.number().int().nullable(),
   }),
   moveCandidates: z.array(moveCandidateSchema),
+  declarationMoveCandidates: z.array(declarationMoveCandidateSchema),
   counts: z.strictObject({
     added: z.number().int(),
     removed: z.number().int(),
@@ -233,6 +245,71 @@ export function compareSnapshots(
     after.coverage.status !== "complete";
   const declarationChanges = compareDeclarations(before, after, paging);
   const declarationFacts = compareDeclarationFacts(before, after);
+  const declarationSignature = (fact: Snapshot["declarations"][number]) =>
+    JSON.stringify([
+      fact.adapter,
+      fact.kind,
+      fact.name,
+      fact.parent,
+      fact.source.sha256,
+      fact.source.line,
+    ]);
+  const declarationsBefore = new Map<string, typeof declarationFacts>();
+  const declarationsAfter = new Map<string, typeof declarationFacts>();
+  for (const change of declarationFacts) {
+    if (
+      change.state === "observed_only_before" &&
+      change.interpretation === "observed_change"
+    )
+      for (const fact of change.before) {
+        const signature = declarationSignature(fact);
+        declarationsBefore.set(signature, [
+          ...(declarationsBefore.get(signature) ?? []),
+          change,
+        ]);
+      }
+    if (
+      change.state === "observed_only_after" &&
+      change.interpretation === "observed_change"
+    )
+      for (const fact of change.after) {
+        const signature = declarationSignature(fact);
+        declarationsAfter.set(signature, [
+          ...(declarationsAfter.get(signature) ?? []),
+          change,
+        ]);
+      }
+  }
+  const declarationMoveCandidates = [...declarationsBefore]
+    .flatMap(([signature, oldChanges]) => {
+      const newChanges = declarationsAfter.get(signature) ?? [];
+      if (oldChanges.length !== 1 || newChanges.length !== 1) return [];
+      const oldChange = oldChanges[0]!;
+      const newChange = newChanges[0]!;
+      if (oldChange.before.length !== 1 || newChange.after.length !== 1)
+        return [];
+      const oldFact = oldChange.before[0]!;
+      const newFact = newChange.after[0]!;
+      return [
+        {
+          beforePath: oldFact.source.path,
+          afterPath: newFact.source.path,
+          adapter: oldFact.adapter,
+          kind: oldFact.kind,
+          name: oldFact.name,
+          parent: oldFact.parent,
+          basis: "unique_identical_source_sha256_and_line" as const,
+          beforeEvidenceIds: [oldFact.evidenceId],
+          afterEvidenceIds: [newFact.evidenceId],
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        left.beforePath.localeCompare(right.beforePath) ||
+        left.afterPath.localeCompare(right.afterPath) ||
+        left.name.localeCompare(right.name),
+    );
   const observedDeclarationChanges = declarationFacts.some(
     (change) => change.interpretation === "observed_change",
   );
@@ -251,7 +328,7 @@ export function compareSnapshots(
         ? "inconclusive"
         : "unchanged";
   return comparisonOutput.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     projectId: before.projectId,
     beforeId: before.id,
     afterId: after.id,
@@ -262,12 +339,14 @@ export function compareSnapshots(
       paging,
     ),
     moveCandidates,
+    declarationMoveCandidates,
     counts,
     runtimeVerified: false,
     declarationChanges,
     limitations: [
       "Comparação dos bytes observados em snapshots; não comprova regressão nem funcionamento em runtime.",
       "Candidatos a movimento exigem remoção/adição observadas, hash SHA-256 idêntico e unicidade em cada lado; conteúdo idêntico não prova continuidade semântica nem histórico Git de rename.",
+      "Candidatos a movimento de declaração exigem inventários completos, declaração única e identidade declarada com hash e linha idênticos em caminhos distintos; são correspondências observacionais, não renames semânticos comprovados.",
       "Impacto considera ambos os grafos e somente relações registradas; dependências dinâmicas e não resolvidas permanecem desconhecidas.",
       "Declarações somente observadas de um lado não comprovam adição/remoção de comportamento: versões de parser, limites e cobertura podem divergir. source_changed indica bytes do arquivo alterados, não alteração comprovada do handler. Ocorrências repetidas não são alinhadas por suposição.",
       ...(partial

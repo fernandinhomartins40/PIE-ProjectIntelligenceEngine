@@ -261,7 +261,7 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
       beforeId: first.snapshot.id,
       afterId: second.snapshot.id,
     });
-    expect(all).toMatchObject({ schemaVersion: 3 });
+    expect(all).toMatchObject({ schemaVersion: 4 });
     const changedFile = all.impact.items.find(
       (item) => item.path === "service.ts" && item.changed,
     );
@@ -379,7 +379,7 @@ it("sugere movimentos somente quando hash removido/adicionado é único", async 
       afterId: after.snapshot.id,
     });
     expect(comparison).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       counts: { added: 1, removed: 1 },
       moveCandidates: [
         {
@@ -395,6 +395,59 @@ it("sugere movimentos somente quando hash removido/adicionado é único", async 
     );
     expect(candidate.afterEvidenceIds).toEqual(
       expect.arrayContaining([expect.any(String)]),
+    );
+
+    const declarationContent =
+      "const express=require('express');const app=express();\napp.get('/moved',handler);";
+    await writeFile(join(repo, "route-old.ts"), declarationContent);
+    await exec("git", ["-C", repo, "add", "route-old.ts"]);
+    const routeBefore = await service.discover(policy);
+    await rm(join(repo, "route-old.ts"));
+    await writeFile(join(repo, "route-new.ts"), declarationContent);
+    await exec("git", ["-C", repo, "add", "-A"]);
+    const routeAfter = await service.discover(policy);
+    const declarationComparison = await service.compare({
+      beforeId: routeBefore.snapshot.id,
+      afterId: routeAfter.snapshot.id,
+    });
+    expect(declarationComparison).toMatchObject({
+      schemaVersion: 4,
+      declarationMoveCandidates: [
+        {
+          beforePath: "route-old.ts",
+          afterPath: "route-new.ts",
+          name: "GET /moved",
+          basis: "unique_identical_source_sha256_and_line",
+        },
+      ],
+    });
+    const declarationCandidate =
+      declarationComparison.declarationMoveCandidates[0]!;
+    for (const id of [
+      ...declarationCandidate.beforeEvidenceIds,
+      ...declarationCandidate.afterEvidenceIds,
+    ])
+      expect((await service.evidence(id)).id).toBe(id);
+
+    const partialRoutes = await service.discover({
+      ...policy,
+      maxFileBytes: 1,
+    });
+    const partialDeclarationComparison = await service.compare({
+      beforeId: routeBefore.snapshot.id,
+      afterId: partialRoutes.snapshot.id,
+    });
+    expect(partialDeclarationComparison.declarationMoveCandidates).toEqual([]);
+
+    await writeFile(join(repo, "route-new-copy.ts"), declarationContent);
+    await exec("git", ["-C", repo, "add", "route-new-copy.ts"]);
+    const duplicateRoutes = await service.discover(policy);
+    const duplicateDeclarationComparison = await service.compare({
+      beforeId: routeBefore.snapshot.id,
+      afterId: duplicateRoutes.snapshot.id,
+    });
+    expect(duplicateDeclarationComparison.declarationMoveCandidates).toEqual(
+      [],
     );
 
     await rm(join(repo, "new.ts"));

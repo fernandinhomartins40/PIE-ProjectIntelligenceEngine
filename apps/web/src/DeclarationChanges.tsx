@@ -63,6 +63,35 @@ export function DeclarationChanges({
         de declaração não prova remoção de funcionalidade; alteração do arquivo
         não prova mudança no handler.
       </p>
+      {comparison.declarationMoveCandidates.length > 0 && (
+        <div aria-label="Candidatos a movimentação de declarações">
+          <h4>Candidatos a movimentação</h4>
+          <p>
+            Correspondências únicas com hash e linha idênticos em snapshots
+            completos; a continuidade semântica não é comprovada.
+          </p>
+          <ul>
+            {comparison.declarationMoveCandidates.map((candidate) => (
+              <li
+                key={`${candidate.beforePath}:${candidate.name}:${candidate.afterPath}`}
+              >
+                {candidate.adapter} · {candidate.kind} · {candidate.name}:{" "}
+                {candidate.beforePath} → {candidate.afterPath}
+                {candidate.beforeEvidenceIds.map((id) => (
+                  <button key={id} onClick={() => onEvidence(id)}>
+                    Prova anterior · {id.slice(0, 8)}
+                  </button>
+                ))}
+                {candidate.afterEvidenceIds.map((id) => (
+                  <button key={id} onClick={() => onEvidence(id)}>
+                    Prova posterior · {id.slice(0, 8)}
+                  </button>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="table-wrap">
         <table>
           <caption>Diferenças das declarações por versão</caption>

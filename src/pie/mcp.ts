@@ -549,7 +549,7 @@ export function createPieMcp(
     "pie_change_impact",
     {
       description:
-        "Compara dois snapshots do mesmo projeto por hashes observados, calcula impacto pelos grafos e retorna candidatos a movimento somente para conteúdo idêntico único. Não executa testes. Cobertura parcial mantém ausências desconhecidas; paginação até 200.",
+        "Compara dois snapshots do mesmo projeto por hashes observados, calcula impacto pelos grafos e retorna candidatos a movimento de arquivos e declarações somente com correspondência única e Evidence dos dois lados. Não executa testes. Cobertura parcial mantém ausências desconhecidas; paginação até 200.",
       inputSchema: comparisonInput,
       outputSchema: withError(comparisonOutput),
       annotations: read,

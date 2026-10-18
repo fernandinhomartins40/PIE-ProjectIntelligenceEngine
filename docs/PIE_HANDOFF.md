@@ -572,6 +572,10 @@ Parser YAML produz facts para `uses` remoto em job reutilizável e em steps sem 
 
 `pie_change_impact` schemaVersion 3 separa nó alterado (`changed`) de dependente alcançado e expõe `relationEvidenceIds` das arestas registradas em cada snapshot. Também inclui candidatos a movimento por hash idêntico único quando add/remove é comprovado; não declara rename semântico nem histórico Git. Boundary comparison/API/MCP passou 7/7, incluindo duplicidade ambígua e inventário parcial; `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. Cache por commit e incremental persistente continuam pendentes.
 
+## Candidatos a movimento de declarações — T2.4 — 18/10/2026
+
+`pie_change_impact` schemaVersion 4 acrescenta `declarationMoveCandidates`: fatos unilaterais de snapshots completos são pareados apenas quando adapter, tipo, nome, contexto, hash SHA-256 e linha coincidem e a correspondência é única em ambos os lados. A saída inclui Evidence anterior/posterior; painel permite abrir ambas. Fixture Git/SQLite com rota Express literal valida movimento por caminho e consulta das duas Evidence. O candidato é observacional, não afirma rename Git ou continuidade semântica; declarações ambíguas e ausências em inventários parciais são omitidas. Boundary comparison/API/MCP: 7/7; `pie:web:typecheck`, `check:fast`, `docs:check` (ledger `complete=false`), `format:check` e `git diff --check` passaram. Cache por commit e incremental persistente continuam pendentes.
+
 ## Cache de parsing — limite e isolamento — T2.4 — 18/10/2026
 
 `pieIncrementalDiscovery` passou 5/5; cobre Evidence nova em snapshot quente, chaves por conteúdo/orçamento, mutação isolada do retorno, teto por entrada/quantidade e eviction pelo teto global de bytes. Sem mudança de runtime ou medição de ganho nesta rodada.
