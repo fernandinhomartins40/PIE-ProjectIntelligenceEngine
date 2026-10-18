@@ -9,6 +9,7 @@ import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
 import { compareSnapshots } from "../../src/pie/compare.js";
 import { renderSnapshot } from "../../src/pie/reports.js";
+import { planRetestsResult } from "../../src/pie/retestPlan.js";
 
 const exec = promisify(execFile);
 
@@ -38,10 +39,31 @@ it("planeja retestes pelo impacto dos dois grafos sem conceder execução ou inv
     const before = await service.discover(policy);
     await writeFile(join(repo, "service.ts"), "export const value=2;");
     const after = await service.discover(policy);
+    const beforeSnapshot = await store.snapshot(before.snapshot.id);
+    const afterSnapshot = await store.snapshot(after.snapshot.id);
     const request = {
       beforeId: before.snapshot.id,
       afterId: after.snapshot.id,
     };
+    expect(
+      planRetestsResult(beforeSnapshot, afterSnapshot, {
+        ...request,
+        mode: "automatic",
+      }),
+    ).toEqual({ ok: false, error: { kind: "invalid_input" } });
+    expect(planRetestsResult({}, afterSnapshot, request)).toEqual({
+      ok: false,
+      error: { kind: "invalid_snapshot", side: "before" },
+    });
+    expect(
+      planRetestsResult(beforeSnapshot, afterSnapshot, {
+        ...request,
+        beforeId: after.snapshot.id,
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: "policy_denied", reason: "snapshot_mismatch" },
+    });
     const affected = await service.retestPlan(request);
     expect(affected).toMatchObject({
       state: "unverified",

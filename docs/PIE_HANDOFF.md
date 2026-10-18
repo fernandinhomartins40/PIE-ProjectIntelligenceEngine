@@ -526,6 +526,8 @@ Continuidade T1.1/T4.3: motor de segurança agora expõe `reviewSecurityResult` 
 
 Continuidade T1.1/T4.5: `compareVerificationRunsResult` tipa schema inválido, cada histórico inconsistente e recusa por escopo/ordem. A fronteira do serviço preserva a leitura dos mesmos registros persistidos e o comparador não reexecuta runs. `pieRegressionResults` passou 2/2; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram.
 
+Continuidade T1.1/T3.1: `planRetestsResult` tipa input invalido, snapshot invalido e escopo recusado, mantendo `selectRetestCandidates` compartilhado com a revalidacao do grant. `pieComparison` e `pieRetestAdmission` passaram 4/4; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. O plano permanece sem autoridade de execucao.
+
 ## Continuidade — Result em revisão de dados — 17/10/2026
 
 `reviewDataResult` adiciona tags para input, snapshot e identidade divergentes; somente falhas esperadas são convertidas e erros internos continuam propagando. `PieService` converte as tags para erros do domínio e mantém os contratos CLI/API/MCP. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts` passou: 2 arquivos, 3 testes. Build PIE, `check:fast`, `format:check` e `docs:check` também passaram. T1.1 segue parcial; não declarar uniformidade global.

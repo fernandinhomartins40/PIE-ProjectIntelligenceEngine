@@ -28,7 +28,7 @@ import {
   functionalRecordExportInput,
   sealFunctional,
 } from "./functionalRecord.js";
-import { planRetests, retestInput } from "./retestPlan.js";
+import { planRetestsResult, retestInput } from "./retestPlan.js";
 import {
   generateUnifiedPlan,
   generateUnifiedPlanData,
@@ -154,6 +154,16 @@ function verificationComparisonValue(
     result.error.kind === "policy_denied"
       ? "Execucoes devem ser distintas, ordenadas e pertencer ao mesmo projeto e raiz."
       : "Entrada de comparacao de execucoes invalida.",
+  );
+}
+
+function retestPlanValue(result: ReturnType<typeof planRetestsResult>) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot de reteste invalido.");
+  throw new PieError(
+    "INVALID_INPUT",
+    "Entrada ou escopo do plano de reteste invalido.",
   );
 }
 
@@ -495,12 +505,26 @@ export class PieService {
   }
   retestPlan(input: unknown) {
     return this.#read(async () => {
-      const request = retestInput.parse(input);
+      const beforeId = retestInput.shape.beforeId.safeParse(
+        typeof input === "object" && input !== null
+          ? (input as { beforeId?: unknown }).beforeId
+          : undefined,
+      );
+      const afterId = retestInput.shape.afterId.safeParse(
+        typeof input === "object" && input !== null
+          ? (input as { afterId?: unknown }).afterId
+          : undefined,
+      );
+      if (!beforeId.success || !afterId.success)
+        throw new PieError(
+          "INVALID_INPUT",
+          "Entrada de plano de reteste invalida.",
+        );
       const [before, after] = await Promise.all([
-        this.store.snapshot(request.beforeId),
-        this.store.snapshot(request.afterId),
+        this.store.snapshot(beforeId.data),
+        this.store.snapshot(afterId.data),
       ]);
-      return planRetests(before, after, request);
+      return retestPlanValue(planRetestsResult(before, after, input));
     });
   }
   async #findPlanItem(snapshot: Snapshot, planDigest: string, itemId: string) {

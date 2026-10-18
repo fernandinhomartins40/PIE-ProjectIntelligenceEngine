@@ -511,6 +511,10 @@ T4.3 adiciona fato produzido pelo parser YAML de `.github/workflows/*.yml|yaml` 
 
 `compareVerificationRunsResult` diferencia entrada inválida, histórico de run inconsistente (com lado identificado) e política de comparação recusada. Run e Evidence continuam validados antes da comparação; falhas internas ao montar/validar a saída não são capturadas. `PieService` consome o Result e mantém a saída compartilhada. `pieRegressionResults` passou 2/2; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1/T4.5 permanecem parciais.
 
+## Result tipado no plano de reteste — 18/10/2026
+
+`planRetestsResult` separa entrada invalida, snapshot invalido (com lado) e recusas por divergencia de identidade ou projeto/raiz. A selecao semantica compartilhada pelo planejamento e pela revalidacao do grant opera sobre snapshots ja validados. O plano continua `unverified` e nao autoriza execucao. `pieComparison` e `pieRetestAdmission` passaram 4/4; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1/T3.1/T4.5 permanecem parciais.
+
 ## Result tipado na revisão de dados — 17/10/2026
 
 `reviewDataResult` separa entrada inválida, snapshot inválido e divergência de snapshot em falhas tagged; erros inesperados seguem propagando. `PieService.dataReview` valida o identificador necessário à leitura, usa a fronteira Result para o contrato completo e traduz falhas para `PieError` estável; o wrapper de domínio preserva o consumidor de planejamento. `pieDataReview` e `pieUnifiedPlan`: 3/3 passaram com Git/SQLite locais e paridade CLI/API/MCP. T1.1 continua parcial: Result ainda não é uniforme nos demais engines, adapters e runners.

@@ -742,3 +742,9 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - `npm.cmd run test:focused -- tests/boundary/pieRegressionResults.test.ts`: 1 arquivo/2 testes passaram. Inclui SQLite e runs persistidos, comparação e paridade CLI/API/MCP, além das tags para solicitação inválida, run inconsistente e escopo recusado.
 - `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
 - As tags não transformam declarações estáticas em jornadas ou oportunidades UX observadas.
+
+## Result tipado no plano de reteste — 18/10/2026
+
+- `npm.cmd run test:focused -- tests/boundary/pieComparison.test.ts tests/boundary/pieRetestAdmission.test.ts`: 2 arquivos/4 testes passaram. Inclui seleção por impacto, paginação, escopo inválido e nova validação do grant VERIFY.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
+- O plano continua sem autoridade de execução; a recomputação de candidatos usada na admissão do VERIFY preserva o contrato anterior.

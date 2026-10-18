@@ -6,6 +6,7 @@ import { pagedOutput } from "./outputContracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import canonicalize from "canonicalize";
 import { sha256 } from "./evidence.js";
+import { err, ok, type Result } from "../domain/result.js";
 
 export const retestInput = pageSchema.extend({
   beforeId: z.string().uuid(),
@@ -43,19 +44,11 @@ export const retestOutput = z.strictObject({
   }),
 });
 
-/** Stable identity for the complete selection, independent of response pagination. */
-export function selectRetestCandidates(
-  beforeInput: Snapshot,
-  afterInput: Snapshot,
+function selectValidatedRetestCandidates(
+  before: Snapshot,
+  after: Snapshot,
   mode: "affected" | "full",
 ) {
-  const before = validateSnapshot(beforeInput);
-  const after = validateSnapshot(afterInput);
-  if (before.projectId !== after.projectId || before.root !== after.root)
-    throw new PieError(
-      "INVALID_INPUT",
-      "Reteste exige snapshots correspondentes do mesmo projeto e raiz.",
-    );
   const previous = new Map(
     snapshotFiles(before).map((item) => [
       item.node.path,
@@ -109,20 +102,30 @@ export function selectRetestCandidates(
   return { before, after, tests, selected, reached, current, planDigest };
 }
 
-/** Selects current test files from recorded import impact; selection never grants execution. */
-export function planRetests(
+/** Stable identity for the complete selection, independent of response pagination. */
+export function selectRetestCandidates(
   beforeInput: Snapshot,
   afterInput: Snapshot,
-  raw: unknown,
+  mode: "affected" | "full",
 ) {
-  const input = retestInput.parse(raw);
-  const plan = selectRetestCandidates(beforeInput, afterInput, input.mode);
-  const { before, after, tests, selected, reached, current } = plan;
-  if (input.beforeId !== before.id || input.afterId !== after.id)
+  const before = validateSnapshot(beforeInput);
+  const after = validateSnapshot(afterInput);
+  if (before.projectId !== after.projectId || before.root !== after.root)
     throw new PieError(
       "INVALID_INPUT",
       "Reteste exige snapshots correspondentes do mesmo projeto e raiz.",
     );
+  return selectValidatedRetestCandidates(before, after, mode);
+}
+
+/** Selects current test files from recorded import impact; selection never grants execution. */
+function renderRetestPlan(
+  before: Snapshot,
+  after: Snapshot,
+  input: z.infer<typeof retestInput>,
+) {
+  const plan = selectValidatedRetestCandidates(before, after, input.mode);
+  const { tests, selected, reached, current } = plan;
   return retestOutput.parse({
     schemaVersion: 2,
     beforeId: before.id,
@@ -152,4 +155,67 @@ export function planRetests(
       ],
     },
   });
+}
+
+export type RetestPlanFailure =
+  | { kind: "invalid_input" }
+  | { kind: "invalid_snapshot"; side: "before" | "after" }
+  | {
+      kind: "policy_denied";
+      reason: "snapshot_mismatch" | "project_scope";
+    };
+
+/** Expected request, snapshot, and scope rejections are tagged; internal faults escape. */
+export function planRetestsResult(
+  beforeInput: unknown,
+  afterInput: unknown,
+  raw: unknown,
+): Result<ReturnType<typeof retestOutput.parse>, RetestPlanFailure> {
+  const input = retestInput.safeParse(raw);
+  if (!input.success) return err({ kind: "invalid_input" });
+
+  let before: Snapshot;
+  try {
+    before = validateSnapshot(beforeInput);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_snapshot", side: "before" });
+    throw cause;
+  }
+  let after: Snapshot;
+  try {
+    after = validateSnapshot(afterInput);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_snapshot", side: "after" });
+    throw cause;
+  }
+  if (input.data.beforeId !== before.id || input.data.afterId !== after.id)
+    return err({ kind: "policy_denied", reason: "snapshot_mismatch" });
+  if (before.projectId !== after.projectId || before.root !== after.root)
+    return err({ kind: "policy_denied", reason: "project_scope" });
+  return ok(renderRetestPlan(before, after, input.data));
+}
+
+export function planRetests(
+  beforeInput: Snapshot,
+  afterInput: Snapshot,
+  raw: unknown,
+) {
+  const result = planRetestsResult(beforeInput, afterInput, raw);
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot de reteste inválido.");
+  if (result.error.kind === "policy_denied")
+    throw new PieError(
+      "INVALID_INPUT",
+      "Reteste exige snapshots correspondentes do mesmo projeto e raiz.",
+    );
+  throw new PieError("INVALID_INPUT", "Entrada de plano de reteste inválida.");
 }
