@@ -241,6 +241,7 @@ export async function startPieApi(
           await service.exportVerification(
             verificationExportInput.parse({
               id: segments[2],
+              format: url.searchParams.get("format") ?? "json",
               offset: Number(url.searchParams.get("offset") ?? 0),
               limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
             }),
@@ -629,6 +630,7 @@ export async function startPieApi(
           await service.exportFunctionalRecord(
             functionalRecordExportInput.parse({
               id: segments[2],
+              format: url.searchParams.get("format") ?? "json",
               offset: Number(url.searchParams.get("offset") ?? 0),
               limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
             }),

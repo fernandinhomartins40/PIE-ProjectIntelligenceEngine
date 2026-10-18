@@ -1,8 +1,8 @@
-## Exportação do histórico HTTP preservado — 18/10/2026
+## Exports históricos HTTP, funcional e VERIFY — 18/10/2026
 
-- `PieService.exportHttpProbe`, `http-probe-export <id>`, GET autenticado `/v1/http-probes/:id/export` e `pie_http_probe_export` revalidam registro, Evidence e snapshot antes de paginar JSON, Markdown ou HTML UTF-8. Exportar não envia nova requisição; páginas carregam treeDigest, Evidence ID, digest do registro e SHA-256 do artefato completo. HTML escapa o JSON preservado.
-- `pieHttpPersistence.test.ts`: export HTTP API nos três formatos, páginas de 128 bytes, remontagem idêntica do JSON e SHA-256 dos artefatos passaram junto ao cenário de persistência SQLite real. `pieMcp.test.ts`: paridade CLI/MCP nos três formatos e Ajv passaram; as três boundaries focadas passaram 19/19; `toolSchemaValidity.test.ts`: 15/15. `pie:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram.
-- PostgreSQL real não foi exercitado nesta alteração. T6.1 continua parcial e o ledger global `complete=false`.
+- Exports persistidos HTTP, funcional e VERIFY agora aceitam JSON, Markdown ou HTML. O renderer compartilhado inclui contexto Evidence/snapshot, escapa HTML e mantém o JSON integral em bloco de código. Os exports revalidam seus registros e não repetem execução HTTP nem análise/teste.
+- `pieHttpPersistence.test.ts`: API SQLite, paginação de 128 bytes, reconstrução JSON e digest dos três formatos, 3/3. `pieApi.test.ts`, `pieRunPersistence.test.ts`, `pieMcp.test.ts` e `toolSchemaValidity.test.ts`: 22 testes passaram e 1 cenário PostgreSQL foi skipped por falta de serviço; incluem paridade API/CLI/MCP, SHA-256 e Ajv. `pie:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram.
+- GitHub Actions verificado em 18/10/2026: PIE integration #190 passou para `2ff2131`; #191 estava em andamento para `9b9bd27`; CI geral #247 executava para `2ff2131` e #248 aguardava serialização para `9b9bd27`. Nenhum desses estados prova CI geral aprovado para a mudança final. PostgreSQL real não foi exercitado localmente. T6.1 e o ledger global `complete=false` continuam parciais.
 
 ## Sincronização da descoberta no E2E Chrome — 18/10/2026
 

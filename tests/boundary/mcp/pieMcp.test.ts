@@ -149,6 +149,35 @@ async function verifyFunctionalRecordExport(
     db,
   ]);
   expect(cliExport.stdout).toBe(`${exportContent}\n`);
+  for (const format of ["md", "html"] as const) {
+    const page = await client.callTool({
+      name: "pie_functional_record_export",
+      arguments: { id: record.id, format, limitBytes: 1_000_000 },
+    });
+    expect(page.isError).not.toBe(true);
+    expect(
+      ajv.compile(exportTool.outputSchema as AnySchema)(page.structuredContent),
+    ).toBe(true);
+    const value = page.structuredContent as {
+      format: string;
+      sha256: string;
+      content: string;
+    };
+    expect(value.format).toBe(format);
+    expect(createHash("sha256").update(value.content).digest("hex")).toBe(
+      value.sha256,
+    );
+    const cli = await exec(process.execPath, [
+      script,
+      "functional-record-export",
+      record.id,
+      "--db",
+      db,
+      "--format",
+      format,
+    ]);
+    expect(cli.stdout.trim()).toBe(value.content);
+  }
 }
 
 async function verifyFunctional(

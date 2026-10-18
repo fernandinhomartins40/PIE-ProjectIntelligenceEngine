@@ -29,6 +29,7 @@ export const verificationRunSchema = z.discriminatedUnion("schemaVersion", [
 export type VerificationRun = z.infer<typeof verificationRunSchema>;
 export const verificationExportInput = z.strictObject({
   id: z.string().uuid(),
+  format: z.enum(["json", "md", "html"]).default("json"),
   offset: z.number().int().nonnegative().default(0),
   limitBytes: z.number().int().min(4).max(1_000_000).default(65_536),
 });
@@ -39,7 +40,7 @@ export const verificationExportOutput = z.strictObject({
   treeDigest: z.string().regex(/^[a-f0-9]{64}$/),
   evidenceId: z.string().uuid(),
   runSha256: z.string().regex(/^[a-f0-9]{64}$/),
-  format: z.literal("json"),
+  format: z.enum(["json", "md", "html"]),
   offset: z.number().int().nonnegative(),
   totalBytes: z.number().int().nonnegative(),
   nextOffset: z.number().int().nonnegative().nullable(),

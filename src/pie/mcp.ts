@@ -228,7 +228,7 @@ export function createPieMcp(
     "pie_functional_record_export",
     {
       description:
-        "Exporta em páginas UTF-8 o JSON do registro funcional histórico imutável, com hash do registro e digest da árvore do snapshot. Não recalcula o motor nem transforma estado unverified em aprovação.",
+        "Exporta em páginas UTF-8 o registro funcional em JSON, Markdown ou HTML histórico imutável, com hash do registro e digest da árvore do snapshot. Não recalcula o motor nem transforma estado unverified em aprovação.",
       inputSchema: functionalRecordExportInput,
       outputSchema: withError(functionalRecordExportOutput),
       annotations: read,
@@ -495,7 +495,7 @@ export function createPieMcp(
     "pie_verification_export",
     {
       description:
-        "Exporta em páginas UTF-8 o JSON do registro VERIFY imutável, preservando grant, resultado e Evidence; inclui digest do snapshot e hash do payload vinculado à Evidence. Skipped/blocked continuam sem aprovação e nenhum teste é reexecutado.",
+        "Exporta em páginas UTF-8 o registro VERIFY em JSON, Markdown ou HTML imutável, preservando grant, resultado e Evidence; inclui digest do snapshot e hash do payload vinculado à Evidence. Skipped/blocked continuam sem aprovação e nenhum teste é reexecutado.",
       inputSchema: verificationExportInput,
       outputSchema: withError(verificationExportOutput),
       annotations: read,

@@ -97,7 +97,7 @@ export async function runPie(args: string[]): Promise<void> {
       "Fila: enqueue <raiz-git> --key <chave> | job <id> | cancel-job <id> | work <raiz-git> (um job por execução). API: serve <raiz-git> --port <n>. PostgreSQL: configure PIE_DATABASE_URL e aplique pie:db:migrate antes de usar.",
     );
     console.log(
-      "Resultados persistidos: verification <run-id> | verification-export <run-id> | verification-diff <run-antes-id> <run-depois-id> | verifications <snapshot-id> | project-verifications <project-id> --limit <1–200> --offset <n>. Consulta/exportação e comparação não iniciam testes.",
+      "Resultados persistidos: verification <run-id> | verification-export <run-id> --format json|md|html | verification-diff <run-antes-id> <run-depois-id> | verifications <snapshot-id> | project-verifications <project-id> --limit <1–200> --offset <n>. Consulta/exportação e comparação não iniciam testes.",
     );
     console.log(
       "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova; http-probe-export <run-id> --format json|md|html exporta o registro imutável e http-probes <snapshot-id> lista o histórico. Exportação não envia requisições nem inicia o servidor do projeto.",
@@ -109,7 +109,7 @@ export async function runPie(args: string[]): Promise<void> {
       "Exportação de dados: data-review-export <snapshot-id> --format json|md|html; saída UTF-8 paginada e verificada por SHA-256, sem validar estado runtime ou migrations aplicadas.",
     );
     console.log(
-      "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
+      "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id> --format json|md|html. Retenção preserva somente a página solicitada.",
       "Plano: plan <snapshot-id>; plan-export <snapshot-id> --format json|md|html; plan-item-history-export <snapshot-id> <digest> <item-id> --format json|md|html; plan-contest <request.json>; plan-triage <request.json>; plan-triage-history <snapshot-id> <digest> <item-id>. completed não significa verificado.",
     );
     console.log(
@@ -413,6 +413,9 @@ export async function runPie(args: string[]): Promise<void> {
           do {
             const exported = await service.exportFunctionalRecord({
               id,
+              format: z
+                .enum(["json", "md", "html"])
+                .parse(parsed.values.format ?? "json"),
               offset,
               limitBytes: 1_000_000,
             });
@@ -556,6 +559,9 @@ export async function runPie(args: string[]): Promise<void> {
           do {
             const exported = await service.exportVerification({
               id,
+              format: z
+                .enum(["json", "md", "html"])
+                .parse(parsed.values.format ?? "json"),
               offset,
               limitBytes: 1_000_000,
             });

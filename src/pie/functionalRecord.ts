@@ -10,7 +10,7 @@ import { PieError, type Snapshot } from "./contracts.js";
 import { sha256 } from "./evidence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import { pagedOutput } from "./outputContracts.js";
-import { pageUtf8Artifact } from "./utf8Artifact.js";
+import { pageUtf8Artifact, renderJsonArtifact } from "./utf8Artifact.js";
 export const functionalHistorySchema = pagedOutput(
   z.strictObject({
     id: z.string().uuid(),
@@ -51,6 +51,7 @@ export const functionalRecordSchema = payload.extend({
 });
 export const functionalRecordExportInput = z.strictObject({
   id: z.string().uuid(),
+  format: z.enum(["json", "md", "html"]).default("json"),
   offset: z.number().int().nonnegative().default(0),
   limitBytes: z.number().int().min(4).max(1_000_000).default(65_536),
 });
@@ -60,7 +61,7 @@ export const functionalRecordExportOutput = z.strictObject({
   snapshotId: z.string().uuid(),
   treeDigest: z.string().regex(/^[a-f0-9]{64}$/),
   recordSha256: z.string().regex(/^[a-f0-9]{64}$/),
-  format: z.literal("json"),
+  format: z.enum(["json", "md", "html"]),
   offset: z.number().int().nonnegative(),
   totalBytes: z.number().int().nonnegative(),
   nextOffset: z.number().int().nonnegative().nullable(),
@@ -79,7 +80,18 @@ export function exportFunctionalRecord(
   const record = validateFunctional(input, snapshot);
   if (request.id !== record.id)
     throw new PieError("INVALID_INPUT", "Registro da exportação diverge.");
-  const content = JSON.stringify(record, null, 2);
+  const content = renderJsonArtifact(
+    JSON.stringify(record, null, 2),
+    request.format,
+    "Análise funcional PIE",
+    [
+      ["Registro", record.id],
+      ["Snapshot", record.snapshotId],
+      ["Digest da árvore", snapshot.treeDigest],
+      ["Módulo", record.request.modulePath],
+      ["Estado", record.result.state],
+    ],
+  );
   const page = pageUtf8Artifact(content, request.offset, request.limitBytes);
   return functionalRecordExportOutput.parse({
     schemaVersion: 1,
@@ -87,7 +99,7 @@ export function exportFunctionalRecord(
     snapshotId: record.snapshotId,
     treeDigest: snapshot.treeDigest,
     recordSha256: record.sha256,
-    format: "json",
+    format: request.format,
     offset: request.offset,
     ...page,
   });

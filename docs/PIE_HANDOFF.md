@@ -1,8 +1,8 @@
-## Export de registros HTTP — 18/10/2026
+## Exports de registros HTTP, funcional e VERIFY — 18/10/2026
 
-Exportação histórica de sondagens HTTP foi acrescentada por serviço compartilhado, CLI, API local autenticada e MCP, em JSON, Markdown e HTML paginados em UTF-8. O fluxo relê e valida o registro persistido contra Evidence/snapshot, inclui hashes e escapa o conteúdo HTML; não reexecuta a requisição.
+Registros HTTP, funcionais e VERIFY são exportados pelo serviço compartilhado, CLI, API local autenticada e MCP em JSON, Markdown e HTML paginados em UTF-8. O renderer comum escapa HTML, anota Evidence/snapshot e conserva o JSON integral em bloco de código. Cada fluxo relê e valida o registro persistido; não reexecuta análise nem requisição.
 
-Validação: `pie:build`; boundary HTTP SQLite/API em três formatos, com concatenação de páginas de 128 bytes e SHA-256; boundary MCP stdio com schema Ajv e paridade com CLI nos três formatos; `toolSchemaValidity` 15/15; `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. PostgreSQL real não foi exercitado. Próximas frentes continuam T6.1 exports restantes/CI geral, T3.1 execução de cliente ligada a processo autorizado e T4.1 semântica das asserções; não interpretar esta exportação como aprovação funcional.
+Validação: `pie:build`; `pieHttpPersistence` 3/3; API funcional, VERIFY SQLite, MCP/CLI e schemas Ajv passaram 22 testes, com 1 cenário PostgreSQL skipped; `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. PIE integration #190 passou para o commit `2ff2131`; #191 do `9b9bd27` estava em andamento. CI geral #247 executava para `2ff2131`, enquanto #248 aguardava esse run para `9b9bd27`; a variante final ainda não tem CI remoto conclusivo. PostgreSQL real não foi exercitado localmente. Próximas frentes continuam T6.1 exports restantes/CI geral, T3.1 execução de cliente ligada a processo autorizado e T4.1 semântica das asserções; export não é aprovação funcional.
 
 ## Pr?xima frente ? comprovar workflow PIE incremental e ampliar sele??o ? 17/10/2026
 

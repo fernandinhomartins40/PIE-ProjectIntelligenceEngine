@@ -101,6 +101,25 @@ async function verifyFunctionalHistory(
     exportIdentity!.totalBytes,
   );
   expect(sha256(exportContent)).toBe(exportIdentity!.sha256);
+  for (const format of ["md", "html"] as const) {
+    const page = await fetch(
+      `${url}/v1/functional-records/${record.id}/export?format=${format}&limitBytes=1000000`,
+      { headers },
+    );
+    expect(page.status).toBe(200);
+    const value = (await page.json()) as {
+      recordId: string;
+      format: string;
+      sha256: string;
+      content: string;
+    };
+    expect(value.recordId).toBe(record.id);
+    expect(value.format).toBe(format);
+    expect(sha256(value.content)).toBe(value.sha256);
+    expect(value.content).toContain(
+      format === "md" ? "# Análise funcional PIE" : '<html lang="pt-BR">',
+    );
+  }
   const invalidExportLimit = await fetch(
     `${url}/v1/functional-records/${record.id}/export?limitBytes=3`,
     { headers },

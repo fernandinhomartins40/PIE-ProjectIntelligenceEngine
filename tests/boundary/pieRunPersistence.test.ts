@@ -20,6 +20,66 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import type { VerificationRun } from "../../src/pie/execution/runContracts.js";
 import { exportVerificationResult } from "../../src/pie/execution/runExport.js";
 
+async function verifyFormattedApiExports(
+  url: string,
+  headers: Record<string, string>,
+  run: VerificationRun,
+) {
+  for (const format of ["md", "html"] as const) {
+    const response = await fetch(
+      `${url}/v1/verifications/${run.id}/export?format=${format}&limitBytes=1000000`,
+      { headers },
+    );
+    expect(response.status).toBe(200);
+    const value = (await response.json()) as {
+      runId: string;
+      format: string;
+      sha256: string;
+      content: string;
+    };
+    expect(value.runId).toBe(run.id);
+    expect(value.format).toBe(format);
+    expect(sha256(value.content)).toBe(value.sha256);
+    expect(value.content).toContain(
+      format === "md" ? "# " : '<html lang="pt-BR">',
+    );
+  }
+}
+
+async function verifyFormattedAdapters(
+  client: Client,
+  script: string,
+  path: string,
+  run: VerificationRun,
+) {
+  for (const format of ["md", "html"] as const) {
+    const page = await client.callTool({
+      name: "pie_verification_export",
+      arguments: { id: run.id, format, limitBytes: 1_000_000 },
+    });
+    expect(page.isError).not.toBe(true);
+    const value = page.structuredContent as {
+      runId: string;
+      format: string;
+      sha256: string;
+      content: string;
+    };
+    expect(value.runId).toBe(run.id);
+    expect(value.format).toBe(format);
+    expect(sha256(value.content)).toBe(value.sha256);
+    const cli = await promisify(execFile)(process.execPath, [
+      script,
+      "verification-export",
+      run.id,
+      "--db",
+      path,
+      "--format",
+      format,
+    ]);
+    expect(cli.stdout.trim()).toBe(value.content);
+  }
+}
+
 async function readAdapters(path: string, repo: string, run: VerificationRun) {
   const script = resolve("scripts/pie.mjs");
   const cli = await promisify(execFile)(process.execPath, [
@@ -88,6 +148,7 @@ async function readAdapters(path: string, repo: string, run: VerificationRun) {
     } while (true);
     expect(JSON.parse(content)).toEqual(run);
     expect(sha256(content)).toBe(artifactHash);
+    await verifyFormattedApiExports(api.url, headers, run);
     await client.connect(transport);
     const read = await client.callTool({
       name: "pie_verification_get",
@@ -119,6 +180,7 @@ async function readAdapters(path: string, repo: string, run: VerificationRun) {
     } while (true);
     expect(JSON.parse(mcpContent)).toEqual(run);
     expect(mcpContent).toBe(content);
+    await verifyFormattedAdapters(client, script, path, run);
     const listed = await client.callTool({
       name: "pie_verifications_list",
       arguments: { snapshotId: run.snapshotId, limit: 1 },

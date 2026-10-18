@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { err, ok, type Result } from "../../domain/result.js";
 import { PieError, type Snapshot } from "../contracts.js";
-import { pageUtf8Artifact } from "../utf8Artifact.js";
+import { pageUtf8Artifact, renderJsonArtifact } from "../utf8Artifact.js";
 import { validateVerificationRun } from "./runIntegrity.js";
 import {
   verificationExportInput,
@@ -37,8 +37,21 @@ export function exportVerificationResult(
   if (run.id !== options.data.id)
     return err({ kind: "policy_denied", reason: "run_id_mismatch" });
 
-  const page = pageUtf8Artifact(
+  const content = renderJsonArtifact(
     JSON.stringify(run, null, 2),
+    options.data.format,
+    "Execução VERIFY PIE",
+    [
+      ["Execução", run.id],
+      ["Snapshot", run.snapshotId],
+      ["Digest da árvore", snapshot.treeDigest],
+      ["Estado", run.result.state],
+      ["Limpeza", run.cleanup],
+      ["Evidence", run.evidence.id],
+    ],
+  );
+  const page = pageUtf8Artifact(
+    content,
     options.data.offset,
     options.data.limitBytes,
   );
@@ -50,7 +63,7 @@ export function exportVerificationResult(
       treeDigest: snapshot.treeDigest,
       evidenceId: run.evidence.id,
       runSha256: run.evidence.source.sha256,
-      format: "json",
+      format: options.data.format,
       offset: options.data.offset,
       ...page,
     }),
