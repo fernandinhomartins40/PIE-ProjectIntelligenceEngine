@@ -19,6 +19,12 @@
 
 # PIE — Registro de validação contínua
 
+## Revalidação de upstream/fork e conflitos de lifecycle — 18/10/2026
+
+- Executado fetch explícito de `upstream/main`, `rea-fork/main` e `origin/main`; HEAD e origin estão em `80872c6ea`, upstream em `c12d9eda8` e rea-fork em `d200b8618`. `git rev-list --left-right --count upstream/main...HEAD` retornou `101 215`; `rea-fork/main...HEAD` retornou `0 118`.
+- `git merge-tree --write-tree HEAD upstream/main` (simulação sem aplicar alterações) retornou exit 1 e quatro conflitos: supervisor/output boundary e fixture de processo. Nenhum merge/cherry-pick foi executado; worktree permaneceu limpo.
+- `npm.cmd run docs:check` passou: ledger `complete=false`, licenças 905 lockfile/368 runtime e README consistency 5/5. `npm.cmd run format:check` e `git diff --check` passaram após atualizar os relatórios. Não foram executados testes de runtime upstream; a mudança é somente documental e a integração permanece pendente.
+
 ## Ordenação da prioridade manual do plano — 18/10/2026
 
 - Reforçada a boundary `tests/boundary/pieUnifiedPlan.test.ts` com notas que distinguem os três níveis da regra confirmada pelo usuário: impacto decrescente, risco decrescente e menor esforço; o caso continua validando item sem nota após remoção da avaliação. Nenhuma nota é criada automaticamente.

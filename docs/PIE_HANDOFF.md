@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Diligência REA após atualização de refs — 18/10/2026
+
+Refs atuais: HEAD/`origin/main` `80872c6ea`; `upstream/main` `c12d9eda8` (tag 6.7.0 `27dc42d10`), base comum `926e18b3f`; `rea-fork/main` `d200b8618`. O fork é ancestral, 118 commits atrás; upstream contém 101 commits que ainda não estão na árvore PIE (215 commits locais-only). `git merge-tree --write-tree` encontrou quatro conflitos em `src/process/ProviderProcess.ts`, `src/process/ProviderProcessOutput.test.ts`, `tests/boundary/process/providerProcessOutput.test.ts` e `tests/fixtures/providerProcess.mjs`. Nenhuma integração foi aplicada; refs foram atualizados e worktree permaneceu limpo. Próximo: selecionar mudanças upstream pertinentes, resolver o lifecycle por ownership e revalidar dependências/notices e workflows antes de publicar qualquer integração. A página pública de Actions consultada ainda não expunha run para `80872c6ea`; não atribuir resultado remoto.
+
 ## Próxima validação — ordenação da triagem manual — 18/10/2026
 
 A regra confirmada é lexicográfica: impacto desc., risco desc., esforço asc.; ID desempata e notas ausentes ficam por último. A boundary `pieUnifiedPlan` foi reforçada com combinações discriminantes para os três critérios e passou 2/2 usando Git/SQLite reais; `check:fast`, `docs:check` e `format:check` também passaram. Notas continuam exclusivamente humanas.
