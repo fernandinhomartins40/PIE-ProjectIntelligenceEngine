@@ -800,3 +800,9 @@ Atualização de gates finais — 18/10/2026
 - JSON/Markdown/HTML são paginados por bytes UTF-8. A agregação verifica snapshot, coverage e totais entre páginas; CLI verifica tamanho total e SHA-256. A exportação inclui digest da árvore e deixa state=unverified.
 - npm.cmd run pie:build: passou. npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts: 1 teste passou; Git/SQLite reais validaram paginação/hash, CLI/API/MCP e schemas de entrada/saída MCP com Ajv.
 - Limites: não houve PostgreSQL real; não calcula estado final das migrations nem exporta todos os outros registros do PIE. T6.1 permanece parcial.
+
+## Cancelamento de job antes do despacho - 18/10/2026
+
+- `JobWorker` realiza heartbeat apos validar a raiz autorizada e antes de chamar discovery/VERIFY. Cancelamento persistido encerra o job sem iniciar workflow; token/lease perdidos impedem despacho.
+- `npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 5 passaram, 1 skipped (worker CLI continuo Linux-only). A regressao usa fila SQLite e `PieService` reais; persiste cancelamento entre claim e despacho e confirma nenhum projeto/snapshot ou resultado publicado.
+- Esta validacao cobre a corrida antes do inicio do workflow, nao todo cancelamento durante execucao/finalizacao. PostgreSQL runtime e execucao Linux nao foram executados localmente.

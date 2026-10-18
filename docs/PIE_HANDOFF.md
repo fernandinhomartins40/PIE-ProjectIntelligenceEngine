@@ -579,3 +579,7 @@ Parser YAML produz facts para `uses` remoto em job reutilizável e em steps sem 
 ## Cache de parsing — limite e isolamento — T2.4 — 18/10/2026
 
 `pieIncrementalDiscovery` passou 5/5; cobre Evidence nova em snapshot quente, chaves por conteúdo/orçamento, mutação isolada do retorno, teto por entrada/quantidade e eviction pelo teto global de bytes. Sem mudança de runtime ou medição de ganho nesta rodada.
+
+## Cancelamento antes do despacho do worker - T1.3 - 18/10/2026
+
+Apos claim, o worker agora renova/consulta a lease antes de iniciar discovery ou VERIFY. Se a fila ja recebeu cancelamento, finaliza como `cancelled`; se a lease/token ja nao pertence ao worker, nao inicia workflow. `pieJobs` focused: 5 testes passaram, 1 skipped (cenario Linux-only). A boundary usa fila SQLite e `PieService` reais, persiste cancelamento entre claim e despacho e confirma estado terminal sem resultado nem snapshot.

@@ -235,6 +235,51 @@ it("VERIFY preserva grant, separa workers e nunca repete execução interrompida
   }
 });
 
+it("worker reconhece cancelamento imediatamente apÃ³s claim antes de iniciar discovery", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "pie-worker-cancel-before-dispatch-"),
+  );
+  const repo = join(root, "repo");
+  await mkdir(repo);
+  await promisify(execFile)("git", ["init", repo]);
+  await writeFile(join(repo, "index.ts"), "export const value = 1;");
+  await promisify(execFile)("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "state.sqlite"), repo);
+  const queue = new SqliteJobQueue(join(root, "queue.sqlite"));
+  const service = new PieService(store);
+  const claim = queue.claim.bind(queue);
+  queue.claim = (...args) => {
+    const job = claim(...args);
+    if (job) queue.cancel(job.id);
+    return job;
+  };
+  const worker = new JobWorker(queue, repo, { kind: "discovery", service });
+  try {
+    const job = queue.enqueue({
+      idempotencyKey: "cancel-before-dispatch",
+      kind: "discovery",
+      payload: {
+        repositoryRoot: repo,
+        profile: "OBSERVE",
+        environment: "local",
+      },
+    });
+    expect(await worker.runOnce()).toBe(true);
+    expect(queue.get(job.id)).toMatchObject({
+      state: "cancelled",
+      attempts: 1,
+      result: null,
+      errorCode: "CANCELLED",
+    });
+    expect(store.projects().total).toBe(0);
+  } finally {
+    await worker.close();
+    await service.close();
+    queue.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("fila real persiste, usa leases, recupera após perda de worker e impede resultado antigo", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-jobs-"));
   const path = join(root, "jobs.sqlite");

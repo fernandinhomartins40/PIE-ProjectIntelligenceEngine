@@ -588,3 +588,7 @@ Boundary `pieExpressCrossFile`, `pieTrace` e `pieAdapters`: 21/21 passam com Git
 ## Validação dos limites e isolamento do cache de parsing — T2.4 — 18/10/2026
 
 `pieIncrementalDiscovery` agora comprova que mutar o resultado frio ou um hit não contamina entradas futuras; também força eviction pelo teto global serializado com entradas abaixo do limite individual e confirma que a chave antiga foi removida. A boundary passou 5/5 com Git real; reutilização continua somente de parsing, com Evidence nova por snapshot. Não houve mudança de runtime nem medição de desempenho nesta entrega; cache por commit/grafo continua pendente.
+
+## Continuidade T1.3 - cancelamento anterior ao despacho do worker - 18/10/2026
+
+`JobWorker` consulta/renova a lease depois de validar a raiz autorizada e antes de chamar discovery/VERIFY. Cancelamento ja persistido encerra o job sem iniciar o workflow; token/lease perdidos recusam o despacho. `pieJobs` focused passou: 5 testes, 1 skipped (worker CLI continuo Linux-only). A boundary usa fila SQLite e `PieService` reais, injeta cancelamento entre claim e despacho e confirma ausencia de projeto/snapshot e resultado. Esta cobertura nao inclui toda janela de cancelamento durante execucao/finalizacao; PostgreSQL e Linux real seguem pendentes.

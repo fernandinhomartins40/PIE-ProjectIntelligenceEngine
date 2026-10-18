@@ -89,6 +89,31 @@ export class JobWorker {
           "POLICY_DENIED",
           "Job fora da raiz autorizada para este worker.",
         );
+      // The periodic heartbeat alone leaves a lease-sized window in which a
+      // cancellation immediately after claim could still start target work.
+      // Renew and observe cancellation before dispatching either workflow.
+      if (
+        !(await this.queue.heartbeat(job.id, job.leaseToken!, this.leaseMs))
+      ) {
+        const current = await this.queue.get(job.id);
+        if (
+          current.leaseToken === job.leaseToken &&
+          current.state === "cancelling"
+        ) {
+          await this.queue.finish(
+            job.id,
+            job.leaseToken!,
+            "cancelled",
+            {},
+            "CANCELLED",
+          );
+          return true;
+        }
+        throw new PieError(
+          "POLICY_DENIED",
+          "Lease perdida antes do início do workflow.",
+        );
+      }
       let result: object;
       if (job.kind === "discovery" && this.workflow.kind === "discovery") {
         result = await this.workflow.service.discover(
