@@ -37,8 +37,15 @@ export const impactSchema = z.strictObject({
   evidenceIds: z.array(z.string().uuid()).min(1),
   relationEvidenceIds: z.array(z.string().uuid()),
 });
+const moveCandidateSchema = z.strictObject({
+  beforePath: z.string(),
+  afterPath: z.string(),
+  basis: z.literal("unique_identical_sha256"),
+  beforeEvidenceIds: z.array(z.string().uuid()).min(1),
+  afterEvidenceIds: z.array(z.string().uuid()).min(1),
+});
 export const comparisonOutput = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   projectId: z.string().uuid(),
   beforeId: z.string().uuid(),
   afterId: z.string().uuid(),
@@ -55,6 +62,7 @@ export const comparisonOutput = z.strictObject({
     offset: z.number().int(),
     nextOffset: z.number().int().nullable(),
   }),
+  moveCandidates: z.array(moveCandidateSchema),
   counts: z.strictObject({
     added: z.number().int(),
     removed: z.number().int(),
@@ -123,6 +131,47 @@ export function compareSnapshots(
     }
     changes.push({ path, state, before: left, after: right });
   }
+  const removedByDigest = new Map<string, typeof changes>();
+  const addedByDigest = new Map<string, typeof changes>();
+  for (const change of changes) {
+    if (change.state === "removed" && change.before) {
+      const group = removedByDigest.get(change.before.sha256) ?? [];
+      group.push(change);
+      removedByDigest.set(change.before.sha256, group);
+    }
+    if (change.state === "added" && change.after) {
+      const group = addedByDigest.get(change.after.sha256) ?? [];
+      group.push(change);
+      addedByDigest.set(change.after.sha256, group);
+    }
+  }
+  const moveCandidates = [...removedByDigest]
+    .flatMap(([digest, removed]) => {
+      const added = addedByDigest.get(digest) ?? [];
+      if (removed.length !== 1 || added.length !== 1) return [];
+      const beforeSide = removed[0]!.before!;
+      const afterSide = added[0]!.after!;
+      return [
+        {
+          beforePath: removed[0]!.path,
+          afterPath: added[0]!.path,
+          basis: "unique_identical_sha256" as const,
+          beforeEvidenceIds: beforeSide.evidenceIds,
+          afterEvidenceIds: afterSide.evidenceIds,
+        },
+      ];
+    })
+    .sort((left, right) =>
+      left.beforePath < right.beforePath
+        ? -1
+        : left.beforePath > right.beforePath
+          ? 1
+          : left.afterPath < right.afterPath
+            ? -1
+            : left.afterPath > right.afterPath
+              ? 1
+              : 0,
+    );
   const impact = new Map<string, z.infer<typeof impactSchema>>();
   for (const [version, snapshot] of [
     ["before", before],
@@ -202,7 +251,7 @@ export function compareSnapshots(
         ? "inconclusive"
         : "unchanged";
   return comparisonOutput.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     projectId: before.projectId,
     beforeId: before.id,
     afterId: after.id,
@@ -212,11 +261,13 @@ export function compareSnapshots(
       [...impact.values()].sort((a, b) => a.path.localeCompare(b.path)),
       paging,
     ),
+    moveCandidates,
     counts,
     runtimeVerified: false,
     declarationChanges,
     limitations: [
       "Comparação dos bytes observados em snapshots; não comprova regressão nem funcionamento em runtime.",
+      "Candidatos a movimento exigem remoção/adição observadas, hash SHA-256 idêntico e unicidade em cada lado; conteúdo idêntico não prova continuidade semântica nem histórico Git de rename.",
       "Impacto considera ambos os grafos e somente relações registradas; dependências dinâmicas e não resolvidas permanecem desconhecidas.",
       "Declarações somente observadas de um lado não comprovam adição/remoção de comportamento: versões de parser, limites e cobertura podem divergir. source_changed indica bytes do arquivo alterados, não alteração comprovada do handler. Ocorrências repetidas não são alinhadas por suposição.",
       ...(partial

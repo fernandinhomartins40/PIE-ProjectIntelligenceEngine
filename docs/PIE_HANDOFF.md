@@ -570,7 +570,7 @@ Parser YAML produz facts para `uses` remoto em job reutilizável e em steps sem 
 
 ## Impacto de mudanças — T2.4 — 18/10/2026
 
-`pie_change_impact` schemaVersion 2 separa nó alterado (`changed`) de dependente alcançado e expõe `relationEvidenceIds` das arestas registradas em cada snapshot. `pieComparison`, API autenticada e MCP/CLI passaram 6/6; nenhuma inferência runtime ou dependência fora do grafo observado. Cache por commit e incremental persistente continuam pendentes.
+`pie_change_impact` schemaVersion 3 separa nó alterado (`changed`) de dependente alcançado e expõe `relationEvidenceIds` das arestas registradas em cada snapshot. Também inclui candidatos a movimento por hash idêntico único quando add/remove é comprovado; não declara rename semântico nem histórico Git. Boundary comparison/API/MCP passou 7/7, incluindo duplicidade ambígua e inventário parcial; `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. Cache por commit e incremental persistente continuam pendentes.
 
 ## Cache de parsing — limite e isolamento — T2.4 — 18/10/2026
 

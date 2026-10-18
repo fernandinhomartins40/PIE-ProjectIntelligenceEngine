@@ -261,7 +261,7 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
       beforeId: first.snapshot.id,
       afterId: second.snapshot.id,
     });
-    expect(all).toMatchObject({ schemaVersion: 2 });
+    expect(all).toMatchObject({ schemaVersion: 3 });
     const changedFile = all.impact.items.find(
       (item) => item.path === "service.ts" && item.changed,
     );
@@ -307,6 +307,7 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
     expect(incomplete.counts.removed).toBe(0);
     expect(incomplete.counts.unknown).toBe(1);
     expect(incomplete.status).toBe("inconclusive");
+    expect(incomplete.moveCandidates).toEqual([]);
     const snapshot = store.snapshot(second.snapshot.id);
     expect(() =>
       compareSnapshots(snapshot, { ...snapshot, projectId: randomUUID() }),
@@ -348,6 +349,66 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
     expect(JSON.parse(renderSnapshot(snapshot, "json"))).toEqual(snapshot);
   } finally {
     store.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("sugere movimentos somente quando hash removido/adicionado é único", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-move-candidates-"));
+  const repo = join(root, "repo");
+  await mkdir(repo);
+  const store = await openStore(join(root, "history.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    await exec("git", ["init", repo]);
+    const content = "export const unchanged = true;\n";
+    await writeFile(join(repo, "old.ts"), content);
+    await exec("git", ["-C", repo, "add", "."]);
+    const policy = {
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    };
+    const before = await service.discover(policy);
+    await rm(join(repo, "old.ts"));
+    await writeFile(join(repo, "new.ts"), content);
+    await exec("git", ["-C", repo, "add", "-A"]);
+    const after = await service.discover(policy);
+    const comparison = await service.compare({
+      beforeId: before.snapshot.id,
+      afterId: after.snapshot.id,
+    });
+    expect(comparison).toMatchObject({
+      schemaVersion: 3,
+      counts: { added: 1, removed: 1 },
+      moveCandidates: [
+        {
+          beforePath: "old.ts",
+          afterPath: "new.ts",
+          basis: "unique_identical_sha256",
+        },
+      ],
+    });
+    const candidate = comparison.moveCandidates[0]!;
+    expect(candidate.beforeEvidenceIds).toEqual(
+      expect.arrayContaining([expect.any(String)]),
+    );
+    expect(candidate.afterEvidenceIds).toEqual(
+      expect.arrayContaining([expect.any(String)]),
+    );
+
+    await rm(join(repo, "new.ts"));
+    await writeFile(join(repo, "copy-a.ts"), content);
+    await writeFile(join(repo, "copy-b.ts"), content);
+    await exec("git", ["-C", repo, "add", "-A"]);
+    const ambiguous = await service.discover(policy);
+    const ambiguousComparison = await service.compare({
+      beforeId: before.snapshot.id,
+      afterId: ambiguous.snapshot.id,
+    });
+    expect(ambiguousComparison.moveCandidates).toEqual([]);
+  } finally {
+    await service.close();
     await rm(root, { recursive: true, force: true });
   }
 });
