@@ -651,3 +651,7 @@ O parser de migrations registra `ALTER TABLE` fora do subconjunto suportado, DDL
 Continuidade T4.5 — seletores inline e DDL de migration — 18/10/2026
 
 O parser reconhece PK/UNIQUE inline, confirmado por teste direto das declarations e pela fixture integrada `ColumnUnique`. `CREATE UNIQUE INDEX ... WHERE` nao e tratado como unicidade global; `CREATE TABLE ... LIKE` que importa indices marca inventario inconclusivo. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 27/27; `pie:build`, `check:fast`, `docs:check` e `format:check` passaram. Os casos limitados continuam fail-closed. PostgreSQL runtime e reducer completo de estado aplicado seguem pendentes; T4.5 parcial.
+
+Continuidade T4.5 — objetos condicionais — 18/10/2026
+
+`CREATE TABLE IF NOT EXISTS` e `CREATE UNIQUE INDEX IF NOT EXISTS` agora nao emitem facts de existencia/constraint: se o objeto ja existia, o comando pode nao ter aplicado a definicao declarada. Ambos marcam a migration incompleta; Data Review nao alinha seletor com essa prova ambigua. A boundary Git/SQLite integrada e o teste direto do parser cobrem os dois casos. A verificacao local confirmou `PIE_TEST_DATABASE_URL` ausente, `psql` ausente e Docker CLI sem daemon; PostgreSQL runtime continua indisponivel neste ambiente. Reducer completo, schemas SQL e constraint aplicada seguem pendentes; T4.5 parcial.

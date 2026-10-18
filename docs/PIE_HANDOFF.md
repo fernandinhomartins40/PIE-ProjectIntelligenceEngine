@@ -675,3 +675,5 @@ Data Review tambem trata SET/RESET search_path, SET SCHEMA e set_config como con
 ## Continuidade Data Review — 18/10/2026
 
 Cobertos PK/UNIQUE inline, indice UNIQUE parcial e `CREATE TABLE ... LIKE` fail-closed. Boundary Data Review/adapters passou 27/27; `pie:build`, `check:fast`, `docs:check` e `format:check` passaram. O teste direto valida `Declaration.name` (`primary_key`/`unique`), pois o kind comum e `config_directive`. Prioridade confirmada para triagem: impacto decrescente, risco decrescente, menor esforco; sem calculo automatico de notas. PostgreSQL runtime e estado final/reducer continuam pendentes.
+
+Continuidade: objetos `CREATE TABLE/UNIQUE INDEX IF NOT EXISTS` nao provam que a definicao declarada foi aplicada; facts omitidos e migration incompleta preservam incerteza. A cobertura integrada e do parser foi adicionada. Reexecutar gates gerais e atualizar contagens apos a entrega. PostgreSQL local indisponivel (sem URL/psql; daemon Docker indisponivel). Proximo passo de T4.5: ampliar a semantica de reducao somente com operacoes cujo ordenamento e ownership possam ser preservados em Evidence; nao afirmar estado aplicado.

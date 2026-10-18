@@ -36,6 +36,25 @@ it("reconhece seletores inline de PK e UNIQUE", () => {
   );
 });
 
+it("nao infere a definicao de objetos protegidos por IF NOT EXISTS", () => {
+  const parsed = readSqlMigration(
+    [
+      'CREATE TABLE IF NOT EXISTS "TableTarget" ("id" TEXT PRIMARY KEY);',
+      'CREATE TABLE "IndexTarget" ("id" TEXT);',
+      'CREATE UNIQUE INDEX IF NOT EXISTS "IndexTarget_id_key" ON "IndexTarget" ("id");',
+    ].join("\n"),
+  );
+  expect(parsed.limitations).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("linha 1"),
+      expect.stringContaining("linha 3"),
+    ]),
+  );
+  expect(parsed.declarations).toEqual([
+    expect.objectContaining({ kind: "model", name: "IndexTarget" }),
+  ]);
+});
+
 async function collectDataReviewExport(
   service: PieService,
   snapshotId: string,
@@ -898,6 +917,43 @@ it("marca CREATE TABLE LIKE com indices importados como inconclusivo", async () 
   await writeFile(
     join(migration, "migration.sql"),
     'CREATE TABLE "User" (LIKE "Base" INCLUDING INDEXES);\n',
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("mantem CREATE TABLE IF NOT EXISTS inconclusivo no Data Review", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-if-not-exists-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_if_not_exists");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id String @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    'CREATE TABLE IF NOT EXISTS "User" ("id" TEXT PRIMARY KEY);\n',
   );
   await exec("git", ["-C", repo, "add", "."]);
   const store = await openStore(join(root, "pie.sqlite"), repo);

@@ -175,6 +175,20 @@ function hasPair(tokens: Token[], first: string, second: string): boolean {
   );
 }
 
+function hasTriple(
+  tokens: Token[],
+  first: string,
+  second: string,
+  third: string,
+): boolean {
+  return tokens.some(
+    (token, index) =>
+      keyword(token, first) &&
+      keyword(tokens[index + 1], second) &&
+      keyword(tokens[index + 2], third),
+  );
+}
+
 function identifierList(tokens: Token[], start: number): string[] | null {
   if (!keyword(tokens[start], "(")) return null;
   const values: string[] = [];
@@ -260,6 +274,10 @@ export function readSqlMigration(source: string): AdapterRead {
           keyword(statement[index], "unique") &&
           keyword(statement[index + 1], "index")
         ) {
+          if (hasTriple(statement, "if", "not", "exists")) {
+            markUnsupportedDdl(statement);
+            continue;
+          }
           const on = statement.findIndex((token) => keyword(token, "on"));
           const target = qualifiedName(statement, on + 1);
           if (target && hasPair(statement, "unique", "index")) {
@@ -290,7 +308,10 @@ export function readSqlMigration(source: string): AdapterRead {
         continue;
       }
       index++;
-      if (keyword(statement[index], "if")) index += 3;
+      if (keyword(statement[index], "if")) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       const target = qualifiedName(statement, index);
       if (!target || target.schemaQualified) {
         markUnsupportedDdl(statement);
