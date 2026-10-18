@@ -386,6 +386,7 @@ function structured(path: string, source: string): AdapterRead {
           | "include_project_directory"
           | "extends_reference"
           | "network_mode"
+          | "privileged_mode"
           | "network_attachment"
           | "network_definition",
         value: string,
@@ -409,6 +410,12 @@ function structured(path: string, source: string): AdapterRead {
           "services",
           name,
           "network_mode",
+        ]);
+      if (typeof service.privileged === "boolean")
+        setting("privileged_mode", String(service.privileged), [
+          "services",
+          name,
+          "privileged",
         ]);
       const serviceNetworks = object(service.networks);
       if (Array.isArray(service.networks))
@@ -778,7 +785,7 @@ function structured(path: string, source: string): AdapterRead {
     return {
       declarations,
       limitations: [
-        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles, depends_on condition/restart/required, referencias include/extends e redes selecionadas. Includes/extends nao sao expandidos nem merged; interpolacao, build.args, opcoes arbitrarias de rede e comportamento de container nao sao resolvidos. Profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
+        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles, depends_on condition/restart/required, referencias include/extends, redes e privileged declarados. Includes/extends nao sao expandidos nem merged; interpolacao, build.args, opcoes arbitrarias de rede e comportamento de container nao sao resolvidos. Profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
       ],
     };
   }

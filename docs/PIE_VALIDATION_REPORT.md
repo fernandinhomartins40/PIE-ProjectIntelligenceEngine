@@ -887,4 +887,6 @@ Boundary adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1. Profile
 
 - O painel de investigacao apresenta Security Review com findings paginados, superficies de autorizacao unverified, limitacoes, incertezas, remediacao e links para Evidence.
 - Chrome real percorreu finding Compose network_mode: host e abriu Evidence persistida. Viewports 360/1440 validam ausencia de overflow horizontal; a boundary revelou titulo longo deslocando badge de triagem, corrigido com quebra de linha/min-width flex.
+
+- O adapter Compose registra `privileged: true` como `privileged_mode`; `security-review` schemaVersion 5 emite `compose_privileged_container` com Evidence atual e omite o finding quando a origem fica stale. Boundaries cobrem adapter, inventário de infraestrutura, paridade CLI/API/MCP/Ajv e Chrome 1/1. A cobertura é estática e parcial; Docker/Compose runtime não foi executado.
 - npm.cmd run pie:web:typecheck, npm.cmd run pie:web:build e npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts passaram. Seguranca/runtime do alvo nao foram verificados.

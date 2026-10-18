@@ -39,6 +39,7 @@ const secretKind = z.enum([
   "mutable_git_dependency_reference",
   "unpinned_github_reference",
   "compose_host_network_mode",
+  "compose_privileged_container",
 ]);
 
 const findingSchema = z.strictObject({
@@ -78,7 +79,7 @@ const authorizationSurfaceSchema = z.strictObject({
 });
 
 export const securityOutput = z.strictObject({
-  schemaVersion: z.literal(4),
+  schemaVersion: z.literal(5),
   engine: z.literal("security"),
   snapshotId: z.string().uuid(),
   state: z.enum(["suspected_findings", "no_patterns_observed", "incomplete"]),
@@ -603,16 +604,16 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
     limitations.push(
       "Limite de findings atingido; referências mutáveis de dependências restantes não foram analisadas.",
     );
-  const composeHostNetwork = composeHostNetworkFindings(
+  const composeContainer = composeContainerFindings(
     snapshot,
     currentFiles,
     MAX_FINDINGS - findings.length,
   );
-  findings.push(...composeHostNetwork.findings);
-  findingsTruncated ||= composeHostNetwork.truncated;
-  if (composeHostNetwork.truncated)
+  findings.push(...composeContainer.findings);
+  findingsTruncated ||= composeContainer.truncated;
+  if (composeContainer.truncated)
     limitations.push(
-      "Limite de findings atingido; declaracoes Compose de rede host restantes nao foram analisadas.",
+      "Limite de findings atingido; configuracoes Compose de container restantes nao foram analisadas.",
     );
   return {
     findings,
@@ -844,64 +845,96 @@ function workflowPermissionFindings(
   return { findings, truncated: facts.length > findings.length };
 }
 
-function composeHostNetworkFindings(
+function composeContainerFindings(
   snapshot: Snapshot,
   currentFiles: ReadonlySet<string>,
   remaining: number,
 ) {
+  const rules = [
+    {
+      key: "network_mode",
+      value: "host",
+      kind: "compose_host_network_mode",
+      condition: (service: string | null) =>
+        `O serviço Compose ${JSON.stringify(service)} declara network_mode: host.`,
+      impact:
+        "Se aplicada, a configuração pode compartilhar a pilha de rede do host e reduzir o isolamento entre o container e outros serviços locais.",
+      uncertainty: [
+        "A análise não resolve Compose include/extends, interpolação, overrides por arquivo/perfil ou configuração efetiva.",
+        "A declaração não prova que o serviço seja ativado, que o runtime suporte o modo, nem que o host esteja exposto externamente.",
+      ],
+      remediation:
+        "Preferir uma rede Compose isolada e publicar somente as portas necessárias; manter host networking apenas quando houver requisito documentado.",
+    },
+    {
+      key: "privileged_mode",
+      value: "true",
+      kind: "compose_privileged_container",
+      condition: (service: string | null) =>
+        `O serviço Compose ${JSON.stringify(service)} declara privileged: true.`,
+      impact:
+        "Se aplicada, a configuração pode conceder ao container acesso ampliado a recursos e capacidades do host, reduzindo o isolamento esperado.",
+      uncertainty: [
+        "A análise não resolve Compose include/extends, interpolação, overrides por arquivo/perfil ou configuração efetiva.",
+        "O finding não prova que o container é iniciado, quais permissões o runtime concede nem se controles externos reduzem o impacto.",
+      ],
+      remediation:
+        "Remover privileged: true e conceder somente dispositivos/capacidades estritamente necessários para o requisito documentado.",
+    },
+  ] as const;
   const evidenceById = new Map(
     snapshot.evidence.map((evidence) => [evidence.id, evidence]),
   );
-  const facts = snapshot.declarations.filter((fact) => {
+  const candidates = snapshot.declarations.flatMap((fact) => {
     if (
       fact.adapter !== "compose" ||
       fact.kind !== "config_directive" ||
       !currentFiles.has(fact.source.path)
     )
-      return false;
+      return [];
     const setting = parseComposeServiceSettingName(fact.name);
-    return setting?.key === "network_mode" && setting.value === "host";
+    const rule = rules.find(
+      (candidate) =>
+        setting?.key === candidate.key && setting.value === candidate.value,
+    );
+    return setting && rule ? [{ fact, setting, rule }] : [];
   });
-  const findings = facts.slice(0, remaining).flatMap((fact) => {
-    const setting = parseComposeServiceSettingName(fact.name)!;
-    const evidence = evidenceById.get(fact.evidenceId);
-    if (!evidence || fact.source.line === null) return [];
-    return findingSchema.parse({
-      id: `security:compose-host-network:${identity(
-        fact.source.path,
-        fact.source.line ?? 1,
-        fact.parent ?? setting.value,
-        evidence.source.sha256,
-      )}`,
-      category: "container_configuration",
-      state: "suspected",
-      severity: "high",
-      kind: "compose_host_network_mode",
-      condition: `O serviço Compose ${JSON.stringify(fact.parent)} declara network_mode: host.`,
-      impact:
-        "Se aplicada, a configuração pode compartilhar a pilha de rede do host e reduzir o isolamento entre o container e outros serviços locais.",
-      probability: "unassessed",
-      source: { path: fact.source.path, line: fact.source.line },
-      evidenceIds: [fact.evidenceId],
-      observation:
-        "O snapshot contém a declaração network_mode: host e a Evidence do arquivo permanece atual; nenhum container foi iniciado ou inspecionado.",
-      uncertainty: [
-        "A análise não resolve Compose include/extends, interpolação, overrides por arquivo/perfil ou configuração efetiva.",
-        "A declaração não prova que o serviço seja ativado, que o runtime suporte o modo, nem que o host esteja exposto externamente.",
-      ],
-      reproduction: [
-        "Revisar o serviço na linha indicada e confirmar em configuração de implantação autorizada se esse modo é necessário.",
-      ],
-      remediation:
-        "Preferir uma rede Compose isolada e publicar somente as portas necessárias; manter host networking apenas quando houver requisito documentado.",
-      regression: [
-        "Adicionar uma verificação de configuração que rejeite network_mode: host fora dos serviços explicitamente aprovados.",
-      ],
-      verificationStatus: "not_run",
-      owner: null,
+  const findings = candidates
+    .slice(0, remaining)
+    .flatMap(({ fact, setting, rule }) => {
+      const evidence = evidenceById.get(fact.evidenceId);
+      if (!evidence || fact.source.line === null) return [];
+      const kind = rule.kind;
+      return findingSchema.parse({
+        id: `security:compose-container:${identity(
+          fact.source.path,
+          fact.source.line ?? 1,
+          `${kind}:${fact.parent ?? setting.value}`,
+          evidence.source.sha256,
+        )}`,
+        category: "container_configuration",
+        state: "suspected",
+        severity: "high",
+        kind,
+        condition: rule.condition(fact.parent),
+        impact: rule.impact,
+        probability: "unassessed",
+        source: { path: fact.source.path, line: fact.source.line },
+        evidenceIds: [fact.evidenceId],
+        observation: `O snapshot contém a declaração Compose ${rule.key}: ${rule.value} e a Evidence do arquivo permanece atual; nenhum container foi iniciado ou inspecionado.`,
+        uncertainty: [...rule.uncertainty],
+        reproduction: [
+          "Revisar o serviço na linha indicada e confirmar em configuração de implantação autorizada se esse modo é necessário.",
+        ],
+        remediation: rule.remediation,
+        regression: [
+          `Adicionar uma verificação de configuração para detectar ${rule.key}: ${rule.value} fora dos serviços explicitamente aprovados.`,
+        ],
+        verificationStatus: "not_run",
+        owner: null,
+      });
     });
-  });
-  return { findings, truncated: facts.length > findings.length };
+  return { findings, truncated: candidates.length > findings.length };
 }
 
 function authorizationReviewPage(
@@ -939,7 +972,7 @@ function securityReport(
 ) {
   const authorization = authorizationReviewPage(snapshot, input);
   return securityOutput.parse({
-    schemaVersion: 4,
+    schemaVersion: 5,
     engine: "security",
     snapshotId: snapshot.id,
     state: reportState(snapshot, scan),

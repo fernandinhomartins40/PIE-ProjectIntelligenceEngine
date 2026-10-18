@@ -129,7 +129,7 @@ async function expectStaleLockNotToSuppress(
     '{"lockfileVersion":3,"packages":{"":{"dependencies":{"lockedMutable":"github:owner/locked#main"}}}}\n',
   );
   const staleLock = await service.security({ snapshotId, limit: 20 });
-  expect(staleLock.findings.total).toBe(13);
+  expect(staleLock.findings.total).toBe(14);
   expect(
     staleLock.findings.items.some(
       (finding) =>
@@ -280,9 +280,16 @@ function expectExtendedSecurityFindings(
         source: { path: "compose.yaml", line: 3 },
         evidenceIds: [expect.any(String)],
       }),
+      expect.objectContaining({
+        category: "container_configuration",
+        kind: "compose_privileged_container",
+        condition: 'O servi\u00e7o Compose "api" declara privileged: true.',
+        source: { path: "compose.yaml", line: 4 },
+        evidenceIds: [expect.any(String)],
+      }),
     ]),
   );
-  expect(report.findings.items).toHaveLength(15);
+  expect(report.findings.items).toHaveLength(16);
   expect(
     report.findings.items.some(
       (finding) =>
@@ -318,6 +325,11 @@ async function expectStaleComposeNotToReport(
       (item) => item.kind === "compose_host_network_mode",
     ),
   ).toBe(false);
+  expect(
+    report.findings.items.some(
+      (item) => item.kind === "compose_privileged_container",
+    ),
+  ).toBe(false);
   expect(report.coverage.filesSkipped).toBe(4);
 }
 
@@ -329,11 +341,11 @@ async function verifySecurityFindings(
   const request = { snapshotId, limit: 1 };
   const expected = await service.security(request);
   expect(expected).toMatchObject({
-    schemaVersion: 4,
+    schemaVersion: 5,
     engine: "security",
     state: "suspected_findings",
     findings: {
-      total: 15,
+      total: 16,
       items: [
         {
           category: "credential_like_material",
@@ -463,7 +475,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
   await writeActionReferenceWorkflow(repo);
   await writeFile(
     join(repo, "compose.yaml"),
-    "services:\n  api:\n    network_mode: host\n",
+    "services:\n  api:\n    network_mode: host\n    privileged: true\n",
   );
   await exec("git", ["-C", repo, "add", "."]);
 
@@ -503,7 +515,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(13);
+    expect(stale.findings.total).toBe(14);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
@@ -522,7 +534,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       snapshotId: discovered.snapshot.id,
       limit: 20,
     });
-    expect(staleWorkflow.findings.total).toBe(12);
+    expect(staleWorkflow.findings.total).toBe(13);
     expect(
       staleWorkflow.findings.items.some(
         (finding) =>

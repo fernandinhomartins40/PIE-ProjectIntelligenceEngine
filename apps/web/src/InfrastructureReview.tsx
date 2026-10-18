@@ -63,6 +63,10 @@ function settingLabel(key: SettingKey): string {
       return "Serviço Compose estendido";
     case "network_mode":
       return "Modo de rede declarado";
+    case "privileged_mode":
+      return "Modo privilegiado declarado";
+    case "privileged_mode":
+      return "Modo privilegiado declarado";
     case "network_attachment":
       return "Rede declarada no servi??o";
     case "network_definition":

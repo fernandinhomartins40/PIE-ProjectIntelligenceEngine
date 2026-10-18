@@ -1507,6 +1507,7 @@ it("Compose records bounded network declarations", () => {
       "services:",
       "  api:",
       "    network_mode: host",
+      "    privileged: true",
       "    networks:",
       "      backend:",
       "        aliases: [gateway]",
@@ -1529,18 +1530,19 @@ it("Compose records bounded network declarations", () => {
   expect(settings).toEqual(
     expect.arrayContaining([
       { key: "network_mode", value: "host", parent: "api", line: 3 },
+      { key: "privileged_mode", value: "true", parent: "api", line: 4 },
       {
         key: "network_attachment",
         value:
           '{"network":"backend","aliases":["gateway"],"ipv4_address":"10.0.0.4"}',
         parent: "api",
-        line: 5,
+        line: 6,
       },
       {
         key: "network_definition",
         value: '{"driver":"bridge","internal":true}',
         parent: "backend",
-        line: 9,
+        line: 10,
       },
     ]),
   );

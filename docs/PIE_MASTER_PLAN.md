@@ -636,9 +636,9 @@ O inventário Compose registra `network_mode`, redes vinculadas a serviços (ali
 
 ## Finding de host networking Compose — T4.3 — 18/10/2026
 
-O motor de seguranca schemaVersion 4 anuncia `containerConfigurationPatterns: partial` e consome o fato Compose `network_mode` ja validado pelo adapter. Valor literal `host` gera finding suspeito com Evidence atual, sem reinterpretar YAML. A boundary integrada confirma `compose.yaml` com Evidence atual, CLI/API/MCP e schemas Ajv; ao alterar o arquivo, o finding some e `filesSkipped` aumenta. `pieSecurityReview`: 2/2.
+O motor de segurança schemaVersion 5 anuncia `containerConfigurationPatterns: partial` e consome fatos Compose já validados pelo adapter. `network_mode: host` e `privileged: true` literais geram findings suspeitos com Evidence atual, sem reinterpretar YAML. A boundary integrada confirma os fatos com Evidence, CLI/API/MCP e schemas Ajv; ao alterar o arquivo, os findings somem e `filesSkipped` aumenta. `pieSecurityReview`: 2/2.
 
-A regra nao cobre include/extends, overrides, interpolacao, `privileged`, capabilities, namespaces, Dockerfiles, runtime ou exposicao externa. `pie:build`, `check:fast`, `docs:check`, `format:check` e typecheck web, check:fast, docs:check, format:check e boundary Chrome passaram nesta entrega. T4.3 continua parcial.
+As regras não cobrem include/extends, overrides, interpolação, capabilities, namespaces, Dockerfiles, runtime ou exposição externa. `privileged: true` é uma declaração, não prova de ativação ou permissões efetivas. `pie:build`, `check:fast`, `docs:check`, `format:check`, typecheck/build web e boundary Chrome passaram nesta entrega. T4.3 continua parcial.
 
 ### Apresentacao web de Security Review
 

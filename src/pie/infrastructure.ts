@@ -70,6 +70,7 @@ const componentSchema = z.strictObject({
         "include_project_directory",
         "extends_reference",
         "network_mode",
+        "privileged_mode",
         "network_attachment",
         "network_definition",
       ]),
