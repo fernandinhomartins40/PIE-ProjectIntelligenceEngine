@@ -14,7 +14,7 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 ## Próxima frente — prova semântica de capacidade a partir de testes — 18/10/2026
 
-`verification-diff` v3 agora apresenta a observação de linha separada do binding declarado; Evidence aponta ao run. Linha executada/não observada não declara cobertura de comportamento. Focused regression + `toolSchemaValidity`: 17/17, CLI/API/MCP e Ajv; `check:fast` passou. Próximo: investigar relações explícitas de asserção entre teste e capacidade por semântica estática limitada/contrato de teste, com provenance e estados inconclusivos; nunca derivar `covers` somente de import, binding ou execução de linha.
+`verification-diff` v3 agora apresenta a observação de linha separada do binding declarado; Evidence aponta ao run quando houve instrumentação. Resultado legado v1 fica `not_instrumented` sem Evidence de runtime; relatório v2 incompleto fica `unknown` com Evidence do run. Linha executada/não observada não declara cobertura de comportamento. Focused regression + `toolSchemaValidity`: 17/17 no primeiro incremento; focused regression: 2/2 após a distinção v1, CLI/API/MCP e Ajv; `check:fast` e `docs:check` passaram antes desta atualização documental. Próximo: investigar relações explícitas de asserção entre teste e capacidade por semântica estática limitada/contrato de teste, com provenance e estados inconclusivos; nunca derivar `covers` somente de import, binding ou execução de linha.
 
 ## Próxima frente — associação semântica teste→capacidade — 18/10/2026
 

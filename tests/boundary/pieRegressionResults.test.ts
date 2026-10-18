@@ -79,6 +79,7 @@ async function persistRun(
   runImage = image,
   declarationId?: string,
   runtimeLocations: Array<{ sourcePath: string; line: number }> = [],
+  runtimeInstrumentation = true,
 ) {
   const id = randomUUID();
   const authorization = nodeTestGrantSchema.parse({
@@ -125,6 +126,40 @@ async function persistRun(
     topLevel: outcomes.length,
   };
   const failed = counts.failed > 0;
+  const nodeResult = {
+    state: failed ? ("failed" as const) : ("passed" as const),
+    counts,
+    cases: outcomes.map((item) => ({
+      protocolVersion: 1 as const,
+      kind: "case" as const,
+      name: item.name,
+      file: "/source/feature.test.mjs",
+      line: 1,
+      nesting: 0,
+      category: "test" as const,
+      outcome: item.outcome,
+    })),
+    durationMs: 10,
+    exitCode: failed ? 1 : 0,
+    signal: null,
+    coverage: {
+      reportComplete: true,
+      processCompleted: true,
+      truncated: false,
+      limitations: [],
+    },
+  };
+  const result = runtimeInstrumentation
+    ? {
+        ...nodeResult,
+        schemaVersion: 2 as const,
+        runtimeLocations: {
+          reportComplete: true,
+          locations: runtimeLocations,
+          limitations: [],
+        },
+      }
+    : { ...nodeResult, schemaVersion: 1 as const };
   const payload = {
     schemaVersion: 2 as const,
     id,
@@ -134,35 +169,7 @@ async function persistRun(
     image: runImage,
     createdAt,
     completedAt,
-    result: {
-      schemaVersion: 2 as const,
-      state: failed ? ("failed" as const) : ("passed" as const),
-      counts,
-      cases: outcomes.map((item) => ({
-        protocolVersion: 1 as const,
-        kind: "case" as const,
-        name: item.name,
-        file: "/source/feature.test.mjs",
-        line: 1,
-        nesting: 0,
-        category: "test" as const,
-        outcome: item.outcome,
-      })),
-      durationMs: 10,
-      exitCode: failed ? 1 : 0,
-      signal: null,
-      coverage: {
-        reportComplete: true,
-        processCompleted: true,
-        truncated: false,
-        limitations: [],
-      },
-      runtimeLocations: {
-        reportComplete: true,
-        locations: runtimeLocations,
-        limitations: [],
-      },
-    },
+    result,
     cleanup: "complete" as const,
     failure: null,
     authorization,
@@ -173,6 +180,54 @@ async function persistRun(
     verificationRunSchema.parse({ ...payload, evidence }),
   );
   return store.saveVerification(run);
+}
+
+async function expectLegacyRunUninstrumented(input: {
+  store: Awaited<ReturnType<typeof openStore>>;
+  snapshot: Snapshot;
+  service: PieService;
+  instrumentedRun: VerificationRun;
+  declarationId: string;
+}) {
+  const legacyRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [
+      { name: "save", outcome: "passed" },
+      { name: "load", outcome: "passed" },
+    ],
+    image,
+    input.declarationId,
+    [],
+    false,
+  );
+  const comparison = await input.service.verificationComparison({
+    beforeRunId: input.instrumentedRun.id,
+    afterRunId: legacyRun.id,
+  });
+  expect(comparison.declaredBindings).toMatchObject({
+    before: {
+      bindings: {
+        items: [
+          {
+            runtimeObservation: {
+              state: "line_not_observed",
+              evidenceId: input.instrumentedRun.evidence.id,
+            },
+          },
+        ],
+      },
+    },
+    after: {
+      bindings: {
+        items: [
+          {
+            runtimeObservation: { state: "not_instrumented", evidenceId: null },
+          },
+        ],
+      },
+    },
+  });
 }
 
 async function assertProjectHistoryAdapters(input: {
@@ -601,6 +656,14 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
       latestSnapshotId: after.snapshot.id,
     });
     expectInvalidStoredBinding(afterRun, afterSnapshot);
+
+    await expectLegacyRunUninstrumented({
+      store,
+      snapshot: afterSnapshot,
+      service,
+      instrumentedRun: afterRun,
+      declarationId: afterDeclaration.id,
+    });
 
     const stableRun = await persistRun(store, afterSnapshot, [
       { name: "save", outcome: "failed" },

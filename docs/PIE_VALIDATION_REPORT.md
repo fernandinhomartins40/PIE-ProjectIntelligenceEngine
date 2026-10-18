@@ -22,6 +22,7 @@
 ## Comparação de observação de linha por binding — schema v3 — 18/10/2026
 
 - O payload de comparação agora separa intenção (`interpretation: declared_unverified`) de `runtimeObservation`: linha observada/não observada, desconhecido ou não instrumentado; a prova referencia o Evidence do run. Alteração aditiva versionada em schema v3.
+- Boundary adicional persiste e compara um resultado Node legado v1 com execução v2: o legado retorna `not_instrumented` sem Evidence de runtime; `unknown` fica reservado para relatório de instrumentação v2 incompleto. `pieRegressionResults.test.ts`: 2/2 passou após essa distinção.
 - `npm.cmd run test:focused -- tests/boundary/pieRegressionResults.test.ts tests/boundary/mcp/toolSchemaValidity.test.ts`: 2 arquivos, 17/17. A boundary percorre resultado esperado via serviço, API autenticada, CLI e MCP e valida output schema com Ajv; testa linha before observada e after não observada. `toolSchemaValidity` validou schemas Ajv para ferramentas canônicas e catálogo gerado.
 - `npm.cmd run check:fast` passou (2 tarefas). Não houve execução PostgreSQL ou Docker: esta mudança apenas projeta resultados persistidos e não coleta runtime novo. Nenhuma linha observada foi promovida a cobertura semântica.
 

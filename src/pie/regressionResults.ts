@@ -155,13 +155,11 @@ function bindingRuntimeObservation(
     run.schemaVersion !== 2 ||
     run.authorization.schemaVersion !== 2 ||
     run.authorization.testFiles.length !== 1 ||
-    source.line === null
+    source.line === null ||
+    run.result.schemaVersion !== 2
   )
     return { state: "not_instrumented" as const, evidenceId: null };
-  if (
-    run.result.schemaVersion !== 2 ||
-    !run.result.runtimeLocations.reportComplete
-  )
+  if (!run.result.runtimeLocations.reportComplete)
     return { state: "unknown" as const, evidenceId: run.evidence.id };
   const observed = run.result.runtimeLocations.locations.some(
     (location) =>
