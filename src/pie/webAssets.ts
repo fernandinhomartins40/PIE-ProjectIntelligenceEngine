@@ -18,10 +18,15 @@ export async function loadWebAssets(directory: string) {
         "POLICY_DENIED",
         "Asset do painel fora da pasta autorizada.",
       );
-    const bytes = await readInventoryFile(path, 5_000_000, () => 1);
-    if (!bytes)
-      throw new PieError("LIMIT_EXCEEDED", "Asset do painel excede o limite.");
-    assets.set(route!, { bytes, type: type! });
+    const read = await readInventoryFile(path, 5_000_000, () => 1);
+    if (!read.ok)
+      throw new PieError(
+        read.error.kind === "limit_exceeded" ? "LIMIT_EXCEEDED" : "IO_ERROR",
+        read.error.kind === "limit_exceeded"
+          ? "Asset do painel excede o limite."
+          : "Asset do painel não é arquivo regular.",
+      );
+    assets.set(route!, { bytes: read.value, type: type! });
   }
   return assets;
 }

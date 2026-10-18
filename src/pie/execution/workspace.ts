@@ -117,14 +117,22 @@ export async function prepareWorkspace(
       checkpoint();
       const path = await inventoryPath(snapshot.root, node.path);
       const remaining = grant.limits.sourceBytes - bytes;
-      const content = await readInventoryFile(path, remaining, checkpoint);
-      if (!content)
-        throw new AnalysisResourceConstraintError(
+      const read = await readInventoryFile(path, remaining, checkpoint);
+      if (!read.ok) {
+        if (read.error.kind === "limit_exceeded")
+          throw new AnalysisResourceConstraintError(
+            "pie.verify",
+            "file-size",
+            "Limite de cópia excedido.",
+            { sourceBytes: grant.limits.sourceBytes },
+          );
+        throw new AnalysisArtifactChangedError(
           "pie.verify",
-          "file-size",
-          "Limite de cópia excedido.",
-          { sourceBytes: grant.limits.sourceBytes },
+          node.path,
+          "O caminho observado deixou de ser um arquivo regular.",
         );
+      }
+      const content = read.value;
       if (sha256(content) !== source.source.sha256)
         throw new AnalysisArtifactChangedError(
           "pie.verify",

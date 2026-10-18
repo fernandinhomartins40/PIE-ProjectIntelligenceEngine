@@ -15,6 +15,7 @@ import { impactedNodes, page } from "../../src/pie/graph.js";
 import { admitOperation, containedPath } from "../../src/pie/policy.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { readInventoryFile } from "../../src/pie/readFile.js";
 
 const exec = promisify(execFile);
 const temporary: string[] = [];
@@ -100,6 +101,25 @@ async function verifyMissingServiceRoot() {
   } finally {
     store.close();
   }
+}
+
+async function verifyInventoryReadFailureKinds(repo: string) {
+  const regular = await readInventoryFile(
+    join(repo, "package.json"),
+    100_000,
+    () => 1,
+  );
+  expect(regular.ok).toBe(true);
+  if (!regular.ok) throw new Error("Fixture package.json was not read");
+  expect(regular.value.toString("utf8")).toContain("fixture-only");
+
+  await expect(
+    readInventoryFile(join(repo, "package.json"), 1, () => 1),
+  ).resolves.toEqual({ ok: false, error: { kind: "limit_exceeded" } });
+  await expect(readInventoryFile(repo, 100_000, () => 1)).resolves.toEqual({
+    ok: false,
+    error: { kind: "not_regular_file" },
+  });
 }
 
 async function verifyPersistedSnapshot(
@@ -317,6 +337,11 @@ describe("PIE: fundação integrada com Git e SQLite reais", () => {
       admitOperation({ ...verify, environment: "production" }, "execute"),
     ).toThrow();
   });
+});
+
+it("distingue arquivo acima do limite de caminho não regular", async () => {
+  const { repo } = await fixture();
+  await verifyInventoryReadFailureKinds(repo);
 });
 
 describe("PIE: validação de raiz no serviço", () => {

@@ -416,6 +416,17 @@ async function verifySecurityFindings(
   return { request, expected };
 }
 
+async function expectNonRegularEvidenceSkipped(
+  service: PieService,
+  snapshotId: string,
+) {
+  const result = await service.security({ snapshotId, limit: 20 });
+  expect(result.coverage.filesSkipped).toBe(1);
+  expect(result.coverage.limitations.join(" ")).toContain(
+    "Caminho não é arquivo regular; Evidence histórica preservada: config.ts.",
+  );
+}
+
 it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e MCP", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-security-review-"));
   const repo = join(root, "repo");
@@ -538,6 +549,9 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     expect(stale.coverage.limitations.join(" ")).toContain(
       "mudou desde o snapshot",
     );
+    await rm(join(repo, "config.ts"));
+    await mkdir(join(repo, "config.ts"));
+    await expectNonRegularEvidenceSkipped(service, discovered.snapshot.id);
     await writeFile(
       join(repo, ".github", "workflows", "ci.yml"),
       "name: CI\non: [push]\npermissions: read-all\njobs: {}\n",

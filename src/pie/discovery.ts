@@ -333,15 +333,21 @@ export async function discoverProject(
     }
     try {
       const candidate = await inventoryPath(root, path);
-      const buffer = await readInventoryFile(
+      const read = await readInventoryFile(
         candidate,
         Math.min(policy.maxFileBytes, policy.maxTotalBytes - bytesRead),
         remaining,
       );
-      if (buffer === null) {
+      if (!read.ok) {
         omitted++;
+        limitations.push(
+          read.error.kind === "limit_exceeded"
+            ? `${path}: arquivo excede o limite de leitura e não foi analisado.`
+            : `${path}: caminho não é arquivo regular e não foi analisado.`,
+        );
         continue;
       }
+      const buffer = read.value;
       const count = buffer.length;
       bytesRead += count;
       const hash = sha256(buffer.subarray(0, count));

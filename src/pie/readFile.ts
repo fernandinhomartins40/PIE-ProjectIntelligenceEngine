@@ -1,20 +1,26 @@
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
+import { err, ok, type Result } from "../domain/result.js";
 import { PieError } from "./contracts.js";
+
+export type InventoryReadFailure =
+  | { readonly kind: "not_regular_file" }
+  | { readonly kind: "limit_exceeded" };
 
 /** Bounded complete regular-file read; handles short reads and detects ordinary races. */
 export async function readInventoryFile(
   path: string,
   maxBytes: number,
   checkpoint: () => number,
-): Promise<Buffer | null> {
+): Promise<Result<Buffer, InventoryReadFailure>> {
   const flags =
     constants.O_RDONLY |
     (process.platform === "win32" ? 0 : constants.O_NOFOLLOW);
   const handle = await open(path, flags);
   try {
     const before = await handle.stat();
-    if (!before.isFile() || before.size > maxBytes) return null;
+    if (!before.isFile()) return err({ kind: "not_regular_file" });
+    if (before.size > maxBytes) return err({ kind: "limit_exceeded" });
     const buffer = Buffer.alloc(before.size + 1);
     let count = 0;
     while (count < buffer.length) {
@@ -39,7 +45,7 @@ export async function readInventoryFile(
         "IO_ERROR",
         "Arquivo alterado durante a leitura; não retido como evidência.",
       );
-    return buffer.subarray(0, count);
+    return ok(buffer.subarray(0, count));
   } finally {
     await handle.close();
   }
@@ -51,12 +57,13 @@ export async function readBoundedJsonFile(
   maxBytes: number,
   label: string,
 ): Promise<unknown> {
-  const bytes = await readInventoryFile(path, maxBytes, () => 1);
-  if (!bytes)
+  const read = await readInventoryFile(path, maxBytes, () => 1);
+  if (!read.ok)
     throw new PieError(
       "INVALID_INPUT",
       `${label} excede o limite permitido ou não é arquivo regular.`,
     );
+  const bytes = read.value;
   let source: string;
   try {
     source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);

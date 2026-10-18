@@ -417,16 +417,25 @@ async function scanCurrentFile(
       limitation: `Hashes de Evidence divergentes; arquivo não analisado: ${path}.`,
     };
 
-  let contents: Buffer | null;
+  let contents: Buffer;
   try {
     const target = await inventoryPath(snapshot.root, path);
-    contents = await readInventoryFile(target, MAX_FILE_BYTES, () => 1);
+    const read = await readInventoryFile(target, MAX_FILE_BYTES, () => 1);
+    if (!read.ok)
+      return {
+        status: "skipped",
+        limitation:
+          read.error.kind === "limit_exceeded"
+            ? `Arquivo excedeu o limite local da análise estática: ${path}.`
+            : `Caminho não é arquivo regular; Evidence histórica preservada: ${path}.`,
+      };
+    contents = read.value;
   } catch (cause) {
     const limitation = fileReadLimitation(cause, path);
     if (limitation) return { status: "skipped", limitation };
     throw cause;
   }
-  if (!contents || contents.length > remainingBytes)
+  if (contents.length > remainingBytes)
     return {
       status: "skipped",
       limitation: `Arquivo excedeu o limite local da análise estática: ${path}.`,

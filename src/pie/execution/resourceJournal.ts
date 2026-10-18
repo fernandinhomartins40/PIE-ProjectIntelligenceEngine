@@ -397,7 +397,7 @@ export class VerificationJournal {
         () => 1,
       );
       this.assertClaim(runId, token);
-      return marker?.toString("utf8") === record.rootToken
+      return marker.ok && marker.value.toString("utf8") === record.rootToken
         ? "owned"
         : "unverified";
     } catch {

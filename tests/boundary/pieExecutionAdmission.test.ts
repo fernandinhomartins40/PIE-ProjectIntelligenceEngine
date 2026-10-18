@@ -274,6 +274,15 @@ it("prepara cópia privada por hash, detecta conteúdo alterado e limpa após ca
         cleanupOwner: null,
       },
     });
+    await rm(join(repo, "sample.test.mjs"));
+    await mkdir(join(repo, "sample.test.mjs"));
+    expect(await prepareWorkspace(admitted.value, root)).toMatchObject({
+      ok: false,
+      error: {
+        cause: { _tag: "AnalysisArtifactChangedError" },
+        cleanupOwner: null,
+      },
+    });
     const signal = AbortSignal.abort();
     expect(await prepareWorkspace(admitted.value, root, signal)).toMatchObject({
       ok: false,

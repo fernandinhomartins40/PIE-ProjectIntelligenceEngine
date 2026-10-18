@@ -19,6 +19,12 @@
 
 # PIE — Registro de validação contínua
 
+## Leitura bounded com falhas discriminadas — 18/10/2026
+
+- `readInventoryFile` foi migrado de `Buffer | null` para `Result<Buffer, InventoryReadFailure>` com `limit_exceeded` e `not_regular_file`; todos os seis consumidores foram migrados. Erros operacionais e cancelamento continuam propagando pelo caminho existente.
+- `npm.cmd run test:focused -- tests/boundary/pieFoundation.test.ts tests/boundary/pieExecutionAdmission.test.ts tests/boundary/pieSecurityReview.test.ts`: 22 passaram, 1 skip Windows-only para comportamento POSIX de symlink. Git/SQLite reais cobrem leitura, descoberta sem fatos em arquivo acima do limite, cópia VERIFY após caminho virar diretório, varredura de segurança com Evidence histórica e status de skipped; nenhum mock de aplicação.
+- Após extrair helpers para respeitar o limite de linhas dos testes, `npm.cmd run check:fast`, `npm.cmd run docs:check`, `npm.cmd run format:check` e `git diff --check` passaram. O ledger continua `complete=false`; inventário de licenças: 905 pacotes lockfile/368 runtime. `readBoundedJsonFile` preserva seu contrato público de erro de entrada e não retorna bytes parciais.
+
 ## Revalidação de upstream/fork e conflitos de lifecycle — 18/10/2026
 
 - Executado fetch explícito de `upstream/main`, `rea-fork/main` e `origin/main`; HEAD e origin estão em `80872c6ea`, upstream em `c12d9eda8` e rea-fork em `d200b8618`. `git rev-list --left-right --count upstream/main...HEAD` retornou `101 215`; `rea-fork/main...HEAD` retornou `0 118`.

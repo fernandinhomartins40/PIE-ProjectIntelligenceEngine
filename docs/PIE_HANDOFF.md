@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Próxima frente — Result em fronteiras compartilhadas — 18/10/2026
+
+Slice executado: leitura bounded compartilhada agora usa Result discriminado (`limit_exceeded`/`not_regular_file`) em descoberta, segurança, workspace VERIFY, assets, JSON de grants e journal. As boundaries passaram 22 testes; 1 caso POSIX foi skipped no Windows. `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram; depois, priorizar Result nos serviços/mutações restantes ou outra entrega P0 material do plano.
+
 ## Diligência REA após atualização de refs — 18/10/2026
 
 Refs atuais: HEAD/`origin/main` `80872c6ea`; `upstream/main` `c12d9eda8` (tag 6.7.0 `27dc42d10`), base comum `926e18b3f`; `rea-fork/main` `d200b8618`. O fork é ancestral, 118 commits atrás; upstream contém 101 commits que ainda não estão na árvore PIE (215 commits locais-only). `git merge-tree --write-tree` encontrou quatro conflitos textuais em arquivos de processo. Nenhuma integração foi aplicada; refs foram atualizados e worktree permaneceu limpo. A comparação do slice compartilhado de processo foi concluída: comportamento já adaptado no PIE e testes locais mais abrangentes; conferir a seção abaixo. Próximo: selecionar outras mudanças upstream pertinentes e revalidar dependências/notices e workflows antes de integrar. A página pública de Actions consultada ainda não expunha run para `80872c6ea`; não atribuir resultado remoto.
