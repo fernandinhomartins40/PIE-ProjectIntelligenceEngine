@@ -60,7 +60,10 @@ import {
   planItemHistoryExportInput,
   renderPlanItemHistoryExport,
 } from "./planItemHistoryExport.js";
-import { infrastructureInput, reviewInfrastructure } from "./infrastructure.js";
+import {
+  infrastructureInput,
+  reviewInfrastructureResult,
+} from "./infrastructure.js";
 import {
   buildFixHandoff,
   fixHandoffInput,
@@ -93,6 +96,23 @@ function dataReviewValue(result: ReturnType<typeof reviewDataResult>) {
   if (result.error.kind === "policy_denied")
     throw new PieError("INVALID_INPUT", "Snapshot de dados diverge.");
   throw new PieError("INVALID_INPUT", "Entrada de revisão de dados inválida.");
+}
+
+function infrastructureValue(
+  result: ReturnType<typeof reviewInfrastructureResult>,
+) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError(
+      "INTEGRITY_ERROR",
+      "Snapshot de infraestrutura inválido.",
+    );
+  if (result.error.kind === "policy_denied")
+    throw new PieError(
+      "INVALID_INPUT",
+      "Infraestrutura pertence a outro snapshot.",
+    );
+  throw new PieError("INVALID_INPUT", "Entrada de infraestrutura inválida.");
 }
 
 function discoveryValue(
@@ -369,9 +389,18 @@ export class PieService {
 
   infrastructure(input: unknown) {
     return this.#read(async () => {
-      const request = infrastructureInput.parse(input);
-      const snapshot = await this.store.snapshot(request.snapshotId);
-      return reviewInfrastructure(snapshot, request);
+      const snapshotId = infrastructureInput.shape.snapshotId.safeParse(
+        typeof input === "object" && input !== null
+          ? (input as { snapshotId?: unknown }).snapshotId
+          : undefined,
+      );
+      if (!snapshotId.success)
+        throw new PieError(
+          "INVALID_INPUT",
+          "Entrada de infraestrutura inválida.",
+        );
+      const snapshot = await this.store.snapshot(snapshotId.data);
+      return infrastructureValue(reviewInfrastructureResult(snapshot, input));
     });
   }
 

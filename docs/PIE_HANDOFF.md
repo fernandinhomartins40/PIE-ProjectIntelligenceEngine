@@ -516,6 +516,10 @@ Continuação: `fix-handoff <snapshot> <planDigest> <item>` fornece pacote JSON/
 
 Continuação T4.3: o adapter YAML agora emite Evidence por linha para `permissions: write-all` literal no topo de workflows GitHub Actions; o scanner usa somente o fato parseado e exige hash atual igual ao snapshot. `read-all`, permissão granular de job e workflow alterado após descoberta não geram esse finding. `pieSecurityReview` + `pieAdapters` passaram 13/13. A suspeita não confirma workflow ativo, token ou escopo efetivo; análise de fluxo, SCA, autorização, LGPD e receita seguem pendentes.
 
+## Continuidade — Result no motor de infraestrutura — 17/10/2026
+
+`reviewInfrastructureResult` acrescenta tags para entrada inválida, snapshot inválido e identidade divergente; apenas falhas esperadas são convertidas. `PieService` usa essa fronteira compartilhada e mantém o wrapper necessário ao plano. Findings seguem `unverified`; runtime/medições continuam explicitamente não observados. `pieInfrastructure` e `pieUnifiedPlan`: 3/3; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1 permanece parcial.
+
 ## Continuidade — Result em revisão de dados — 17/10/2026
 
 `reviewDataResult` adiciona tags para input, snapshot e identidade divergentes; somente falhas esperadas são convertidas e erros internos continuam propagando. `PieService` converte as tags para erros do domínio e mantém os contratos CLI/API/MCP. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts` passou: 2 arquivos, 3 testes. Build PIE, `check:fast`, `format:check` e `docs:check` também passaram. T1.1 segue parcial; não declarar uniformidade global.

@@ -12,8 +12,30 @@ import { runPie } from "../../src/pie/cli.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { reviewInfrastructureResult } from "../../src/pie/infrastructure.js";
 
 const exec = promisify(execFile);
+
+function expectInfrastructureInputFailures(
+  snapshot: unknown,
+  snapshotId: string,
+) {
+  expect(
+    reviewInfrastructureResult(snapshot, { snapshotId, limit: -1 }),
+  ).toEqual({ ok: false, error: { kind: "invalid_input" } });
+  expect(
+    reviewInfrastructureResult(snapshot, {
+      snapshotId: "00000000-0000-4000-8000-000000000000",
+    }),
+  ).toEqual({
+    ok: false,
+    error: { kind: "policy_denied", reason: "snapshot_mismatch" },
+  });
+  expect(reviewInfrastructureResult({}, { snapshotId })).toEqual({
+    ok: false,
+    error: { kind: "invalid_snapshot" },
+  });
+}
 
 it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "pie-infrastructure-"));
@@ -42,6 +64,8 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
       environment: "local",
     });
     const input = { snapshotId: discovered.snapshot.id, limit: 50, offset: 0 };
+    const snapshot = await store.snapshot(discovered.snapshot.id);
+    expectInfrastructureInputFailures(snapshot, discovered.snapshot.id);
     const result = await service.infrastructure(input);
     expect(result).toMatchObject({
       engine: "infrastructure",

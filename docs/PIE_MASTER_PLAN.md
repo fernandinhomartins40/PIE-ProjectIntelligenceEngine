@@ -495,6 +495,10 @@ T5.2 avança para parcial: `fix-handoff <snapshot> <planDigest> <item>` emite co
 
 T4.3 adiciona fato produzido pelo parser YAML de `.github/workflows/*.yml|yaml` para `permissions: write-all` no nível do workflow. O scanner consome o fato com Evidence de linha e só relata quando a leitura atual do arquivo passa pelo hash do snapshot; `read-all`, permissões granulares de job e ausência de declaração não geram esse padrão. O finding é `suspected`, probabilidade `unassessed` e `verificationStatus=not_run`: não estabelece que o workflow esteja ativo, seja acionado por evento não confiável, receba token ou tenha permissões efetivas amplas sob políticas de fork/organização. Git/SQLite boundary cobre `pieSecurityReview` e `pieAdapters` (13/13), incluindo paridade CLI/API/MCP, autenticação e schemas Ajv. O motor T4.3 permanece parcial; token efetivo, SCA, autorização, fluxo, privacidade, receita e tenants não foram verificados.
 
+## Result tipado no motor de infraestrutura — 17/10/2026
+
+`reviewInfrastructureResult` classifica entrada inválida, snapshot rejeitado e divergência de identidade com tags, mantendo erros internos fora do canal esperado. O `PieService` usa a mesma fronteira para CLI/API/MCP; o wrapper preserva o consumidor do planejamento. Findings permanecem `unverified` e medições `NOT_MEASURED`. `pieInfrastructure` e `pieUnifiedPlan` passaram 3/3; `pie:build` e `check:fast` passaram. T1.1 permanece parcial.
+
 ## Result tipado na revisão de dados — 17/10/2026
 
 `reviewDataResult` separa entrada inválida, snapshot inválido e divergência de snapshot em falhas tagged; erros inesperados seguem propagando. `PieService.dataReview` valida o identificador necessário à leitura, usa a fronteira Result para o contrato completo e traduz falhas para `PieError` estável; o wrapper de domínio preserva o consumidor de planejamento. `pieDataReview` e `pieUnifiedPlan`: 3/3 passaram com Git/SQLite locais e paridade CLI/API/MCP. T1.1 continua parcial: Result ainda não é uniforme nos demais engines, adapters e runners.

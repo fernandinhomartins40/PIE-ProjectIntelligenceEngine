@@ -3,10 +3,16 @@ import { type Snapshot, PieError } from "./contracts.js";
 import { page, pageSchema } from "./graph.js";
 import { adapterFactSchema } from "./adapters/contracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import { err, ok, type Result } from "../domain/result.js";
 
 export const infrastructureInput = pageSchema.extend({
   snapshotId: z.string().uuid(),
 });
+
+export type InfrastructureFailure =
+  | { kind: "invalid_input" }
+  | { kind: "invalid_snapshot" }
+  | { kind: "policy_denied"; reason: "snapshot_mismatch" };
 
 const componentSchema = z.strictObject({
   id: z.string().min(1),
@@ -135,17 +141,10 @@ function inventoryFacts(snapshot: Snapshot) {
 }
 
 /** Read parsed Compose/Nginx facts only; no runtime, container, or load is inferred. */
-export function reviewInfrastructure(
-  snapshotInput: Snapshot,
-  rawInput: unknown,
+function reviewValidatedInfrastructure(
+  snapshot: Snapshot,
+  request: z.infer<typeof infrastructureInput>,
 ) {
-  const request = infrastructureInput.parse(rawInput);
-  const snapshot = validateSnapshot(snapshotInput);
-  if (request.snapshotId !== snapshot.id)
-    throw new PieError(
-      "INVALID_INPUT",
-      "Infraestrutura pertence a outro snapshot.",
-    );
   const { components, sourceFacts } = inventoryFacts(snapshot);
   return infrastructureOutput.parse({
     schemaVersion: 1,
@@ -183,4 +182,52 @@ export function reviewInfrastructure(
       ],
     },
   });
+}
+
+/** Expected caller and snapshot rejections are tagged; internal faults escape. */
+export function reviewInfrastructureResult(
+  snapshotInput: unknown,
+  rawInput: unknown,
+): Result<
+  ReturnType<typeof reviewValidatedInfrastructure>,
+  InfrastructureFailure
+> {
+  const request = infrastructureInput.safeParse(rawInput);
+  if (!request.success) return err({ kind: "invalid_input" });
+
+  let snapshot: Snapshot;
+  try {
+    snapshot = validateSnapshot(snapshotInput);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_snapshot" });
+    throw cause;
+  }
+  if (request.data.snapshotId !== snapshot.id)
+    return err({ kind: "policy_denied", reason: "snapshot_mismatch" });
+
+  return ok(reviewValidatedInfrastructure(snapshot, request.data));
+}
+
+/** Compatibility boundary for planning and callers using the domain error algebra. */
+export function reviewInfrastructure(
+  snapshotInput: Snapshot,
+  rawInput: unknown,
+) {
+  const result = reviewInfrastructureResult(snapshotInput, rawInput);
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError(
+      "INTEGRITY_ERROR",
+      "Snapshot de infraestrutura inválido.",
+    );
+  if (result.error.kind === "policy_denied")
+    throw new PieError(
+      "INVALID_INPUT",
+      "Infraestrutura pertence a outro snapshot.",
+    );
+  throw new PieError("INVALID_INPUT", "Entrada de infraestrutura inválida.");
 }

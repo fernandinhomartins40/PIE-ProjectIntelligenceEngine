@@ -719,3 +719,9 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 
 - Testes executados: `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts`; 2 arquivos/3 testes passaram. A fixture usa repositório Git e SQLite locais e valida tags para entrada/snapshot divergentes e paridade dos adapters.
 - `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram. T1.1 permanece parcial.
+
+## Result tipado no motor de infraestrutura — 17/10/2026
+
+- `npm.cmd run test:focused -- tests/boundary/pieInfrastructure.test.ts tests/boundary/pieUnifiedPlan.test.ts`: 2 arquivos/3 testes passaram com Git/SQLite reais; cobre tags de entrada, identidade e snapshot inválidos e fluxo compartilhado.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram. O `check:fast` inicial apontou o limite de tamanho da função de teste; asserções foram extraídas para helper e a execução subsequente passou.
+- O contrato não comprova runtime de containers ou métricas; a saída continua `unverified`/`NOT_MEASURED`.
