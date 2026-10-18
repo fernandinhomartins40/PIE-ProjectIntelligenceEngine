@@ -19,6 +19,12 @@
 
 # PIE — Registro de validação contínua
 
+## Revalidação do inventário estático de infraestrutura — 18/10/2026
+
+- `npm.cmd run test:focused -- tests/boundary/pieInfrastructure.test.ts`: 1/1 passou. O fixture executa Git e SQLite reais; a boundary verifica paridade de resultado entre PieService, API autenticada, MCP stdio com schemas Ajv e CLI, paginação, Evidence e não retenção de canários de configuração.
+- O teste levou 2,36 s; o comando/processo Vitest levou 15,81 s nesta execução. Uma única amostra não estabelece baseline de performance. CPU/RAM/disco/I/O/rede/latência/reinícios de projetos alvo continuam `NOT_MEASURED`; não foi iniciado Docker nem coletado estado live.
+- Próxima decisão técnica: contrato dedicado opt-in para runtime local, com recursos selecionados explicitamente, identidade/escopo, timeout, limite de saída e Evidence persistida. Não permitir que configuração declarada de Compose ou credencial ambiente selecione alvo implicitamente.
+
 ## Leitura bounded com falhas discriminadas — 18/10/2026
 
 - `readInventoryFile` foi migrado de `Buffer | null` para `Result<Buffer, InventoryReadFailure>` com `limit_exceeded` e `not_regular_file`; todos os seis consumidores foram migrados. Erros operacionais e cancelamento continuam propagando pelo caminho existente.

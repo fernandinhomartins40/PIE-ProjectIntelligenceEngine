@@ -12,6 +12,10 @@ Runs VERIFY persistidos v1/v2 agora s?o exportados sem reexecu??o via `verificat
 
 # PIE — Plano mestre de implementação integral
 
+## Revalidação da boundary integrada de infraestrutura — 18/10/2026
+
+`npm.cmd run test:focused -- tests/boundary/pieInfrastructure.test.ts` passou 1/1 com Git/SQLite reais e percurso compartilhado PieService, API autenticada, MCP stdio/schema Ajv e CLI. O cenário confirmou Evidence do snapshot, paginação, inventário Compose/Nginx e ausência de retenção de valores sensíveis; a função de teste levou 2,36 s e o processo Vitest completo 15,81 s (uma amostra, sem comparação antes/depois). O resultado confirma apenas análise estática declarada: CPU/RAM/disco/I/O/rede/latência/reinícios continuam `NOT_MEASURED`, Docker de alvo não foi executado e nenhuma baseline VPS foi coletada. Próxima entrega T4.4: desenhar coleta runtime opt-in, estritamente local, com seleção explícita de recursos, timeout/limite, identidade de ownership e Evidence persistida antes de integrar qualquer adapter; até então, manter runtime como não medido.
+
 ## Geração inicial de plano unificado com Evidence — 17/10/2026
 
 Na entrega inicial, `plan` agregou itens dos motores funcional, produto, segurança e dados em uma resposta paginada compartilhada por PieService, CLI, API autenticada e MCP (`pie_plan_generate`). Cada item mantém ID/estado de origem e Evidence, aceite proposto, incerteza, owner `null` e prioridade `unassessed`; `planDigest` não varia com paginação. Infraestrutura e regressão aparecem explicitamente como `not_implemented`; o plano fica `unverified` e não autoriza execução. A cobertura de contestação foi adicionada na entrega registrada abaixo.

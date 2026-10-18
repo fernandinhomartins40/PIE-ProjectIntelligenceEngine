@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Próxima frente — medição runtime local de infraestrutura — 18/10/2026
+
+Revalidação da boundary `tests/boundary/pieInfrastructure.test.ts`: 1/1 passou com Git/SQLite reais, cobrindo PieService/API autenticada/MCP stdio + Ajv/CLI, Evidence, paginação e redaction. O teste levou 2,36 s, processo Vitest 15,81 s em uma amostra; não é baseline comparativa. O motor continua estático e todas as métricas do alvo são `NOT_MEASURED`. Próximo: especificar e implementar uma operação runtime separada, opt-in e exclusivamente local, que exija seleção explícita de recursos e produza Evidence ligada à raiz/snapshot; definir ownership e política de cancelamento/cleanup antes de chamar Docker. Não inferir seleção a partir de Compose nem coletar todos os containers do daemon.
+
 ## Próxima frente — Result em fronteiras compartilhadas — 18/10/2026
 
 Slice executado: leitura bounded compartilhada agora usa Result discriminado (`limit_exceeded`/`not_regular_file`) em descoberta, segurança, workspace VERIFY, assets, JSON de grants e journal. As boundaries passaram 22 testes; 1 caso POSIX foi skipped no Windows. `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram; depois, priorizar Result nos serviços/mutações restantes ou outra entrega P0 material do plano.
