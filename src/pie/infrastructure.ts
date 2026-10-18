@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { type Snapshot, PieError } from "./contracts.js";
 import { page, pageSchema } from "./graph.js";
-import { adapterFactSchema } from "./adapters/contracts.js";
+import {
+  adapterFactSchema,
+  parseComposeServiceSettingName,
+} from "./adapters/contracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import { err, ok, type Result } from "../domain/result.js";
 
@@ -28,6 +31,13 @@ const componentSchema = z.strictObject({
       evidenceId: z.string().uuid(),
     }),
   ),
+  settings: z.array(
+    z.strictObject({
+      key: z.enum(["image", "port", "restart", "healthcheck"]),
+      value: z.string(),
+      evidenceId: z.string().uuid(),
+    }),
+  ),
   redactionStatus: z.enum(["not_collected", "redacted", "not_required"]),
   evidenceLimitations: z.array(z.string()),
   state: z.literal("unverified"),
@@ -35,7 +45,7 @@ const componentSchema = z.strictObject({
 
 const measurement = z.literal("NOT_MEASURED");
 export const infrastructureOutput = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   engine: z.literal("infrastructure"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
@@ -73,6 +83,12 @@ function inventoryFacts(snapshot: Snapshot) {
   const dependencies = facts.filter(
     (fact) => fact.adapter === "compose" && fact.kind === "service_dependency",
   );
+  const settings = facts.flatMap((fact) => {
+    if (fact.adapter !== "compose" || fact.kind !== "config_directive")
+      return [];
+    const setting = parseComposeServiceSettingName(fact.name);
+    return setting ? [{ fact, setting }] : [];
+  });
   const nginxFacts = facts.filter(
     (fact) =>
       fact.adapter === "nginx-config" &&
@@ -100,6 +116,16 @@ function inventoryFacts(snapshot: Snapshot) {
           fact.source.path === service.source.path &&
           fact.parent === service.name,
       );
+      const serviceSettings = settings
+        .filter(
+          ({ fact }) =>
+            fact.source.path === service.source.path &&
+            fact.parent === service.name,
+        )
+        .map(({ fact, setting }) => ({
+          ...setting,
+          evidenceId: fact.evidenceId,
+        }));
       return {
         id: service.id,
         kind: "compose_service" as const,
@@ -113,6 +139,7 @@ function inventoryFacts(snapshot: Snapshot) {
           name: fact.name,
           evidenceId: fact.evidenceId,
         })),
+        settings: serviceSettings,
         state: "unverified" as const,
       };
     },
@@ -128,6 +155,7 @@ function inventoryFacts(snapshot: Snapshot) {
       evidenceId: fact.evidenceId,
       ...evidenceDetails(fact.evidenceId),
       dependencies: [],
+      settings: [],
       state: "unverified" as const,
     })),
   );
@@ -136,7 +164,10 @@ function inventoryFacts(snapshot: Snapshot) {
       a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
     ),
     sourceFacts:
-      composeServices.length + dependencies.length + nginxFacts.length,
+      composeServices.length +
+      dependencies.length +
+      settings.length +
+      nginxFacts.length,
   };
 }
 
@@ -147,7 +178,7 @@ function reviewValidatedInfrastructure(
 ) {
   const { components, sourceFacts } = inventoryFacts(snapshot);
   return infrastructureOutput.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     engine: "infrastructure",
     snapshotId: snapshot.id,
     state: "unverified",
@@ -170,8 +201,8 @@ function reviewValidatedInfrastructure(
       sourceFacts,
       runtimeMeasured: false,
       limitations: [
-        "Inventário limitado a serviços e dependências Compose já parseados e diretivas Nginx selecionadas com Evidence; não examina Dockerfile, CI, processos, volumes, portas ou configuração efetiva.",
-        "Declarações estáticas não comprovam serviços ativos, relações de consumidores, healthchecks, persistência, exposição, limites de recursos, segurança ou necessidade operacional.",
+        "Inventário limitado a serviços, dependências, imagem, portas, política de reinício e presença de healthcheck Compose já parseados e diretivas Nginx selecionadas com Evidence; não examina Dockerfile, CI, processos, volumes ou configuração efetiva.",
+        "Declarações estáticas não comprovam serviços ativos, relações de consumidores, funcionamento do healthcheck, persistência, exposição efetiva, limites de recursos, segurança ou necessidade operacional.",
         "Métricas de CPU/RAM/disco/I/O/rede/latência p95/p99/reinícios são NOT_MEASURED; esta análise não executa Docker, carga ou comandos na aplicação-alvo.",
         ...(components.length === 0
           ? [

@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 import { discoverProject } from "../../src/pie/discovery.js";
+import { parseComposeServiceSettingName } from "../../src/pie/adapters/contracts.js";
 import {
   readDeclarations,
   readDeclarationsResult,
@@ -501,6 +502,40 @@ it("Nginx preserva fatos estáticos adicionais de recursos, TLS e logs", () => {
   expect(parsed.declarations.map((item) => item.line)).toEqual([
     1, 2, 4, 5, 7, 8, 9, 10, 11, 12,
   ]);
+});
+
+it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () => {
+  const source = [
+    "services:",
+    "  api:",
+    "    image: node:24-alpine",
+    "    ports:",
+    '      - "127.0.0.1:8080:3000"',
+    "    restart: unless-stopped",
+    "    healthcheck:",
+    '      test: ["CMD", "echo", "DO_NOT_RETAIN"]',
+  ].join("\n");
+  const parsed = readDeclarations("compose.yaml", source, 20)!;
+  const settings = parsed.declarations.flatMap((declaration) => {
+    const value = parseComposeServiceSettingName(declaration.name);
+    return value
+      ? [{ ...value, parent: declaration.parent, line: declaration.line }]
+      : [];
+  });
+  expect(settings).toEqual(
+    expect.arrayContaining([
+      { key: "image", value: "node:24-alpine", parent: "api", line: 3 },
+      {
+        key: "port",
+        value: "127.0.0.1:8080:3000",
+        parent: "api",
+        line: 4,
+      },
+      { key: "restart", value: "unless-stopped", parent: "api", line: 6 },
+      { key: "healthcheck", value: "declared", parent: "api", line: 7 },
+    ]),
+  );
+  expect(JSON.stringify(settings)).not.toContain("DO_NOT_RETAIN");
 });
 
 it("Nginx integra inventário Git, evidência e trace sem ler include externo", async () => {

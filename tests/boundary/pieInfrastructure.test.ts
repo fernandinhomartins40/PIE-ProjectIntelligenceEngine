@@ -51,13 +51,33 @@ function expectInfrastructureNginxFacts(
   );
 }
 
+function expectComposeRuntimeSettings(
+  result: Awaited<ReturnType<PieService["infrastructure"]>>,
+  evidenceIds: Set<string>,
+) {
+  const api = result.components.items.find(
+    (item) => item.kind === "compose_service" && item.name === "api",
+  );
+  expect(api?.settings).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ key: "image", value: "node:24-alpine" }),
+      expect.objectContaining({ key: "port", value: "127.0.0.1:8080:3000" }),
+      expect.objectContaining({ key: "restart", value: "unless-stopped" }),
+      expect.objectContaining({ key: "healthcheck", value: "declared" }),
+    ]),
+  );
+  expect(
+    api?.settings.every((setting) => evidenceIds.has(setting.evidenceId)),
+  ).toBe(true);
+}
+
 it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "pie-infrastructure-"));
   const repository = join(temporary, "repo");
   await mkdir(repository);
   await writeFile(
     join(repository, "compose.yaml"),
-    "services:\n  api:\n    depends_on:\n      - database\n  database:\n    image: postgres\n",
+    'services:\n  api:\n    image: node:24-alpine\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    depends_on:\n      - database\n  database:\n    image: postgres\n',
   );
   await writeFile(
     join(repository, "nginx.conf"),
@@ -113,6 +133,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
       ]),
     );
     expectInfrastructureNginxFacts(result);
+    expect(JSON.stringify(result)).not.toContain("DO_NOT_RETAIN");
     expect(result.coverage.sourceFacts).toBeGreaterThan(
       result.components.total,
     );
@@ -123,6 +144,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
     );
     for (const component of result.components.items)
       expect(evidence.has(component.evidenceId)).toBe(true);
+    expectComposeRuntimeSettings(result, evidence);
     const page = await service.infrastructure({
       snapshotId: discovered.snapshot.id,
       offset: 2,

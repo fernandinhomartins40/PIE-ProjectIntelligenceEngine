@@ -1,7 +1,11 @@
 import { parseDocument, LineCounter, isMap, isScalar } from "yaml";
 import { posix } from "node:path";
 import { parseTree, findNodeAtLocation } from "jsonc-parser";
-import type { AdapterRead, Declaration } from "./contracts.js";
+import {
+  composeServiceSettingName,
+  type AdapterRead,
+  type Declaration,
+} from "./contracts.js";
 import { readNginx } from "./nginx.js";
 import { readLaravelDeclarations } from "./laravel.js";
 import { readSqlMigration } from "./sqlMigration.js";
@@ -199,6 +203,30 @@ function structured(path: string, source: string): AdapterRead {
         parent: null,
         line,
       });
+      const setting = (
+        key: "image" | "port" | "restart" | "healthcheck",
+        value: string,
+        segments: string[],
+      ) =>
+        declarations.push({
+          adapter: "compose",
+          kind: "config_directive",
+          name: composeServiceSettingName({ key, value }),
+          parent: name,
+          line: lineAt(segments),
+        });
+      if (typeof service.image === "string")
+        setting("image", service.image, ["services", name, "image"]);
+      if (typeof service.restart === "string")
+        setting("restart", service.restart, ["services", name, "restart"]);
+      if (Array.isArray(service.ports))
+        for (const port of service.ports) {
+          const value = typeof port === "string" ? port : JSON.stringify(port);
+          if (value !== undefined)
+            setting("port", value, ["services", name, "ports"]);
+        }
+      if (Object.hasOwn(service, "healthcheck"))
+        setting("healthcheck", "declared", ["services", name, "healthcheck"]);
       const depends = Array.isArray(service.depends_on)
         ? service.depends_on.filter(
             (item): item is string => typeof item === "string",
@@ -216,7 +244,7 @@ function structured(path: string, source: string): AdapterRead {
     return {
       declarations,
       limitations: [
-        "Compose declarado; interpolação, include, extends, profiles e comportamento de containers não resolvidos. Nenhum valor de environment, build ou secrets é retido.",
+        "Compose: inventário limitado a serviços, dependências, image, ports, restart e presença de healthcheck; interpolação, include, extends, profiles, volumes, build, environment, secrets e comportamento de containers não resolvidos. O comando de healthcheck não é retido.",
       ],
     };
   }

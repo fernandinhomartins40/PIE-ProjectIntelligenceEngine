@@ -7,6 +7,33 @@ export const relationShapeSchema = z.strictObject({
   targetFields: z.array(z.string().min(1).max(1000)).nullable(),
 });
 
+export const composeServiceSettingSchema = z.strictObject({
+  key: z.enum(["image", "port", "restart", "healthcheck"]),
+  value: z.string().max(900),
+});
+
+const composeServiceSettingPrefix = "compose_setting:";
+
+export function composeServiceSettingName(
+  setting: z.infer<typeof composeServiceSettingSchema>,
+) {
+  return `${composeServiceSettingPrefix}${JSON.stringify(setting)}`;
+}
+
+/** Decode only the adapter-owned representation; never reinterpret Compose source. */
+export function parseComposeServiceSettingName(name: string) {
+  if (!name.startsWith(composeServiceSettingPrefix)) return null;
+  let value: unknown;
+  try {
+    value = JSON.parse(name.slice(composeServiceSettingPrefix.length));
+  } catch (cause) {
+    if (cause instanceof SyntaxError) return null;
+    throw cause;
+  }
+  const parsed = composeServiceSettingSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
 export const adapterFactSchema = z.strictObject({
   provenanceVersion: z
     .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])

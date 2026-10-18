@@ -607,3 +607,9 @@ As migrations 202610170002 e 202610170003 começavam com BOM UTF-8; removido o B
 ## Cobertura Nginx estática ampliada — 18/10/2026
 
 O parser Nginx adicionou `root`, `alias`, limites de corpo, workers/keepalive, gzip, protocolos e caminhos de certificado TLS, logs e zonas de limitação. `pieAdapters` + `pieInfrastructure`: 13/13 passaram; `check:fast` e `format:check` passaram. Evidence conserva argumentos e linha, mas não são lidos certificados/logs nem testada a configuração efetiva. Dockerfile, atributos Compose adicionais, serviços ativos e métricas continuam pendentes; sem Nginx instalado ou VPS para medição.
+
+## Compose declarativo — 18/10/2026
+
+`infrastructure-review` schemaVersion 2 agora traz `image`, cada porta, `restart` e somente presença de healthcheck por serviço Compose, com Evidence própria por campo; UI abre Evidence de cada item. O teste confirma que o comando de healthcheck (`DO_NOT_RETAIN`) não é retido. `pieAdapters`, `pieInfrastructure` e `mcp/pieMcp`: 15/15 passaram com Git/SQLite; schemas MCP Ajv e paridade CLI/API/MCP passam. `environment`, `secrets`, `build`, volumes, Dockerfile, execução e runtime continuam ausentes/não verificados.
+
+E2E em Chrome real (`pieInfrastructureWeb`): o painel exibe image/port/restart/presença de healthcheck com links para Evidence, não renderiza o comando do healthcheck e mantém viewports 360/1440 sem overflow. O cartão de infraestrutura recebeu nome acessível por serviço/diretiva. Teste: 1/1 passou; `pie:web:typecheck` e `pie:web:build` passaram.

@@ -1,0 +1,90 @@
+﻿import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
+import { chromium } from "playwright-core";
+import { expect, it } from "vitest";
+import { startPieApi } from "../../src/pie/api.js";
+import { PieService } from "../../src/pie/service.js";
+import { openStore } from "../../src/pie/store.js";
+
+const exec = promisify(execFile);
+const executablePath =
+  process.env.PIE_BROWSER_EXECUTABLE ??
+  (process.platform === "win32"
+    ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
+    : "/usr/bin/google-chrome");
+
+it.skipIf(!existsSync(executablePath))(
+  "painel mostra configurações Compose com Evidence sem reter comando de healthcheck",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "pie-infrastructure-web-"));
+    const repo = join(root, "repo");
+    await mkdir(repo);
+    await exec("git", ["init", repo]);
+    await writeFile(
+      join(repo, "compose.yaml"),
+      'services:\n  api:\n    image: node:24-alpine\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n',
+    );
+    await exec("git", ["-C", repo, "add", "."]);
+    const store = await openStore(join(root, "history.sqlite"), repo);
+    const service = new PieService(store);
+    const observed = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const token = "fixture-infrastructure-web-token-32-characters";
+    const server = await startPieApi(service, {
+      root: repo,
+      token,
+      webDirectory: resolve("dist/pie-web"),
+    });
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    try {
+      browser = await chromium.launch({ executablePath, headless: true });
+      const page = await browser.newPage();
+      await page.goto(server.url);
+      await page.getByLabel("Credencial do serviço local").fill(token);
+      await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      const section = page.getByRole("region", {
+        name: "Infraestrutura e performance",
+      });
+      const serviceCard = section.getByRole("article", {
+        name: "Serviço api",
+      });
+      await serviceCard.getByText("node:24-alpine", { exact: true }).waitFor();
+      await serviceCard
+        .getByText("127.0.0.1:8080:3000", { exact: true })
+        .waitFor();
+      await serviceCard.getByText("unless-stopped", { exact: true }).waitFor();
+      await serviceCard.getByText("declared", { exact: true }).waitFor();
+      expect(
+        await page.getByText("DO_NOT_RETAIN", { exact: false }).count(),
+      ).toBe(0);
+      await serviceCard
+        .getByRole("list", { name: "Configurações Compose declaradas" })
+        .getByRole("button", { name: "Evidence" })
+        .first()
+        .click();
+      await page.locator("aside.evidence").waitFor();
+      expect(observed.snapshot.id).toBeTruthy();
+      for (const width of [360, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        expect(
+          await page.evaluate(
+            "document.documentElement.scrollWidth <= innerWidth",
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      await browser?.close();
+      await server.close();
+      await service.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  60_000,
+);

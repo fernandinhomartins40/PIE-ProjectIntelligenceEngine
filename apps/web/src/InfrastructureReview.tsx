@@ -45,8 +45,9 @@ export function InfrastructureReview({
     >
       <h2>Infraestrutura e performance</h2>
       <p>
-        Inventário estático de serviços/dependências Compose e diretivas Nginx
-        encontrados com Evidence. A configuração declarada não comprova runtime.
+        Inventário estático de serviços, imagem, portas, política de reinício e
+        presença de healthcheck declarados no Compose, além de diretivas Nginx
+        com Evidence. A configuração declarada não comprova runtime.
       </p>
       {error && <Notice error>{error}</Notice>}
       {loading && (
@@ -59,7 +60,15 @@ export function InfrastructureReview({
             Nenhum container ou serviço do alvo foi executado ou sondado.
           </Notice>
           {review.components.items.map((component) => (
-            <article className="card" key={component.id}>
+            <article
+              aria-label={
+                component.kind === "compose_service"
+                  ? `Serviço ${component.name}`
+                  : `Diretiva Nginx ${component.name}`
+              }
+              className="card"
+              key={component.id}
+            >
               <h3>
                 {component.kind === "compose_service"
                   ? `Serviço ${component.name}`
@@ -88,6 +97,21 @@ export function InfrastructureReview({
                     .join(", ")}
                   .
                 </p>
+              )}
+              {component.settings.length > 0 && (
+                <ul aria-label="Configurações Compose declaradas">
+                  {component.settings.map((setting) => (
+                    <li key={setting.evidenceId}>
+                      {setting.key}: <code>{setting.value}</code> ·{" "}
+                      <button
+                        type="button"
+                        onClick={() => onEvidence(setting.evidenceId)}
+                      >
+                        Evidence
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
               <button
                 type="button"
