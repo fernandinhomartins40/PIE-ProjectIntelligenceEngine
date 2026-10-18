@@ -659,3 +659,7 @@ Continuidade T4.5 — objetos condicionais — 18/10/2026
 Continuidade T4.5 - particoes e heranca SQL - 18/10/2026
 
 `CREATE TABLE ... PARTITION OF` e `INHERITS` agora marcam a migration incompleta e nao emitem facts do objeto derivado: limites de particao usam expressoes parenteticas e partitions clonam indexes/constraints do pai, enquanto heranca SQL pode fornecer colunas ausentes da declaracao local. `CREATE TABLE ... PARTITION BY` do pai mantem seus facts locais observaveis. Testes cobrem parse direto de particao/heranca e Data Review inconclusivo com Git/SQLite; focused Data Review/adapters passou 31/31. PostgreSQL runtime continua indisponivel; T4.5 parcial.
+
+Continuidade T4.5 - tabelas temporarias e CTAS - 18/10/2026
+
+`CREATE TEMP/TEMPORARY TABLE` (incluindo `GLOBAL/LOCAL`) e `CREATE TABLE ... AS` agora deixam a migration incompleta e nao emitem facts de tabela/colunas. Tabelas temporarias sao limitadas a sessao/transacao; CTAS deriva colunas do resultado da consulta, nao de uma lista de declarations analisada pelo subconjunto. Boundary direta valida formas simples/global temporaria e expressao SELECT entre parenteses; boundary Data Review Git/SQLite confirma CTAS inconclusivo. Focused Data Review/adapters: 33/33. Referencias: https://www.postgresql.org/docs/current/sql-createtable.html e https://www.postgresql.org/docs/current/sql-createtableas.html .

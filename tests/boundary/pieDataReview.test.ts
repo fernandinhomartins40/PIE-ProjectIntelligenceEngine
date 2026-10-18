@@ -85,6 +85,26 @@ it("nao interpreta limites de particao como lista de colunas", () => {
   );
 });
 
+it("nao interpreta tabela temporaria ou CREATE TABLE AS como DDL declarativo", () => {
+  const parsed = readSqlMigration(
+    [
+      'CREATE TEMP TABLE "TemporaryUser" ("id" INTEGER PRIMARY KEY);',
+      'CREATE GLOBAL TEMPORARY TABLE "GlobalTemporaryUser" ("id" INTEGER PRIMARY KEY);',
+      'CREATE TABLE "UserFromQuery" AS SELECT generate_series(1, 10) AS id;',
+      'CREATE TABLE "UserFromQueryWithNames" ("id") AS SELECT generate_series(1, 10);',
+    ].join("\n"),
+  );
+  expect(parsed.limitations).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("linha 1"),
+      expect.stringContaining("linha 2"),
+      expect.stringContaining("linha 3"),
+      expect.stringContaining("linha 4"),
+    ]),
+  );
+  expect(parsed.declarations).toEqual([]);
+});
+
 async function collectDataReviewExport(
   service: PieService,
   snapshotId: string,
@@ -1024,6 +1044,43 @@ it("mantem particao PostgreSQL inconclusiva no Data Review", async () => {
       'CREATE TABLE "User" ("id" INTEGER PRIMARY KEY) PARTITION BY RANGE ("id");',
       'CREATE TABLE "User_1" PARTITION OF "User" FOR VALUES FROM (1) TO (10);',
     ].join("\n"),
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("mantem CREATE TABLE AS inconclusivo no Data Review", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-ctas-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_ctas");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id Int @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    'CREATE TABLE "User" ("id") AS SELECT generate_series(1, 10);\n',
   );
   await exec("git", ["-C", repo, "add", "."]);
   const store = await openStore(join(root, "pie.sqlite"), repo);

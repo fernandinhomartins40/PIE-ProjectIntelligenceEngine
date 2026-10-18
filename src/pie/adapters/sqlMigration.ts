@@ -189,6 +189,17 @@ function hasTriple(
   );
 }
 
+function hasTopLevelKeyword(tokens: Token[], start: number, value: string) {
+  let depth = 0;
+  for (let index = start; index < tokens.length; index++) {
+    const token = tokens[index]!;
+    if (keyword(token, "(") || keyword(token, "[")) depth++;
+    else if (keyword(token, ")") || keyword(token, "]")) depth--;
+    else if (depth === 0 && keyword(token, value)) return true;
+  }
+  return false;
+}
+
 function identifierList(tokens: Token[], start: number): string[] | null {
   if (!keyword(tokens[start], "(")) return null;
   const values: string[] = [];
@@ -263,12 +274,29 @@ export function readSqlMigration(source: string): AdapterRead {
     let bodyStart = -1;
     if (keyword(statement[0], "create")) {
       let index = 1;
+      let temporary = false;
       if (
-        ["temporary", "temp", "unlogged"].includes(
+        ["global", "local"].includes(
           statement[index]?.quoted ? "" : (statement[index]?.value ?? ""),
         )
-      )
+      ) {
+        if (
+          keyword(statement[index + 1], "temporary") ||
+          keyword(statement[index + 1], "temp")
+        ) {
+          temporary = true;
+          index += 2;
+        } else {
+          markUnsupportedDdl(statement);
+          continue;
+        }
+      } else if (
+        keyword(statement[index], "temporary") ||
+        keyword(statement[index], "temp")
+      ) {
+        temporary = true;
         index++;
+      } else if (keyword(statement[index], "unlogged")) index++;
       if (!keyword(statement[index], "table")) {
         if (
           keyword(statement[index], "unique") &&
@@ -307,6 +335,10 @@ export function readSqlMigration(source: string): AdapterRead {
         }
         continue;
       }
+      if (temporary) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       index++;
       if (keyword(statement[index], "if")) {
         markUnsupportedDdl(statement);
@@ -326,6 +358,10 @@ export function readSqlMigration(source: string): AdapterRead {
         continue;
       }
       table = target.name;
+      if (hasTopLevelKeyword(statement, target.next, "as")) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       bodyStart = statement.findIndex(
         (token, tokenIndex) => keyword(token, "(") && tokenIndex >= target.next,
       );

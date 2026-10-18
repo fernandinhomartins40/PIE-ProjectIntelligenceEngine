@@ -912,3 +912,9 @@ O parser identifica PK/UNIQUE inline; a boundary integrada valida UNIQUE inline 
 
 `PARTITION OF` e `INHERITS` sao fail-closed, sem interpretar limites de particao como colunas nem presumir constraints/colunas locais completas. O DDL do pai `PARTITION BY` ainda produz seus facts locais. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 31/31; testes incluem parser e Data Review Git/SQLite. PostgreSQL runtime nao foi executado.
 Validação geral desta extensão: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram. Boundary Data Review/adapters: 31/31.
+
+## Tabelas temporarias e CTAS — T4.5 — 18/10/2026
+
+`CREATE TEMP/TEMPORARY TABLE` e `CREATE TABLE ... AS` falham fechados sem facts de tabela ou constraints. Boundary de parser cobre TEMP e GLOBAL TEMPORARY e CTAS com funcao/parenteses; Data Review integrado cobre migration CTAS. Focused Data Review/adapters: 33/33. PostgreSQL runtime nao executado.
+Validacao geral da extensao TEMP/CTAS: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; Data Review/adapters 33/33.
+Revalidacao apos ampliar CTAS com lista opcional de nomes de coluna: focused Data Review/adapters 33/33; `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram.
