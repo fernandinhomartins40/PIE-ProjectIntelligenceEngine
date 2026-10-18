@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -105,6 +106,9 @@ export async function runPie(args: string[]): Promise<void> {
       "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id> | data-review <snapshot-id> | security-review <snapshot-id> | infrastructure-review <snapshot-id>; aceitam --limit <1–200> --offset <n>. Código estático não comprova runtime; métricas não medidas permanecem NOT_MEASURED.",
     );
     console.log(
+      "Exportação de dados: data-review-export <snapshot-id> --format json|md|html; saída UTF-8 paginada e verificada por SHA-256, sem validar estado runtime ou migrations aplicadas.",
+    );
+    console.log(
       "Histórico funcional: functional-retain <snapshot-id> | functional-record <id> | functional-records <snapshot-id> --limit <1–200> --offset <n> | functional-record-export <id>. Retenção preserva somente a página solicitada.",
       "Plano: plan <snapshot-id>; plan-export <snapshot-id> --format json|md|html; plan-item-history-export <snapshot-id> <digest> <item-id> --format json|md|html; plan-contest <request.json>; plan-triage <request.json>; plan-triage-history <snapshot-id> <digest> <item-id>. completed não significa verificado.",
     );
@@ -175,6 +179,7 @@ export async function runPie(args: string[]): Promise<void> {
       "functional-record-export",
       "functional-records",
       "data-review",
+      "data-review-export",
       "security-review",
       "infrastructure-review",
       "http-probe",
@@ -323,6 +328,47 @@ export async function runPie(args: string[]): Promise<void> {
       case "data-review":
         result = await service.dataReview({ snapshotId: target!, ...paging });
         break;
+      case "data-review-export":
+        {
+          let offset = 0;
+          let report = "";
+          let totalBytes: number | undefined;
+          let digest: string | undefined;
+          do {
+            const exported = await service.exportDataReview({
+              snapshotId: z.string().uuid().parse(target!),
+              format: z
+                .enum(["json", "md", "html"])
+                .parse(parsed.values.format ?? "json"),
+              offset,
+              limitBytes: 1_000_000,
+            });
+            if (
+              (totalBytes !== undefined &&
+                exported.totalBytes !== totalBytes) ||
+              (digest !== undefined && exported.sha256 !== digest)
+            )
+              throw new PieError(
+                "BUSY",
+                "O artefato de dados mudou durante a leitura.",
+              );
+            totalBytes = exported.totalBytes;
+            digest = exported.sha256;
+            report += exported.content;
+            if (exported.nextOffset === null) break;
+            offset = exported.nextOffset;
+          } while (true);
+          if (
+            Buffer.byteLength(report, "utf8") !== totalBytes ||
+            createHash("sha256").update(report, "utf8").digest("hex") !== digest
+          )
+            throw new PieError(
+              "INTEGRITY_ERROR",
+              "Páginas da revisão de dados não formam o artefato íntegro.",
+            );
+          process.stdout.write(report + "\n");
+        }
+        return;
       case "security-review":
         result = await service.security({ snapshotId: target!, ...paging });
         break;

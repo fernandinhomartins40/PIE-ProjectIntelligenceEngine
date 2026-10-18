@@ -793,3 +793,10 @@ Atualização de gates finais — 18/10/2026
 - npm.cmd run pie:web:typecheck e git diff --check: passaram.
 - npm.cmd run test:focused -- tests/boundary/pieWeb.test.ts: 4 passaram, 1 cenário Linux-only skipped. pie:web:build também passou.
 - O ledger do projeto permanece complete=false e T1.5/T4.5 parciais.
+
+## Exportação do Data Review — 18/10/2026
+
+- Comando/API/MCP: data-review-export, GET autenticado /v1/data-review/export e pie_data_review_export usam o mesmo PieService.
+- JSON/Markdown/HTML são paginados por bytes UTF-8. A agregação verifica snapshot, coverage e totais entre páginas; CLI verifica tamanho total e SHA-256. A exportação inclui digest da árvore e deixa state=unverified.
+- npm.cmd run pie:build: passou. npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts: 1 teste passou; Git/SQLite reais validaram paginação/hash, CLI/API/MCP e schemas de entrada/saída MCP com Ajv.
+- Limites: não houve PostgreSQL real; não calcula estado final das migrations nem exporta todos os outros registros do PIE. T6.1 permanece parcial.

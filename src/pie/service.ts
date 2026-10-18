@@ -18,6 +18,10 @@ import {
   functionalInput,
 } from "./functional.js";
 import { dataReviewInput, reviewDataResult } from "./dataReview.js";
+import {
+  dataReviewExportInput,
+  exportDataReview as renderDataReviewExport,
+} from "./dataReviewExport.js";
 import { reviewSecurityResult, securityInput } from "./security.js";
 import {
   exportSnapshot as renderSnapshotExport,
@@ -842,6 +846,11 @@ export class PieService {
       const snapshot = await this.store.snapshot(snapshotId.data);
       return dataReviewValue(reviewDataResult(snapshot, input));
     });
+  }
+  exportDataReview(input: unknown) {
+    return this.#read(async () =>
+      renderDataReviewExport(this, dataReviewExportInput.parse(input)),
+    );
   }
   security(input: unknown) {
     return this.#read(async () => {

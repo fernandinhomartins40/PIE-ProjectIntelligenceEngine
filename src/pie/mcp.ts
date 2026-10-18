@@ -13,6 +13,10 @@ import {
   productOutput,
 } from "./functional.js";
 import { dataReviewInput, dataReviewOutput } from "./dataReview.js";
+import {
+  dataReviewExportInput,
+  dataReviewExportOutput,
+} from "./dataReviewExport.js";
 import { securityInput, securityOutput } from "./security.js";
 import { infrastructureInput, infrastructureOutput } from "./infrastructure.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
@@ -138,6 +142,17 @@ export function createPieMcp(
       annotations: read,
     },
     (input) => guarded(() => service.dataReview(input)),
+  );
+  server.registerTool(
+    "pie_data_review_export",
+    {
+      description:
+        "Exporta a revisão completa de dados em JSON, Markdown ou HTML, em páginas UTF-8 com SHA-256 e digest da árvore do snapshot. Mantém estado unverified e Evidence; não calcula estado final de migrations nem consulta o banco.",
+      inputSchema: dataReviewExportInput,
+      outputSchema: withError(dataReviewExportOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.exportDataReview(input)),
   );
   server.registerTool(
     "pie_security_review",

@@ -553,3 +553,5 @@ Contrato `data-review` schemaVersion 5 compara colunas Prisma únicas/primárias
 Continuação: Data Review já aparece na investigação web do snapshot, com cobertura, fatos esperados/observados, relações, limitações, paginação e links para Evidence. pie:web:typecheck, pie:web:build e pieWeb passaram; Chrome Windows validou o percurso sobre schema/migration de fixture Git/SQLite. PostgreSQL runtime e estado final de migrations seguem não verificados; T1.5/T4.5 permanecem parciais.
 
 Gates desta integração aprovados: check:fast, format:check, docs:check, pie:web:typecheck, pie:web:build, pieWeb em Chrome (4 passaram/1 Linux-only skipped) e git diff --check. Ledger global segue complete=false; continuar pelas pendências do plano mestre.
+
+Continuação T6.1: export Data Review JSON/Markdown/HTML paginado UTF-8 disponível pelo serviço, CLI, GET autenticado e MCP; agrega páginas, verifica consistência/sha256 e inclui treeDigest e Evidence, mantendo unverified. pie:build e pieDataReview passaram (Git/SQLite; Ajv). PostgreSQL runtime, estado final de migrations, demais exports e CI geral seguem pendentes.

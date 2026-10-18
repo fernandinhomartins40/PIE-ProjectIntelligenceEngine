@@ -554,3 +554,9 @@ O painel pt-BR agora consulta automaticamente POST /v1/data-review para o snapsh
 Validação executada: npm.cmd run pie:web:typecheck, npm.cmd run pie:web:build e npm.cmd run test:focused -- tests/boundary/pieWeb.test.ts. O Chrome Windows abriu o snapshot com schema/migration no repositório Git/SQLite, mostrou seletor e colunas observadas e carregou Evidence ao selecionar. Resultado do arquivo: 4 testes passaram, 1 cenário Linux-only foi skipped. T1.5/T4.5 permanecem parciais pelas lacunas de runtime e resolução final de migrations já descritas.
 
 Gates finais da integração web: check:fast, format:check, docs:check, pie:web:typecheck e git diff --check passaram. pieWeb no Chrome Windows: 4 passaram, 1 Linux-only skipped. O ledger global ainda informa complete=false; o objetivo PIE permanece em andamento.
+
+## Exportação do Data Review — T6.1 — 18/10/2026
+
+O relatório completo de dados agora pode ser exportado em JSON, Markdown ou HTML paginados por bytes UTF-8, incluindo treeDigest, coverage, migrations, relações, seletores, Evidence e limitações. PieService agrega todas as páginas de findings e interrompe com BUSY se snapshot/coverage/totais divergirem ou a coleta ficar incompleta; a CLI remonta e confere bytes/SHA-256. Disponível por CLI data-review-export, GET autenticado /v1/data-review/export e MCP pie_data_review_export.
+
+Validação: pie:build e pieDataReview passaram; teste Git/SQLite verificou páginas remontadas, bytes/hash, paridade CLI/API/MCP e schemas MCP com Ajv. Estado continua unverified, sem PostgreSQL runtime ou cálculo final das migrations. T6.1 continua parcial por faltarem outros exports e CI geral.

@@ -12,12 +12,140 @@ import { runPie } from "../../src/pie/cli.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { sha256 } from "../../src/pie/evidence.js";
 import {
   dataReviewOutput,
   reviewDataResult,
 } from "../../src/pie/dataReview.js";
 
 const exec = promisify(execFile);
+
+async function collectDataReviewExport(
+  service: PieService,
+  snapshotId: string,
+) {
+  let offset = 0;
+  let content = "";
+  let first: Awaited<ReturnType<PieService["exportDataReview"]>> | undefined;
+  do {
+    const page = await service.exportDataReview({
+      snapshotId,
+      format: "json",
+      offset,
+      limitBytes: 2048,
+    });
+    if (
+      first &&
+      (page.sha256 !== first.sha256 || page.totalBytes !== first.totalBytes)
+    )
+      throw new Error("Data Review export changed between pages.");
+    first ??= page;
+    content += page.content;
+    if (page.nextOffset === null) break;
+    offset = page.nextOffset;
+  } while (true);
+  if (
+    !first ||
+    Buffer.byteLength(content, "utf8") !== first.totalBytes ||
+    sha256(content) !== first.sha256
+  )
+    throw new Error("Data Review export pages failed integrity verification.");
+  return { first, content };
+}
+
+async function verifyDataReviewExportAdapters(input: {
+  service: PieService;
+  snapshotId: string;
+  treeDigest: string;
+  database: string;
+  apiUrl: string;
+  token: string;
+  client: Client;
+  expected: Awaited<ReturnType<PieService["dataReview"]>>;
+}) {
+  const exported = await collectDataReviewExport(
+    input.service,
+    input.snapshotId,
+  );
+  const fullExport = JSON.parse(exported.content) as typeof input.expected;
+  expect(fullExport.schemaVersion).toBe(input.expected.schemaVersion);
+  expect(fullExport.models.items).toHaveLength(input.expected.models.total);
+  expect(fullExport.migrations.items).toHaveLength(
+    input.expected.migrations.total,
+  );
+  expect(fullExport.relations.items).toHaveLength(
+    input.expected.relations.total,
+  );
+  expect(exported.first).toMatchObject({
+    treeDigest: input.treeDigest,
+    state: "unverified",
+    format: "json",
+  });
+
+  const stdout = vi
+    .spyOn(process.stdout, "write")
+    .mockImplementation(() => true);
+  try {
+    await runPie([
+      "data-review-export",
+      input.snapshotId,
+      "--db",
+      input.database,
+      "--format",
+      "json",
+    ]);
+    expect(
+      JSON.parse(String(stdout.mock.calls.map((call) => call[0]).join(""))),
+    ).toEqual(fullExport);
+  } finally {
+    stdout.mockRestore();
+  }
+
+  const response = await fetch(
+    input.apiUrl +
+      "/v1/data-review/export?snapshotId=" +
+      input.snapshotId +
+      "&format=json&limitBytes=2048",
+    { headers: { Authorization: "Bearer " + input.token } },
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(exported.first);
+
+  const tool = (await input.client.listTools()).tools.find(
+    (item) => item.name === "pie_data_review_export",
+  );
+  expect(tool).toBeDefined();
+  const ajv = new Ajv2020({ strict: false, validateFormats: false });
+  expect(ajv.validateSchema(tool!.inputSchema)).toBe(true);
+  expect(ajv.validateSchema(tool!.outputSchema as AnySchema)).toBe(true);
+  const result = await input.client.callTool({
+    name: "pie_data_review_export",
+    arguments: {
+      snapshotId: input.snapshotId,
+      format: "json",
+      limitBytes: 2048,
+    },
+  });
+  expect(result.isError).not.toBe(true);
+  expect(result.structuredContent).toEqual(exported.first);
+  expect(
+    ajv.compile(tool!.outputSchema as AnySchema)(result.structuredContent),
+  ).toBe(true);
+  expect(
+    await input.service.exportDataReview({
+      snapshotId: input.snapshotId,
+      format: "md",
+      limitBytes: 2048,
+    }),
+  ).toMatchObject({ format: "md", state: "unverified" });
+  expect(
+    await input.service.exportDataReview({
+      snapshotId: input.snapshotId,
+      format: "html",
+      limitBytes: 2048,
+    }),
+  ).toMatchObject({ format: "html", state: "unverified" });
+}
 
 function expectPrismaSelectors(
   snapshot: Awaited<
@@ -503,7 +631,6 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
 
     await runPie(["data-review", snapshot.id, "--limit", "10", "--db", db]);
     expect(JSON.parse(String(output.mock.calls.at(-1)?.[0]))).toEqual(expected);
-
     const headers = {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -515,7 +642,6 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
     });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(expected);
-
     await Promise.all([
       client.connect(clientTransport),
       mcp.connect(serverTransport),
@@ -537,6 +663,16 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
     expect(
       ajv.compile(tool!.outputSchema as AnySchema)(result.structuredContent),
     ).toBe(true);
+    await verifyDataReviewExportAdapters({
+      service,
+      snapshotId: snapshot.id,
+      treeDigest: snapshot.treeDigest,
+      database: db,
+      apiUrl: api.url,
+      token,
+      client,
+      expected,
+    });
   } finally {
     output.mockRestore();
     await client.close();

@@ -17,6 +17,7 @@ import { enqueueVerification } from "./jobs/verification.js";
 import { scopedJob } from "./jobs/access.js";
 import { functionalInput } from "./functional.js";
 import { dataReviewInput } from "./dataReview.js";
+import { dataReviewExportInput } from "./dataReviewExport.js";
 import { securityInput } from "./security.js";
 import { infrastructureInput } from "./infrastructure.js";
 import { exportSnapshotInput } from "./exportSnapshot.js";
@@ -543,6 +544,20 @@ export async function startPieApi(
         const input = dataReviewInput.parse(await body(request));
         await requireSnapshot(input.snapshotId);
         respond(response, 200, await service.dataReview(input));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/data-review/export"
+      ) {
+        const input = dataReviewExportInput.parse({
+          snapshotId: url.searchParams.get("snapshotId"),
+          format: url.searchParams.get("format") ?? "json",
+          offset: Number(url.searchParams.get("offset") ?? 0),
+          limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
+        });
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.exportDataReview(input));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/security-review") {
