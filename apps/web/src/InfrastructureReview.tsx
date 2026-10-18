@@ -39,6 +39,10 @@ function settingLabel(key: SettingKey): string {
       return "Montagem de volume declarada";
     case "volume_definition":
       return "Volume Compose declarado";
+    case "environment_key":
+      return "Variável de ambiente declarada";
+    case "env_file":
+      return "Arquivo env declarado";
   }
 }
 

@@ -106,6 +106,16 @@ function expectComposeRuntimeSettings(
       value: "data:/var/lib/app:ro",
     }),
   );
+  expect(api?.settings).toContainEqual(
+    expect.objectContaining({
+      key: "environment_key",
+      value: "API_KEY",
+      evidenceId: expect.any(String),
+    }),
+  );
+  expect(api?.settings).toContainEqual(
+    expect.objectContaining({ key: "env_file", value: ".env.production" }),
+  );
   expect(result.components.items).toContainEqual(
     expect.objectContaining({
       kind: "compose_volume",
@@ -134,7 +144,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
   await mkdir(repository);
   await writeFile(
     join(repository, "compose.yaml"),
-    'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n      args:\n        TOKEN: NEVER_RETAIN\n    ports:\n      - "127.0.0.1:8080:3000"\n    volumes:\n      - "data:/var/lib/app:ro"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      - database\n  database:\n    image: postgres\nvolumes:\n  data:\n    external: true\n',
+    'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n      args:\n        TOKEN: NEVER_RETAIN\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      - database\n  database:\n    image: postgres\nvolumes:\n  data:\n    external: true\n',
   );
   await writeDockerComposeFixture(repository);
   await writeFile(

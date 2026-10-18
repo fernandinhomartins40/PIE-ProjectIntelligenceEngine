@@ -52,6 +52,8 @@ const componentSchema = z.strictObject({
         "pids_reservation",
         "volume_mount",
         "volume_definition",
+        "environment_key",
+        "env_file",
       ]),
       value: z.string(),
       evidenceId: z.string().uuid(),

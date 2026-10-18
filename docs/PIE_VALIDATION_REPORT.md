@@ -853,3 +853,10 @@ Atualização de gates finais — 18/10/2026
 - `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts`: 16/16 passaram com fixtures apenas nos testes e Git/SQLite reais. Cobre sintaxe curta/longa, referências de volume nomeado, linha e Evidence.
 - `npm.cmd run pie:web:build`; `npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts`: 1/1 passou em Chrome, apresentando mount e volume nomeado. `npm.cmd run pie:web:typecheck` passou.
 - Tamb?m passaram `npm.cmd run check:fast`, `npm.cmd run format:check` e `npm.cmd run docs:check`; o ledger permanece `complete=false`. Nenhum Docker/Compose real ou VPS foi executado.
+
+## Ambiente Compose declarado ? 18/10/2026
+
+- Compose emite somente nomes v?lidos de chaves `environment` e caminhos `env_file`; n?o l? arquivos nem ret?m valores, inclusive valores `KEY=value` da forma em lista.
+- `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts tests/boundary/mcp/pieMcp.test.ts`: 18/18 passaram. A integra??o Git/SQLite e MCP preserva Evidence e oculta valor-can?rio.
+- `npm.cmd run pie:web:build`; `npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts`: 1/1 passou em Chrome, mostrando nome da vari?vel e caminho env_file sem valor-can?rio.
+- O conte?do dos arquivos `.env`, interpola??o Compose e ambiente efetivo n?o foi lido ou medido.

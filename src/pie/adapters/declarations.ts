@@ -345,7 +345,9 @@ function structured(path: string, source: string): AdapterRead {
           | "memory_reservation"
           | "pids_reservation"
           | "volume_mount"
-          | "volume_definition",
+          | "volume_definition"
+          | "environment_key"
+          | "env_file",
         value: string,
         segments: string[],
         redactions: string[] = [],
@@ -370,6 +372,48 @@ function structured(path: string, source: string): AdapterRead {
         }
       if (Object.hasOwn(service, "healthcheck"))
         setting("healthcheck", "declared", ["services", name, "healthcheck"]);
+      const environment = service.environment;
+      if (Array.isArray(environment))
+        environment.forEach((entry, index) => {
+          if (typeof entry !== "string") return;
+          const key = entry.split("=", 1)[0] ?? "";
+          if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(key))
+            setting("environment_key", key, [
+              "services",
+              name,
+              "environment",
+              String(index),
+            ]);
+        });
+      else if (object(environment)) {
+        const environmentObject = object(environment);
+        for (const key of Object.keys(environmentObject ?? {}))
+          if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(key))
+            setting("environment_key", key, [
+              "services",
+              name,
+              "environment",
+              key,
+            ]);
+      }
+      if (Array.isArray(service.env_file))
+        service.env_file.forEach((entry, index) => {
+          const path =
+            typeof entry === "string"
+              ? entry
+              : typeof object(entry)?.path === "string"
+                ? String(object(entry)?.path)
+                : null;
+          if (path)
+            setting("env_file", path, [
+              "services",
+              name,
+              "env_file",
+              String(index),
+            ]);
+        });
+      else if (typeof service.env_file === "string")
+        setting("env_file", service.env_file, ["services", name, "env_file"]);
       if (Array.isArray(service.volumes))
         service.volumes.forEach((volume, index) => {
           const value =

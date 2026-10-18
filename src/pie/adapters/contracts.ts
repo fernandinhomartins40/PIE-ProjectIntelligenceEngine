@@ -70,6 +70,8 @@ export const composeServiceSettingSchema = z.strictObject({
     "pids_reservation",
     "volume_mount",
     "volume_definition",
+    "environment_key",
+    "env_file",
   ]),
   value: z.string().max(900),
 });

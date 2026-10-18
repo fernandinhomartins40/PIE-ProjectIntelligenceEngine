@@ -633,3 +633,7 @@ Medição sintética diagnóstica (274 B/13 linhas): fria 10,133 ms; 1.000 hits 
 Compose agora gera facts para mounts de serviço e componente para volumes top-level. Valores de mount são a declaração curta original ou o objeto longo serializado; definições de volume só expõem external/nome e driver conhecidos. Cada fato mantém Evidence e linha. Não normaliza opções de montagem nem confirma existência ou aplicação pelo Docker.
 
 Validação: adapter/infrastructure 16/16; painel Chrome 1/1 e typecheck passaram. Gates gerais e documentação ainda serão executados nesta continuação. T2.3/T4.4 continuam parciais; volumes externos, interpolação, drivers/opts completos, runtime e métricas seguem sem prova.
+
+# Continuidade T2.3/T4.4 — ambiente Compose — 18/10/2026
+
+O adapter Compose agora retém apenas nomes válidos das chaves de `environment` e caminhos declarados de `env_file` (string, lista ou objeto com `path`). Valores ambientais nunca são incluídos nos facts. Isso é declaração estática: não resolve interpolação, não lê os arquivos e não representa ambiente efetivo dos containers. Teste focused do adapter está sendo executado nesta etapa; resultados finais serão registrados no relatório de validação.

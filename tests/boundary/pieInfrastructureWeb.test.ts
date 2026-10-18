@@ -26,7 +26,7 @@ it.skipIf(!existsSync(executablePath))(
     await exec("git", ["init", repo]);
     await writeFile(
       join(repo, "compose.yaml"),
-      'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n    ports:\n      - "127.0.0.1:8080:3000"\n    volumes:\n      - "data:/var/lib/app:ro"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\nvolumes:\n  data:\n    external: true\n',
+      'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\nvolumes:\n  data:\n    external: true\n',
     );
     await mkdir(join(repo, "app"));
     await writeFile(
@@ -94,11 +94,22 @@ it.skipIf(!existsSync(executablePath))(
       await serviceCard
         .getByText("Réplicas declaradas:", { exact: false })
         .waitFor();
+      await serviceCard
+        .getByText("Variável de ambiente declarada: API_KEY", { exact: false })
+        .waitFor();
+      await serviceCard
+        .getByText("Arquivo env declarado: .env.production", { exact: false })
+        .waitFor();
       expect(
         await page.getByText("DO_NOT_RETAIN", { exact: false }).count(),
       ).toBe(0);
       expect(
         await page.getByText("NEVER_RETAIN_COMMAND", { exact: false }).count(),
+      ).toBe(0);
+      expect(
+        await page
+          .getByText("NEVER_RETAIN_ENV_VALUE", { exact: false })
+          .count(),
       ).toBe(0);
       await serviceCard
         .getByRole("list", { name: "Configurações Compose declaradas" })

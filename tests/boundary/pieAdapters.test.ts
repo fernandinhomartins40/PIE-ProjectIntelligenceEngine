@@ -630,6 +630,37 @@ it("Compose redige autenticação em contexto remoto e não retém Dockerfile in
   expect(JSON.stringify(parsed)).not.toContain("FROM alpine");
 });
 
+it("Compose expõe nomes de ambiente e caminhos env_file sem reter valores", () => {
+  const parsed = readDeclarations(
+    "compose.yaml",
+    [
+      "services:",
+      "  api:",
+      "    environment:",
+      "      API_KEY: DO_NOT_RETAIN_SECRET_VALUE",
+      '      PORT: "3000"',
+      "    env_file:",
+      "      - .env.local",
+      "      - path: secrets/runtime.env",
+      "        required: false",
+    ].join("\n"),
+    20,
+  )!;
+  const settings = parsed.declarations.flatMap((fact) => {
+    const setting = parseComposeServiceSettingName(fact.name);
+    return setting ? [{ ...setting, line: fact.line }] : [];
+  });
+  expect(settings).toEqual(
+    expect.arrayContaining([
+      { key: "environment_key", value: "API_KEY", line: 4 },
+      { key: "environment_key", value: "PORT", line: 5 },
+      { key: "env_file", value: ".env.local", line: 7 },
+      { key: "env_file", value: "secrets/runtime.env", line: 8 },
+    ]),
+  );
+  expect(JSON.stringify(parsed)).not.toContain("DO_NOT_RETAIN_SECRET_VALUE");
+});
+
 it("Dockerfile registra instruções estáticas sem reter valores de ARG/ENV ou comandos", () => {
   const parsed = readDeclarations(
     "app/Dockerfile.api",
