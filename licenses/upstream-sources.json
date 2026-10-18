@@ -68,5 +68,15 @@
     "file": "licenses/LGPL-2.0.txt",
     "source": "https://www.gnu.org/licenses/old-licenses/lgpl-2.0.txt",
     "sha256": "cc535c21133c895b56b374c8a1dc1eb948d99003ed2b47372069456b62f42b24"
+  },
+  {
+    "file": "licenses/radix-primitives-MIT.txt",
+    "source": "https://raw.githubusercontent.com/radix-ui/primitives/fcef0668a5c827e5a4baac405474d75680f9a4eb/LICENSE",
+    "sha256": "0e80a2d229d2fd4fc7e8636142ec5d0ff0bc031f14c15b682e2ac01dfd5b5138"
+  },
+  {
+    "file": "licenses/remeda-MIT.txt",
+    "source": "https://raw.githubusercontent.com/remeda/remeda/f9e681a707fd8cac00c43c10591c44e17f577610/LICENSE",
+    "sha256": "acf30083045d768ce20640237313ee31a45d548d66ef76df5bb5fb0745479535"
   }
 ]

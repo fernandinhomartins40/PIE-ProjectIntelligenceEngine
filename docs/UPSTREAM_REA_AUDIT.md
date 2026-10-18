@@ -60,6 +60,8 @@ O manifesto raiz usa TypeScript/Node ESM, npm 11.16.0, Turbo 2.11.7, Zod 4.4.3, 
 
 `LICENSE:1` é MIT, copyright 2026 morluto, preservado integralmente. `THIRD_PARTY_NOTICES.md:1`, `licenses/README.md:1`, `licenses/npm-dependencies.txt`, `licenses/npm-runtime-notices.txt` e licenças sob third_party permanecem com suas condições. `.gitmodules` declara referências externas; não inicializadas automaticamente.
 
+Em 18/10/2026, a revisão de três tarballs runtime cujos SRI conferem com `package-lock.json` confirmou ausência de documentos standalone nos arquivos npm. Para `@radix-ui/react-compose-refs@1.1.2` e `@radix-ui/react-use-layout-effect@1.1.1`, o `gitHead` publicado aponta para `radix-ui/primitives` commit `fcef0668a5c827e5a4baac405474d75680f9a4eb`; o `LICENSE` raiz desse commit foi preservado. Para `remeda@2.33.4`, o `gitHead` aponta para `remeda/remeda` commit `f9e681a707fd8cac00c43c10591c44e17f577610`; seu `LICENSE` raiz também foi preservado. Quatro gaps de arquivo permanecem sem fonte exata comprovada; nenhuma atribuição foi inferida. SHA-256 e URLs estão registrados em `licenses/upstream-sources.json`; esta diligência não é parecer jurídico nem fecha a revisão das demais dependências.
+
 Hopper, IDA/Hex-Rays e JEB possuem termos comerciais próprios; a licença MIT dos bridges não concede direitos sobre motores. Ghidra tem Apache e qualificações por componente; ferramentas GPL/LGPL e runtime Windows têm notices específicos. Há lacunas de atribuição já documentadas upstream (clean-git-ref, minimisted e Frida); não declarar inventário juridicamente completo. Não foram empacotados motores externos. Novas dependências exigirão atualização do inventário e revisão da distribuição concreta.
 
 ## Matriz de reutilização / ADR 001

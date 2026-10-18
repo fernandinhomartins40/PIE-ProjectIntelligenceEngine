@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Continuidade T0.2 — notices npm por `gitHead` exato — 18/10/2026
+
+Revisão dos tarballs Radix (`@radix-ui/react-compose-refs@1.1.2`, `@radix-ui/react-use-layout-effect@1.1.1`) e Remeda `2.33.4`: SRI corresponde ao lockfile, todos os três arquivos publicados não têm notice standalone, e os `gitHead` do registro npm apontam aos commits preservados. As cópias LICENSE estão fixadas com SHA-256 em `licenses/upstream-sources.json` e nas entries runtime. Quatro `UPSTREAM_NOTICE_GAP` de arquivo permanecem; outras questões de atribuição e revisão de redistribuição continuam abertas. `licenses:check`, `docs:check` e `format:check` passaram; ledger `complete=false`. Próximo: revisar os quatro packages restantes apenas por fonte exata vinculada à publicação; não inferir autores ou copyright.
+
 ## Próxima frente — prova semântica de capacidade a partir de testes — 18/10/2026
 
 `verification-diff` v3 agora apresenta a observação de linha separada do binding declarado; Evidence aponta ao run quando houve instrumentação. Resultado legado v1 fica `not_instrumented` sem Evidence de runtime; relatório v2 incompleto fica `unknown` com Evidence do run. Linha executada/não observada não declara cobertura de comportamento. Focused regression + `toolSchemaValidity`: 17/17 no primeiro incremento; focused regression: 2/2 com v1 sem instrumentação e v2 incompleto, CLI/API/MCP e Ajv; `check:fast`, `docs:check` e `format:check` passaram antes desta cobertura ampliada. Próximo: investigar relações explícitas de asserção entre teste e capacidade por semântica estática limitada/contrato de teste, com provenance e estados inconclusivos; nunca derivar `covers` somente de import, binding ou execução de linha.

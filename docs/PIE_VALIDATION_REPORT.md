@@ -19,6 +19,11 @@
 
 # PIE — Registro de validação contínua
 
+## Recuperação de notices por revisão exata do upstream — 18/10/2026
+
+- Os tarballs fixados de `@radix-ui/react-compose-refs@1.1.2`, `@radix-ui/react-use-layout-effect@1.1.1` e `remeda@2.33.4` foram baixados como dados, tiveram os SRI comparados ao lockfile e não continham documentos `LICENSE`/`NOTICE` reconhecidos. O registro npm fornece `gitHead` para cada versão; o texto raiz `LICENSE` foi recuperado dos commits correspondentes e SHA-256 preservado em `licenses/upstream-sources.json`.
+- Um arquivo MIT do commit Radix `fcef0668a5c827e5a4baac405474d75680f9a4eb` cobre os dois pacotes Radix e identifica WorkOS; o commit Remeda `f9e681a707fd8cac00c43c10591c44e17f577610` identifica remeda. Os textos íntegros estão em `licenses/radix-primitives-MIT.txt` e `licenses/remeda-MIT.txt` e foram inseridos nas entradas de runtime. Permanecem quatro `UPSTREAM_NOTICE_GAP`; nenhum copyright foi inferido. Isso reduz os gaps de notices, mas não equivale a parecer jurídico nem à revisão de todos os componentes.
+
 ## Comparação de observação de linha por binding — schema v3 — 18/10/2026
 
 - O payload de comparação agora separa intenção (`interpretation: declared_unverified`) de `runtimeObservation`: linha observada/não observada, desconhecido ou não instrumentado; a prova referencia o Evidence do run. Alteração aditiva versionada em schema v3.
