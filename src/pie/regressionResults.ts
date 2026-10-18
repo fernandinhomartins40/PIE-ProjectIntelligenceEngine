@@ -32,6 +32,12 @@ const comparedCaseSchema = z.strictObject({
 const declaredBindingSchema = z.strictObject({
   testFile: z.string(),
   declarationId: z.string(),
+  testCase: z
+    .strictObject({
+      name: z.string(),
+      nesting: z.number().int().nonnegative(),
+    })
+    .nullable(),
   declaration: z.strictObject({
     adapter: z.string(),
     kind: z.string(),
@@ -69,6 +75,25 @@ const declaredBindingSchema = z.strictObject({
     complete: z.boolean(),
     evidenceId: z.string().uuid().nullable(),
   }),
+  caseExecution: z.strictObject({
+    state: z.enum([
+      "not_selected",
+      "unknown",
+      "not_reported",
+      "observed",
+      "ambiguous",
+    ]),
+    testCase: z
+      .strictObject({
+        name: z.string(),
+        nesting: z.number().int().nonnegative(),
+      })
+      .nullable(),
+    outcome: z.enum(["passed", "failed", "skipped", "todo"]).nullable(),
+    matches: z.number().int().nonnegative(),
+    complete: z.boolean(),
+    evidenceId: z.string().uuid().nullable(),
+  }),
 });
 const declaredBindingSetSchema = z.strictObject({
   state: z.enum(["unknown", "declared_unverified"]),
@@ -76,7 +101,7 @@ const declaredBindingSetSchema = z.strictObject({
 });
 
 export const verificationComparisonOutput = z.strictObject({
-  schemaVersion: z.literal(4),
+  schemaVersion: z.literal(5),
   engine: z.literal("regression"),
   state: z.enum([
     "regression_observed",
@@ -138,19 +163,21 @@ function declaredBindings(
   input: { offset: number; limit: number },
 ) {
   const paging = { offset: input.offset, limit: input.limit };
-  if (run.schemaVersion !== 2 || run.authorization.schemaVersion !== 2)
+  if (run.schemaVersion !== 2 || !("testBindings" in run.authorization))
     return { state: "unknown" as const, bindings: page([], paging) };
   const selectedBindings = page(run.authorization.testBindings, paging);
   const facts = new Map(snapshot.declarations.map((fact) => [fact.id, fact]));
-  const testExecutions = testExecutionByFile(
+  const executions = bindingExecutions(
     run,
     new Set(selectedBindings.items.map((binding) => binding.testFile)),
+    selectedBindings.items,
   );
   const bindings = selectedBindings.items.map((binding) => {
     const fact = facts.get(binding.declarationId)!;
     const runtimeObservation = bindingRuntimeObservation(run, fact.source);
     return {
       ...binding,
+      testCase: "testCase" in binding ? binding.testCase : null,
       declaration: {
         adapter: fact.adapter,
         kind: fact.kind,
@@ -162,7 +189,17 @@ function declaredBindings(
       },
       interpretation: "declared_unverified" as const,
       runtimeObservation,
-      testExecution: testExecutions.get(binding.testFile)!,
+      testExecution: executions.testExecutions.get(binding.testFile)!,
+      caseExecution: executions.caseExecutions.get(
+        caseExecutionKey(binding),
+      ) ?? {
+        state: "not_selected" as const,
+        testCase: null,
+        outcome: null,
+        matches: 0,
+        complete: false,
+        evidenceId: null,
+      },
     };
   });
   return {
@@ -171,12 +208,21 @@ function declaredBindings(
   };
 }
 
-function testExecutionByFile(
+function bindingExecutions(
   run: VerificationRun,
   requestedFiles: ReadonlySet<string>,
+  bindings: readonly {
+    testFile: string;
+    testCase?: { name: string; nesting: number };
+  }[],
 ) {
-  if (run.schemaVersion !== 2 || run.authorization.schemaVersion !== 2)
-    return new Map();
+  if (run.schemaVersion !== 2 || !("testBindings" in run.authorization))
+    return { testExecutions: new Map(), caseExecutions: new Map() };
+
+  const complete =
+    run.result.coverage.reportComplete &&
+    run.result.coverage.processCompleted &&
+    !run.result.coverage.truncated;
 
   const countsByFile = new Map<
     string,
@@ -187,18 +233,37 @@ function testExecutionByFile(
       { passed: 0, failed: 0, skipped: 0, todo: 0 },
     ]),
   );
+  const selectors = new Map<
+    string,
+    {
+      testCase: { name: string; nesting: number };
+      matches: number;
+      outcome: TestCase["outcome"] | null;
+    }
+  >();
+  for (const binding of bindings) {
+    if (!binding.testCase) continue;
+    selectors.set(caseExecutionKey(binding), {
+      testCase: binding.testCase,
+      matches: 0,
+      outcome: null,
+    });
+  }
   for (const item of run.result.cases) {
     if (item.category !== "test") continue;
     const file = sourcePath(item.file);
     if (!file) continue;
     const counts = countsByFile.get(file);
     if (counts) counts[item.outcome]++;
+    const selector = selectors.get(
+      JSON.stringify([file, item.name, item.nesting]),
+    );
+    if (selector) {
+      selector.matches++;
+      selector.outcome = item.outcome;
+    }
   }
-  const complete =
-    run.result.coverage.reportComplete &&
-    run.result.coverage.processCompleted &&
-    !run.result.coverage.truncated;
-  const executions = new Map<
+  const testExecutions = new Map<
     string,
     z.infer<typeof declaredBindingSchema.shape.testExecution>
   >();
@@ -216,14 +281,50 @@ function testExecutionByFile(
             : complete
               ? ("all_reported_cases_passed" as const)
               : ("partial" as const);
-    executions.set(file, {
+    testExecutions.set(file, {
       state,
       counts,
       complete,
       evidenceId: run.evidence.id,
     });
   }
-  return executions;
+  const caseExecutions = new Map(
+    [...selectors].map(([key, selector]) => {
+      const state =
+        selector.matches > 1
+          ? ("ambiguous" as const)
+          : selector.matches === 1
+            ? ("observed" as const)
+            : complete
+              ? ("not_reported" as const)
+              : ("unknown" as const);
+      return [
+        key,
+        {
+          state,
+          testCase: selector.testCase,
+          outcome: selector.matches === 1 ? selector.outcome : null,
+          matches: selector.matches,
+          complete,
+          evidenceId: run.evidence.id,
+        },
+      ];
+    }),
+  );
+  return { testExecutions, caseExecutions };
+}
+
+function caseExecutionKey(binding: {
+  testFile: string;
+  testCase?: { name: string; nesting: number };
+}): string {
+  return binding.testCase
+    ? JSON.stringify([
+        binding.testFile,
+        binding.testCase.name,
+        binding.testCase.nesting,
+      ])
+    : "";
 }
 
 function bindingRuntimeObservation(
@@ -232,7 +333,7 @@ function bindingRuntimeObservation(
 ) {
   if (
     run.schemaVersion !== 2 ||
-    run.authorization.schemaVersion !== 2 ||
+    !("testBindings" in run.authorization) ||
     run.authorization.testFiles.length !== 1 ||
     source.line === null ||
     run.result.schemaVersion !== 2
@@ -489,7 +590,7 @@ function compareVerifiedRuns(
         : "inconclusive";
 
   return verificationComparisonOutput.parse({
-    schemaVersion: 4,
+    schemaVersion: 5,
     engine: "regression",
     state,
     before: {
@@ -512,6 +613,7 @@ function compareVerifiedRuns(
         "Binding é declaração do operador entre arquivo autorizado e fato estático do snapshot; não é uma aresta `covers` comprovada por execução.",
         "runtimeObservation registra somente linha do fato que foi observada no runner; `line_not_observed` não prova que o módulo ou comportamento não executou, e `line_observed` não prova que o teste validou a capacidade.",
         "testExecution agrega apenas os resultados reportados para o arquivo associado; aprovação de casos não demonstra que suas asserções validam a declaração nem cria uma aresta `covers`.",
+        "caseExecution compara a identidade declarada do reporter (arquivo, nome e nesting); mesmo um outcome observado não demonstra que o corpo do teste verifica a declaração associada.",
         ...(beforeBindings.state === "unknown" ||
         afterBindings.state === "unknown"
           ? [

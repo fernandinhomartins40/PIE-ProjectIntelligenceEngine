@@ -10,7 +10,15 @@ export function hasValidTestBindings(
   const declarations = new Set(snapshot.declarations.map((item) => item.id));
   const seen = new Set<string>();
   for (const binding of grant.testBindings) {
-    const identity = JSON.stringify([binding.testFile, binding.declarationId]);
+    const identity =
+      "testCase" in binding
+        ? JSON.stringify([
+            binding.testFile,
+            binding.declarationId,
+            binding.testCase.name,
+            binding.testCase.nesting,
+          ])
+        : JSON.stringify([binding.testFile, binding.declarationId]);
     if (
       !grant.testFiles.includes(binding.testFile) ||
       !declarations.has(binding.declarationId) ||

@@ -233,6 +233,68 @@ it("admite bindings v2 somente para teste autorizado e declaração observada", 
   }
 });
 
+it("admite seletores de caso v3 sem confundir intenção com cobertura semântica", async () => {
+  const { root, repo } = await fixture();
+  try {
+    await writeFile(
+      join(repo, "package.json"),
+      JSON.stringify({ scripts: { "check-real": "node --test" } }),
+    );
+    await promisify(execFile)("git", ["-C", repo, "add", "."]);
+    const snapshot = await discoverProject(
+      { repositoryRoot: repo, profile: "OBSERVE", environment: "local" },
+      randomUUID(),
+    );
+    const declaration = snapshot.declarations.find(
+      (item) => item.kind === "script" && item.name === "check-real",
+    );
+    if (!declaration) throw new Error("fixture declaration missing");
+    const base = grant(snapshot);
+    const versionThree = {
+      ...base,
+      schemaVersion: 3,
+      testBindings: [
+        {
+          testFile: "sample.test.mjs",
+          declarationId: declaration.id,
+          testCase: { name: "selected case", nesting: 0 },
+        },
+      ],
+    };
+    expect((await admitNodeTests(versionThree, snapshot)).ok).toBe(true);
+    expect(
+      (
+        await admitNodeTests(
+          {
+            ...versionThree,
+            testBindings: [
+              ...versionThree.testBindings,
+              {
+                ...versionThree.testBindings[0]!,
+                testCase: { name: "another case", nesting: 1 },
+              },
+            ],
+          },
+          snapshot,
+        )
+      ).ok,
+    ).toBe(true);
+    for (const testBindings of [
+      [{ ...versionThree.testBindings[0]!, testFile: "other.test.mjs" }],
+      [{ ...versionThree.testBindings[0]!, declarationId: "missing" }],
+      [versionThree.testBindings[0]!, versionThree.testBindings[0]!],
+    ])
+      expect(
+        (await admitNodeTests({ ...versionThree, testBindings }, snapshot)).ok,
+      ).toBe(false);
+    expect(
+      await readFile(join(root, "repo", "sample.test.mjs"), "utf8"),
+    ).toContain("test('real'");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 it("prepara cópia privada por hash, detecta conteúdo alterado e limpa após cancelamento", async () => {
   const { root, repo, snapshot } = await fixture();
   try {

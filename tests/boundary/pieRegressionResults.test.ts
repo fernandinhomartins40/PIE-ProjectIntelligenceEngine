@@ -85,10 +85,11 @@ async function persistRun(
   runtimeInstrumentation = true,
   runtimeReportComplete = true,
   testReportComplete = true,
+  testCaseBinding?: { name: string; nesting: number },
 ) {
   const id = randomUUID();
   const authorization = nodeTestGrantSchema.parse({
-    schemaVersion: declarationId === undefined ? 1 : 2,
+    schemaVersion: declarationId === undefined ? 1 : testCaseBinding ? 3 : 2,
     profile: "VERIFY",
     allowTargetExecution: true,
     environment: "local",
@@ -101,7 +102,13 @@ async function persistRun(
     ...(declarationId === undefined
       ? {}
       : {
-          testBindings: [{ testFile: "feature.test.mjs", declarationId }],
+          testBindings: [
+            {
+              testFile: "feature.test.mjs",
+              declarationId,
+              ...(testCaseBinding ? { testCase: testCaseBinding } : {}),
+            },
+          ],
         }),
     limits: {
       timeoutMs: 10_000,
@@ -414,6 +421,130 @@ async function expectBoundTestExecutionStates(input: {
       },
     ],
   );
+}
+
+async function expectBoundTestCaseStates(input: {
+  store: Awaited<ReturnType<typeof openStore>>;
+  snapshot: Snapshot;
+  service: PieService;
+  declarationId: string;
+  baselineRunId: string;
+}) {
+  const selected = { name: "selected case", nesting: 0 };
+  const observedRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [
+      { name: selected.name, outcome: "failed" },
+      { name: "other case", outcome: "passed" },
+    ],
+    image,
+    input.declarationId,
+    [],
+    true,
+    true,
+    true,
+    selected,
+  );
+  const observed = await input.service.verificationComparison({
+    beforeRunId: input.baselineRunId,
+    afterRunId: observedRun.id,
+  });
+  expect(observed.declaredBindings.after.bindings.items).toMatchObject([
+    {
+      testCase: selected,
+      caseExecution: {
+        state: "observed",
+        outcome: "failed",
+        matches: 1,
+        complete: true,
+        evidenceId: observedRun.evidence.id,
+      },
+      interpretation: "declared_unverified",
+    },
+  ]);
+
+  const absentRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [{ name: "different case", outcome: "passed" }],
+    image,
+    input.declarationId,
+    [],
+    true,
+    true,
+    true,
+    selected,
+  );
+  const absent = await input.service.verificationComparison({
+    beforeRunId: input.baselineRunId,
+    afterRunId: absentRun.id,
+  });
+  expect(
+    absent.declaredBindings.after.bindings.items[0]?.caseExecution,
+  ).toEqual({
+    state: "not_reported",
+    testCase: selected,
+    outcome: null,
+    matches: 0,
+    complete: true,
+    evidenceId: absentRun.evidence.id,
+  });
+
+  const partialRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [{ name: "different case", outcome: "passed" }],
+    image,
+    input.declarationId,
+    [],
+    true,
+    true,
+    false,
+    selected,
+  );
+  const partial = await input.service.verificationComparison({
+    beforeRunId: input.baselineRunId,
+    afterRunId: partialRun.id,
+  });
+  expect(
+    partial.declaredBindings.after.bindings.items[0]?.caseExecution,
+  ).toMatchObject({
+    state: "unknown",
+    outcome: null,
+    matches: 0,
+    complete: false,
+    evidenceId: partialRun.evidence.id,
+  });
+
+  const duplicateRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [
+      { name: selected.name, outcome: "passed" },
+      { name: selected.name, outcome: "failed" },
+    ],
+    image,
+    input.declarationId,
+    [],
+    true,
+    true,
+    true,
+    selected,
+  );
+  const ambiguous = await input.service.verificationComparison({
+    beforeRunId: input.baselineRunId,
+    afterRunId: duplicateRun.id,
+  });
+  expect(
+    ambiguous.declaredBindings.after.bindings.items[0]?.caseExecution,
+  ).toMatchObject({
+    state: "ambiguous",
+    outcome: null,
+    matches: 2,
+    complete: true,
+    evidenceId: duplicateRun.evidence.id,
+  });
 }
 
 async function assertProjectHistoryAdapters(input: {
@@ -812,7 +943,7 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     );
     const expected = await service.verificationComparison(input);
     expect(expected).toMatchObject({
-      schemaVersion: 4,
+      schemaVersion: 5,
       engine: "regression",
       state: "regression_observed",
       cases: {
@@ -854,6 +985,13 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
       latestSnapshotId: after.snapshot.id,
     });
     await expectBoundTestExecutionStates({
+      store,
+      snapshot: afterSnapshot,
+      service,
+      declarationId: afterDeclaration.id,
+      baselineRunId: afterRun.id,
+    });
+    await expectBoundTestCaseStates({
       store,
       snapshot: afterSnapshot,
       service,

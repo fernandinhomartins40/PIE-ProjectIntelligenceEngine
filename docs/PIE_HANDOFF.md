@@ -744,3 +744,7 @@ T4.5: tabela reconhecida como PARTITION BY seguida por CREATE UNIQUE INDEX ON ON
 T1.3/T3.2: supervisor REA diferencia process exit de output close, preserva stderr tardio e incompleto, limita drenagem/retencao (1 s/64 KiB) e mantem captura durante retry de cleanup. Em Windows, focused process/PIE Docker passou 24 testes; 1 teste real POSIX de pipe herdado ficou skipped por plataforma. Gates gerais passaram. Referencia upstream: https://github.com/morluto/rea/commit/701695139490777ece7a3ccb8508b6215a11c0fe .
 
 T6.3: filtro da lane PIE ampliado para supervisor/processo Windows e fixtures; passo Linux executa boundaries do supervisor REA. Mudanca de fonte compartilhada seleciona a suite PIE completa (teste conformance 2/2). YAML parse e testes locais passaram; pipe POSIX real permanece pendente da lane remota apos push.
+
+## Continuidade T4.1 — seletor exato de caso por binding — schema v5 — 18/10/2026
+
+Grant v3 acrescenta identidade declarada pelo operador via `testFile` + `name` + `nesting`; `verification-diff` v5 expõe resultado exato e Evidence. Estados cobrem observação única, ausência em relatório completo, desconhecido em relatório incompleto e identidade ambígua. A associação segue `declared_unverified`; resultados de runtime não provam semântica de asserção ou relação `covers`. Depois da consolidação em uma passagem, as boundaries focadas passaram 23 testes com 1 skip de plataforma, incluindo 15 schemas Ajv; `check:fast`, `docs:check` e `format:check` passaram. Próximo: revisar diff e registrar commit na main. T4.1 continua parcial.

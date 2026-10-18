@@ -37,6 +37,16 @@ export const nodeTestBindingSchema = z.strictObject({
   testFile: z.string().min(1),
   declarationId: z.string().min(1),
 });
+export const nodeTestCaseSelectorSchema = z.strictObject({
+  name: z.string().max(4096),
+  nesting: z.number().int().nonnegative().max(100_000),
+});
+export const nodeTestBindingV3Schema = z.strictObject({
+  testFile: z.string().min(1),
+  declarationId: z.string().min(1),
+  /** Exact Node reporter identity selected by the operator; not semantic proof. */
+  testCase: nodeTestCaseSelectorSchema,
+});
 export const nodeTestGrantV1Schema = z.strictObject({
   ...nodeTestGrantFields,
   schemaVersion: z.literal(1),
@@ -47,8 +57,15 @@ export const nodeTestGrantV2Schema = z.strictObject({
   /** Operator-declared intent; this never proves executed coverage. */
   testBindings: z.array(nodeTestBindingSchema).max(5000),
 });
+export const nodeTestGrantV3Schema = z.strictObject({
+  ...nodeTestGrantFields,
+  schemaVersion: z.literal(3),
+  /** Exact case-to-declaration intent selected by the operator. */
+  testBindings: z.array(nodeTestBindingV3Schema).max(5000),
+});
 export const nodeTestGrantSchema = z.discriminatedUnion("schemaVersion", [
   nodeTestGrantV1Schema,
   nodeTestGrantV2Schema,
+  nodeTestGrantV3Schema,
 ]);
 export type NodeTestGrant = z.infer<typeof nodeTestGrantSchema>;

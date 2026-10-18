@@ -63,7 +63,7 @@ export function buildDockerPlan(
     "--test",
     "--test-concurrency=1",
     "--test-reporter=/pie/reporter.mjs",
-    ...(grant.schemaVersion === 2 && grant.testFiles.length === 1
+    ...(grant.schemaVersion >= 2 && grant.testFiles.length === 1
       ? ["--experimental-test-coverage"]
       : []),
     ...grant.testFiles.map((path) => `/source/${path}`),

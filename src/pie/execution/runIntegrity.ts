@@ -12,7 +12,7 @@ function runtimeLocationsMatchAuthorization(
   if (run.result.schemaVersion !== 2) return true;
   const grant = run.authorization;
   const allowed = new Set<string>();
-  if (grant.schemaVersion === 2 && grant.testFiles.length === 1) {
+  if ("testBindings" in grant && grant.testFiles.length === 1) {
     const declarations = new Map(
       snapshot.declarations.map((declaration) => [declaration.id, declaration]),
     );

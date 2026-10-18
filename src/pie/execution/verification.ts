@@ -94,8 +94,7 @@ export class NodeVerification {
     const reporter = join(prepared.value.controlDirectory, "reporter.mjs");
     const config = join(prepared.value.controlDirectory, "docker-config");
     const coverageFocus =
-      admitted.grant.schemaVersion === 2 &&
-      admitted.grant.testFiles.length === 1
+      "testBindings" in admitted.grant && admitted.grant.testFiles.length === 1
         ? admitted.grant.testBindings.flatMap((binding) => {
             const declaration = snapshot.declarations.find(
               (fact) => fact.id === binding.declarationId,

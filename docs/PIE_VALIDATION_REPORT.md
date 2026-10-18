@@ -1014,3 +1014,7 @@ A captura stdout/stderr do `ProviderProcessSupervisor` permanece ligada ate fech
 ## CI PIE acionada por mudancas no supervisor compartilhado - T6.3 - 18/10/2026
 
 O workflow PIE agora observa alteracoes em `src/process/**`, `src/windows/**`, fixtures e boundaries do supervisor, e executa as boundaries processuais no runner Linux. A selecao incremental classifica alteracao de `ProviderProcess` como full suite, nunca como teste PIE focado isolado. YAML parse local e conformance `pieCiSelection` 2/2 passaram; processo/Docker local 24 passed, 1 skipped (Windows). A lane Linux remota ainda aguarda o push e nao esta contada como executada.
+
+## Seletor de caso por binding VERIFY — em validação — 18/10/2026
+
+Grant v3 permite escolher identidade do caso Node por arquivo, nome e nesting; saída `verification-diff` schema v5 adiciona estado, outcome, contagem, completude e Evidence, sem declarar cobertura semântica. `npm.cmd run typecheck` e `npm.cmd run check:fast` passaram; boundaries focadas, repetidas após agregar observações em uma passagem única: 23 passaram, 1 skipped por plataforma (MCP Ajv 15/15). `npm.cmd run docs:check` e `npm.cmd run format:check` passaram; completion ledger continua `complete=false`. A primeira execução de `check:fast` falhou por narrowing TypeScript antes da correção; a verificação posterior passou. PostgreSQL e Docker não fazem parte da leitura de runs históricos e não foram executados.
