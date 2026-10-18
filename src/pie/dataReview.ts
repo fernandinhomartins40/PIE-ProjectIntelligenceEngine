@@ -4,10 +4,16 @@ import { page, pageSchema } from "./graph.js";
 import { pagedOutput } from "./outputContracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import { adapterFactSchema } from "./adapters/contracts.js";
+import { err, ok, type Result } from "../domain/result.js";
 
 export const dataReviewInput = pageSchema.extend({
   snapshotId: z.string().uuid(),
 });
+
+export type DataReviewFailure =
+  | { kind: "invalid_input" }
+  | { kind: "invalid_snapshot" }
+  | { kind: "policy_denied"; reason: "snapshot_mismatch" };
 
 const findingSchema = z.strictObject({
   id: z.string(),
@@ -89,12 +95,10 @@ function schemaFileIncomplete(snapshot: Snapshot, path: string): boolean {
 }
 
 /** Reviews only Prisma facts retained by discovery; it never opens a database. */
-export function reviewData(snapshotInput: unknown, rawInput: unknown) {
-  const input = dataReviewInput.parse(rawInput);
-  const snapshot = validateSnapshot(snapshotInput);
-  if (input.snapshotId !== snapshot.id)
-    throw new PieError("INVALID_INPUT", "Snapshot de dados diverge.");
-
+function reviewValidatedData(
+  snapshot: Snapshot,
+  input: z.infer<typeof dataReviewInput>,
+) {
   const schemaFiles = snapshot.nodes.filter(
     (node) => node.kind === "schema" && node.path.endsWith(".prisma"),
   );
@@ -431,4 +435,40 @@ export function reviewData(snapshotInput: unknown, rawInput: unknown) {
       ],
     },
   });
+}
+
+/** Expected caller and snapshot rejections are tagged; internal faults escape. */
+export function reviewDataResult(
+  snapshotInput: unknown,
+  rawInput: unknown,
+): Result<ReturnType<typeof reviewValidatedData>, DataReviewFailure> {
+  const request = dataReviewInput.safeParse(rawInput);
+  if (!request.success) return err({ kind: "invalid_input" });
+
+  let snapshot: Snapshot;
+  try {
+    snapshot = validateSnapshot(snapshotInput);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_snapshot" });
+    throw cause;
+  }
+  if (request.data.snapshotId !== snapshot.id)
+    return err({ kind: "policy_denied", reason: "snapshot_mismatch" });
+
+  return ok(reviewValidatedData(snapshot, request.data));
+}
+
+/** Compatibility boundary for internal callers that use the domain error algebra. */
+export function reviewData(snapshotInput: unknown, rawInput: unknown) {
+  const result = reviewDataResult(snapshotInput, rawInput);
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot de dados inválido.");
+  if (result.error.kind === "policy_denied")
+    throw new PieError("INVALID_INPUT", "Snapshot de dados diverge.");
+  throw new PieError("INVALID_INPUT", "Entrada de revisão de dados inválida.");
 }

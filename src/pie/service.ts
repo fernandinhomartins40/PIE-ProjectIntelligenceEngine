@@ -17,7 +17,7 @@ import {
   assessProduct,
   functionalInput,
 } from "./functional.js";
-import { dataReviewInput, reviewData } from "./dataReview.js";
+import { dataReviewInput, reviewDataResult } from "./dataReview.js";
 import { reviewSecurity, securityInput } from "./security.js";
 import {
   exportSnapshot as renderSnapshotExport,
@@ -84,6 +84,15 @@ function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
       ? "Módulo deve ser caminho relativo canônico, sem segmentos vazios ou traversal."
       : "Entrada funcional inválida.",
   );
+}
+
+function dataReviewValue(result: ReturnType<typeof reviewDataResult>) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot de dados inválido.");
+  if (result.error.kind === "policy_denied")
+    throw new PieError("INVALID_INPUT", "Snapshot de dados diverge.");
+  throw new PieError("INVALID_INPUT", "Entrada de revisão de dados inválida.");
 }
 
 function discoveryValue(
@@ -680,9 +689,18 @@ export class PieService {
   }
   dataReview(input: unknown) {
     return this.#read(async () => {
-      const request = dataReviewInput.parse(input);
-      const snapshot = await this.store.snapshot(request.snapshotId);
-      return reviewData(snapshot, request);
+      const snapshotId = dataReviewInput.shape.snapshotId.safeParse(
+        typeof input === "object" && input !== null
+          ? (input as { snapshotId?: unknown }).snapshotId
+          : undefined,
+      );
+      if (!snapshotId.success)
+        throw new PieError(
+          "INVALID_INPUT",
+          "Entrada de revisão de dados inválida.",
+        );
+      const snapshot = await this.store.snapshot(snapshotId.data);
+      return dataReviewValue(reviewDataResult(snapshot, input));
     });
   }
   security(input: unknown) {

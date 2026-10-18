@@ -714,3 +714,8 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - `npm.cmd run test:focused -- tests/boundary/pieSecurityReview.test.ts tests/boundary/pieAdapters.test.ts`: 13/13 passou com repositório Git/SQLite real. Verifica fato YAML/Evidence e linha, finding suspeito, formato granular de permissão de job e `read-all` sem finding, hash stale após edição, redaction, limite de findings e paridade CLI/API/MCP/Ajv.
 - O scanner não lê/reinterpreta YAML bruto: consome o fato dono do adapter e só relata se o arquivo atual ainda coincide com hash Evidence. `permissions: write-all` é observado como configuração estática; workflow ativo, trigger, token e conjunto efetivo de permissões não são provados. Nenhum workflow foi executado.
 - `npm.cmd run check:fast`, `npm.cmd run mcp-catalog:generate`, `npm.cmd run mcp-catalog:check`, `npm.cmd run docs:check`, `npm.cmd run format:check` e `git diff --check`: passaram. O `format:check` inicial apontou somente layout em `PIE_MASTER_PLAN.md` e `security.ts`; após Oxfmt, a verificação global passou.
+
+## Result tipado na revisão de dados — 17/10/2026
+
+- Testes executados: `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts`; 2 arquivos/3 testes passaram. A fixture usa repositório Git e SQLite locais e valida tags para entrada/snapshot divergentes e paridade dos adapters.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram. T1.1 permanece parcial.

@@ -12,7 +12,10 @@ import { runPie } from "../../src/pie/cli.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
-import { dataReviewOutput } from "../../src/pie/dataReview.js";
+import {
+  dataReviewOutput,
+  reviewDataResult,
+} from "../../src/pie/dataReview.js";
 
 const exec = promisify(execFile);
 
@@ -323,6 +326,25 @@ it("analisa seletores Prisma somente de Evidence e compartilha service, CLI, MCP
     expectPrismaSelectors(snapshot);
 
     const request = { snapshotId: snapshot.id, limit: 10 };
+    expect(reviewDataResult(snapshot, { snapshotId: "invalid" })).toEqual({
+      ok: false,
+      error: { kind: "invalid_input" },
+    });
+    expect(
+      reviewDataResult(snapshot, {
+        snapshotId: "00000000-0000-4000-8000-000000000000",
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: "policy_denied", reason: "snapshot_mismatch" },
+    });
+    expect(reviewDataResult({}, request)).toEqual({
+      ok: false,
+      error: { kind: "invalid_snapshot" },
+    });
+    await expect(
+      service.dataReview({ snapshotId: snapshot.id, limit: -1 }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
     const expected = await service.dataReview(request);
     expectDataReview(expected);
     const migrationEvidence = expected.migrations.items.find(
