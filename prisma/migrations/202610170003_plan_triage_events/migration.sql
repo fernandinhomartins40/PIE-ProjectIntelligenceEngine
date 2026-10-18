@@ -1,4 +1,4 @@
-﻿CREATE TABLE "pie_plan_triage_events" (
+CREATE TABLE "pie_plan_triage_events" (
   "id" UUID NOT NULL,
   "snapshot_id" UUID NOT NULL,
   "plan_digest" TEXT NOT NULL,

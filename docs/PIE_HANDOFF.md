@@ -599,3 +599,7 @@ O catalogo esperado agora associa cada nome ao SHA-256 do `migration.sql`; a son
 ## Inspeção de colunas PostgreSQL - T1.2 - 18/10/2026
 
 `inspectSchema` usa o DMMF Prisma gerado como fonte de nomes de tabelas/colunas escalares e compara com `information_schema`; doctor e abertura bloqueiam colunas esperadas ausentes e colunas inesperadas em tabelas PIE presentes. O teste sintético prova tabelas/colunas e ignora tabelas de outros sistemas. `check:fast`, `docs:check`, `format:check` passaram; 8 testes focados passaram e o teste PostgreSQL real foi skipped. Tipos, índices, constraints, dados e execução em PostgreSQL real seguem sem validação; URL de teste ausente e daemon Docker indisponível.
+
+## Migration PostgreSQL falhando na CI - T1.2 - 18/10/2026
+
+As migrations 202610170002 e 202610170003 começavam com BOM UTF-8; removido o BOM e atualizados os SHA-256 esperados. A CI falhou no `prisma migrate deploy` a partir da primeira migration, mas o texto do erro não está disponível via API pública. A regra de whitespace do scanner PostgreSQL aceita só ASCII; BOM como prefixo de `CREATE` é a hipótese estrutural e está coberta por teste que rejeita BOM em qualquer migration. Validar a correção no PostgreSQL do workflow PIE antes de tratar T1.2 como aprovada; migration de banco já marcado como aplicada pode exigir reconciliação de checksum, sem escrita automática.

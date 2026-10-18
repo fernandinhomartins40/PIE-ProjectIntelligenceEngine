@@ -32,12 +32,12 @@ export const expectedPostgresMigrations = [
   {
     name: "202610170002_plan_contestations",
     checksum:
-      "2fbf9a0b110a71e8f7d145143635b7a96013f347f717afdcf697162c9aa5f479",
+      "24ed0541a09f2b5565349ec66174d68794f5f1c4ffd6ccb03a122188ed0a53be",
   },
   {
     name: "202610170003_plan_triage_events",
     checksum:
-      "77553326f4fc4493a9ab0b1916f8e4c270bd5287b0ddc1e2028ab6f40a70e427",
+      "78e8fbd45a9e7cbb1f22807def3185b5f8eb8983e0b0e222240b23e04b813abd",
   },
 ] as const;
 

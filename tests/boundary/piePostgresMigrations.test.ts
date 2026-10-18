@@ -32,6 +32,9 @@ it("mantém o catálogo de migrations PostgreSQL alinhado aos diretórios Prisma
   const checksums = await Promise.all(
     expectedPostgresMigrations.map(async ({ name }) => {
       const sql = await readFile(join(migrationsPath, name, "migration.sql"));
+      expect(sql.subarray(0, 3), `${name} UTF-8 BOM`).not.toEqual(
+        Buffer.from([0xef, 0xbb, 0xbf]),
+      );
       return [name, createHash("sha256").update(sql).digest("hex")];
     }),
   );

@@ -831,3 +831,9 @@ Atualização de gates finais — 18/10/2026
 - `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger continua `complete=false`), `npm.cmd run format:check` e `git diff --check`: passaram.
 - Doctor e abertura conferem tabelas e nomes de colunas escalares esperadas pelo DMMF Prisma gerado. A comparação ignora tabelas não pertencentes ao PIE. Ela não valida tipos, índices, constraints ou dados.
 - PostgreSQL real não foi testado: `PIE_TEST_DATABASE_URL` ausente e Docker Desktop Linux daemon indisponível.
+
+## Correção candidata para migrations rejeitadas em CI - 18/10/2026
+
+- Runs `39103462410` (SHA `8368bff28`) e `39103643148` (SHA `63503fd61`) falharam no passo `npm run pie:db:migrate`; no run mais recente, `npm audit --audit-level=low` passou antes da falha.
+- Inspeção dos arquivos mostrou BOM UTF-8 (`EF BB BF`) no primeiro byte das migrations `202610170002_plan_contestations` e `202610170003_plan_triage_events`. PostgreSQL `scan.l` define whitespace como ASCII `[ \t\n\r\f\v]`; bytes BOM não compõem esse conjunto. A relação causal é inferida, pois o log detalhado da migration não foi acessível sem autenticação.
+- O BOM foi removido, catálogo de checksum atualizado e a boundary `piePostgresMigrations` ganhou uma asserção sobre todos os arquivos. A confirmação pendente é a nova execução PostgreSQL real na CI; PostgreSQL local continua indisponível neste host.
