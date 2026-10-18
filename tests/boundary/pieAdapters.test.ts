@@ -661,6 +661,63 @@ it("Compose expõe nomes de ambiente e caminhos env_file sem reter valores", () 
   expect(JSON.stringify(parsed)).not.toContain("DO_NOT_RETAIN_SECRET_VALUE");
 });
 
+it("Compose preserva referências de secrets/configs sem ler conteúdo", () => {
+  const parsed = readDeclarations(
+    "compose.yaml",
+    [
+      "services:",
+      "  api:",
+      "    secrets:",
+      "      - db_password",
+      "      - source: api_token",
+      "        target: /run/secrets/api_token",
+      "        mode: 0400",
+      "    configs:",
+      "      - nginx_config",
+      "secrets:",
+      "  db_password:",
+      "    file: ./secrets/db_password.txt",
+      "  api_token:",
+      "    external: true",
+      "configs:",
+      "  nginx_config:",
+      "    file: ./nginx.conf",
+    ].join("\n"),
+    40,
+  )!;
+  const settings = parsed.declarations.flatMap((fact) => {
+    const setting = parseComposeServiceSettingName(fact.name);
+    return setting ? [{ ...setting, parent: fact.parent }] : [];
+  });
+  expect(settings).toEqual(
+    expect.arrayContaining([
+      { key: "secret_mount", value: "db_password", parent: "api" },
+      {
+        key: "secret_mount",
+        value:
+          '{"source":"api_token","target":"/run/secrets/api_token","mode":400}',
+        parent: "api",
+      },
+      { key: "config_mount", value: "nginx_config", parent: "api" },
+      {
+        key: "secret_definition",
+        value: '{"file":"./secrets/db_password.txt"}',
+        parent: "secrets:db_password",
+      },
+      {
+        key: "secret_definition",
+        value: '{"external":true}',
+        parent: "secrets:api_token",
+      },
+      {
+        key: "config_definition",
+        value: '{"file":"./nginx.conf"}',
+        parent: "configs:nginx_config",
+      },
+    ]),
+  );
+});
+
 it("Dockerfile registra instruções estáticas sem reter valores de ARG/ENV ou comandos", () => {
   const parsed = readDeclarations(
     "app/Dockerfile.api",

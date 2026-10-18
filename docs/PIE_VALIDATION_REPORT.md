@@ -860,3 +860,9 @@ Atualização de gates finais — 18/10/2026
 - `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts tests/boundary/mcp/pieMcp.test.ts`: 18/18 passaram. A integra??o Git/SQLite e MCP preserva Evidence e oculta valor-can?rio.
 - `npm.cmd run pie:web:build`; `npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts`: 1/1 passou em Chrome, mostrando nome da vari?vel e caminho env_file sem valor-can?rio.
 - O conte?do dos arquivos `.env`, interpola??o Compose e ambiente efetivo n?o foi lido ou medido.
+
+## Secrets e configs Compose - 18/10/2026
+
+- Adapter: referencias curtas/longas de secrets/configs por servico; definicoes top-level preservam somente external/name/file como metadados. Arquivos nao sao abertos e nenhum conteudo e retido.
+- `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts tests/boundary/mcp/pieMcp.test.ts`: 18/18 passaram; Git/SQLite real verificou componentes, referencias e Evidence.
+- `npm.cmd run pie:build`; `npm.cmd run pie:web:build`; `npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts`: 1/1 passou no Chrome exibindo referencia e definicao. Nenhum secret/config real ou runtime foi consultado.

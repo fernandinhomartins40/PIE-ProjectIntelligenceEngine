@@ -21,7 +21,12 @@ export type InfrastructureFailure =
 
 const componentSchema = z.strictObject({
   id: z.string().min(1),
-  kind: z.enum(["compose_service", "compose_volume", "nginx_directive"]),
+  kind: z.enum([
+    "compose_service",
+    "compose_volume",
+    "compose_resource",
+    "nginx_directive",
+  ]),
   name: z.string().min(1).max(1000),
   parent: z.string().max(1000).nullable(),
   path: z.string().min(1),
@@ -54,6 +59,10 @@ const componentSchema = z.strictObject({
         "volume_definition",
         "environment_key",
         "env_file",
+        "secret_mount",
+        "config_mount",
+        "secret_definition",
+        "config_definition",
       ]),
       value: z.string(),
       evidenceId: z.string().uuid(),
@@ -174,8 +183,11 @@ function inventoryFacts(snapshot: Snapshot) {
       fact.adapter === "nginx-config" &&
       (fact.kind === "config_directive" || fact.kind === "location"),
   );
-  const volumeDefinitions = settings.filter(
-    ({ setting }) => setting.key === "volume_definition",
+  const resourceDefinitions = settings.filter(
+    ({ setting }) =>
+      setting.key === "volume_definition" ||
+      setting.key === "secret_definition" ||
+      setting.key === "config_definition",
   );
   const composeFiles = snapshot.nodes.filter((node) =>
     /(?:^|\/)(?:docker-)?compose[^/]*\.ya?ml$/i.test(node.path),
@@ -305,10 +317,14 @@ function inventoryFacts(snapshot: Snapshot) {
     },
   );
   components.push(
-    ...volumeDefinitions.map(({ fact, setting }) => ({
+    ...resourceDefinitions.map(({ fact, setting }) => ({
       id: fact.id,
-      kind: "compose_volume" as const,
-      name: fact.parent ?? "volume",
+      kind:
+        setting.key === "volume_definition"
+          ? ("compose_volume" as const)
+          : ("compose_resource" as const),
+      name:
+        fact.parent?.replace(/^(?:volumes|secrets|configs):/, "") ?? "resource",
       parent: null,
       path: fact.source.path,
       line: fact.source.line,

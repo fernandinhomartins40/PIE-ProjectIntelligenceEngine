@@ -637,3 +637,7 @@ Validação: adapter/infrastructure 16/16; painel Chrome 1/1 e typecheck passara
 # Continuidade T2.3/T4.4 — ambiente Compose — 18/10/2026
 
 O adapter Compose agora retém apenas nomes válidos das chaves de `environment` e caminhos declarados de `env_file` (string, lista ou objeto com `path`). Valores ambientais nunca são incluídos nos facts. Isso é declaração estática: não resolve interpolação, não lê os arquivos e não representa ambiente efetivo dos containers. Teste focused do adapter está sendo executado nesta etapa; resultados finais serão registrados no relatório de validação.
+
+# Continuidade T2.3/T4.4 - secrets e configs Compose - 18/10/2026
+
+O adapter registra referencias de secrets/configs curtas/longas por servico e definicoes top-level. Retem somente source/target/uid/gid/mode de mounts e metadados external/name/file; nao abre file, nao le conteudo secreto e nao confirma runtime. Boundary adapter/infra/MCP passou 18/18 e Chrome `pieInfrastructureWeb` 1/1. Nenhum arquivo de secret/config foi aberto.

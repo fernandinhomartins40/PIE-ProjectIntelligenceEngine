@@ -347,7 +347,11 @@ function structured(path: string, source: string): AdapterRead {
           | "volume_mount"
           | "volume_definition"
           | "environment_key"
-          | "env_file",
+          | "env_file"
+          | "secret_mount"
+          | "config_mount"
+          | "secret_definition"
+          | "config_definition",
         value: string,
         segments: string[],
         redactions: string[] = [],
@@ -414,6 +418,34 @@ function structured(path: string, source: string): AdapterRead {
         });
       else if (typeof service.env_file === "string")
         setting("env_file", service.env_file, ["services", name, "env_file"]);
+      for (const [field, key] of [
+        ["secrets", "secret_mount"],
+        ["configs", "config_mount"],
+      ] as const) {
+        const mounts = service[field];
+        if (!Array.isArray(mounts)) continue;
+        mounts.forEach((mount, index) => {
+          const value =
+            typeof mount === "string"
+              ? mount
+              : object(mount)
+                ? JSON.stringify(
+                    Object.fromEntries(
+                      ["source", "target", "uid", "gid", "mode"]
+                        .filter((property) =>
+                          Object.hasOwn(object(mount)!, property),
+                        )
+                        .map((property) => [
+                          property,
+                          object(mount)![property],
+                        ]),
+                    ),
+                  )
+                : null;
+          if (value)
+            setting(key, value, ["services", name, field, String(index)]);
+        });
+      }
       if (Array.isArray(service.volumes))
         service.volumes.forEach((volume, index) => {
           const value =
@@ -552,10 +584,36 @@ function structured(path: string, source: string): AdapterRead {
         line: lineAt(["volumes", name]),
       });
     }
+    for (const [field, key] of [
+      ["secrets", "secret_definition"],
+      ["configs", "config_definition"],
+    ] as const) {
+      const definitions = object(parsed[field]);
+      for (const [name, raw] of Object.entries(definitions ?? {})) {
+        const definition = object(raw);
+        const normalized: Record<string, unknown> = {};
+        if (typeof definition?.external === "boolean")
+          normalized.external = definition.external;
+        if (typeof definition?.name === "string")
+          normalized.name = definition.name;
+        if (typeof definition?.file === "string")
+          normalized.file = definition.file;
+        const value = Object.keys(normalized).length
+          ? JSON.stringify(normalized)
+          : "declared_with_details_not_retained";
+        declarations.push({
+          adapter: "compose",
+          kind: "config_directive",
+          name: composeServiceSettingName({ key, value }),
+          parent: `${field}:${name}`,
+          line: lineAt([field, name]),
+        });
+      }
+    }
     return {
       declarations,
       limitations: [
-        "Compose: inventário limitado a serviços, dependências, image, ports, restart, presença de healthcheck, escalares selecionados de deploy e referências de build (contexto/Dockerfile). Interpolação, include, extends, profiles, volumes, build.args, environment, secrets e comportamento de containers não são resolvidos; conteúdo de dockerfile_inline e comando de healthcheck não são retidos. Userinfo de autenticação em URL de contexto é redigido.",
+        "Compose: inventário limitado a serviços, dependências, image, ports, restart, presença de healthcheck, escalares selecionados de deploy e referências de build (contexto/Dockerfile). Interpolacao, include, extends, profiles, build.args e runtime nao sao resolvidos; volumes, nomes de ambiente, env_file e referencias/definicoes de secrets/configs sao declarations estaticas sem resolucao ou execucao; conteúdo de dockerfile_inline e comando de healthcheck não são retidos. Userinfo de autenticação em URL de contexto é redigido.",
       ],
     };
   }

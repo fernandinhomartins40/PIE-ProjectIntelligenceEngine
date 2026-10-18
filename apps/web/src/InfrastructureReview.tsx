@@ -43,6 +43,14 @@ function settingLabel(key: SettingKey): string {
       return "Variável de ambiente declarada";
     case "env_file":
       return "Arquivo env declarado";
+    case "secret_mount":
+      return "Referência de secret declarada";
+    case "config_mount":
+      return "Referência de config declarada";
+    case "secret_definition":
+      return "Definição de secret declarada";
+    case "config_definition":
+      return "Definição de config declarada";
   }
 }
 
@@ -110,7 +118,9 @@ export function InfrastructureReview({
                   ? `Serviço ${component.name}`
                   : component.kind === "nginx_directive"
                     ? `Diretiva Nginx ${component.name}`
-                    : `Volume Compose ${component.name}`
+                    : component.kind === "compose_volume"
+                      ? `Volume Compose ${component.name}`
+                      : `Recurso Compose ${component.name}`
               }
               className="card"
               key={component.id}
@@ -120,7 +130,9 @@ export function InfrastructureReview({
                   ? `Serviço ${component.name}`
                   : component.kind === "nginx_directive"
                     ? "Diretiva Nginx declarada"
-                    : `Volume Compose ${component.name}`}
+                    : component.kind === "compose_volume"
+                      ? `Volume Compose ${component.name}`
+                      : `Recurso Compose ${component.name}`}
               </h3>
               <p>
                 {component.kind === "nginx_directive" ? "Nginx" : "Compose"}:{" "}
@@ -163,7 +175,8 @@ export function InfrastructureReview({
                     ))}
                 </ul>
               )}
-              {component.kind === "compose_volume" && (
+              {(component.kind === "compose_volume" ||
+                component.kind === "compose_resource") && (
                 <p>
                   Definição declarada:{" "}
                   <code>{component.settings[0]?.value}</code>{" "}

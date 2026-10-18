@@ -72,6 +72,10 @@ export const composeServiceSettingSchema = z.strictObject({
     "volume_definition",
     "environment_key",
     "env_file",
+    "secret_mount",
+    "config_mount",
+    "secret_definition",
+    "config_definition",
   ]),
   value: z.string().max(900),
 });
