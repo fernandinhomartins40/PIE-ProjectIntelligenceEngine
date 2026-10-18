@@ -25,6 +25,8 @@
 - Um arquivo MIT do commit Radix `fcef0668a5c827e5a4baac405474d75680f9a4eb` cobre os dois pacotes Radix e identifica WorkOS; o commit Remeda `f9e681a707fd8cac00c43c10591c44e17f577610` identifica remeda. Os textos íntegros estão em `licenses/radix-primitives-MIT.txt` e `licenses/remeda-MIT.txt` e foram inseridos nas entradas de runtime. Nenhum copyright foi inferido. Isso reduz os gaps de notices, mas não equivale a parecer jurídico nem à revisão de todos os componentes.
 - Os READMEs exatos de `pg-types@2.2.0` (`d9d9dfb87eb50914043cbc178c301b7dd3b0c50d`) e `pgpass@1.0.5` (`4230ed5e417ba6044ea7eb80b7c33db9ec301398`) também contêm o MIT completo e copyright explícito. O `gitHead` do registro npm confere; os trechos foram preservados com SHA-256 e inseridos nas entradas runtime. Permanecem dois `UPSTREAM_NOTICE_GAP` (`@prisma/dev@0.24.17` e `postgres@3.4.7`), sem substituição por licença presumida.
 
+- `postgres@3.4.7` declara `Unlicense` nos metadados do pacote e do lockfile; `npm view` confirma o `gitHead` `9b92b65da6a5121545581a6dd5de859c2a70177f`. Como archive e revisão exata não fornecem notice standalone, o texto oficial SPDX foi preservado separadamente com commit e SHA-256 fixados. Ele é rotulado como referência canônica, não como texto original do pacote; o gap de fonte/notice e a revisão jurídica permanecem abertos.
+
 ## Comparação de observação de linha por binding — schema v3 — 18/10/2026
 
 - O payload de comparação agora separa intenção (`interpretation: declared_unverified`) de `runtimeObservation`: linha observada/não observada, desconhecido ou não instrumentado; a prova referencia o Evidence do run. Alteração aditiva versionada em schema v3.

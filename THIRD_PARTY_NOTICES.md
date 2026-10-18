@@ -7,6 +7,8 @@ Seven added archive identities lack recognized standalone notice documents.
 Exact upstream LICENSE texts from the package registry `gitHead` are now
 preserved for the two Radix packages, Remeda, `pg-types`, and `pgpass`; the other two entries still explicitly
 record `UPSTREAM_NOTICE_GAP` and require source-level review before redistribution.
+`postgres@3.4.7` declares `Unlicense`; its canonical SPDX text is preserved as a
+reference, not as an original package notice. The source-level gap remains open.
 The package remains private; a passing inventory consistency check does not
 establish legal completeness.
 The Prisma CLI's dependency closure is retained in the inventory even where

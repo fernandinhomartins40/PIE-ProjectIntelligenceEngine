@@ -16465,9 +16465,28 @@ Archive: https://registry.npmjs.org/postgres/-/postgres-3.4.7.tgz
 Integrity: sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw==
 Scope: npm runtime dependency, including optional platform packages.
 
+--- DECLARED_LICENSE_TEXT ---
+The npm registry package metadata declares Unlicense, and the exact upstream gitHead is verified for postgres@3.4.7. Neither the published archive nor that source revision contains a standalone license text. The following is the canonical SPDX Unlicense text, preserved as a reference; it is not an original notice recovered from the package.
+Source: https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/Unlicense.txt
+Source revision: 31ba1a50e5397e00a304dbadc76531740e89ee48
+npm registry gitHead verified for: postgres@3.4.7 (9b92b65da6a5121545581a6dd5de859c2a70177f)
+Preserved file: licenses/Unlicense.txt
+SHA-256: 0bdebfeda07d45dada625ae1317c6f833186e798b171d0db640bcf32e92a8240
+
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this software dedicate any and all copyright interest in the software to the public domain. We make this dedication for the benefit of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of relinquishment in perpetuity of all present and future rights to this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <http://unlicense.org/>
+
 --- UPSTREAM_NOTICE_GAP ---
 
-The integrity-verified published archive contains no standalone LICENSE, COPYING, COPYRIGHT or NOTICE document recognized by this collector. Its package metadata declares license "Unlicense". This is an unresolved upstream notice gap, not recovered attribution or permission to omit applicable notices. Review the actual upstream source before redistributing this component. PIE remains a private package pending release review.
+No standalone upstream LICENSE, COPYING, COPYRIGHT or NOTICE document was found in the integrity-verified archive or the exact source revision. The SPDX reference does not recover an original package notice or determine redistribution obligations. Source/legal review remains open; PIE remains a private package pending release review.
 
 ===== postgres-array@3.0.4 =====
 Declared license: MIT
