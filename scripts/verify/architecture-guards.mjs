@@ -150,6 +150,10 @@ check(
     "src/domain/process/processTraceSpecification.ts",
     "src/domain/unicodeCodePointOrder.ts",
     "src/domain/webBundleAnalyzerInspection.ts",
+    // Security finding identity keeps its published digest format. The first
+    // field is an admitted filesystem path (NUL rejected by containedPath),
+    // followed by a numeric line, secretKind enum, and lowercase SHA-256.
+    "src/pie/security.ts",
   ],
 );
 

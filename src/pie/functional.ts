@@ -76,7 +76,6 @@ const productFinding = z.strictObject({
   }),
   missingEvidence: z.array(z.string()),
 });
-export const productInput = functionalInput;
 export const productOutput = z.strictObject({
   schemaVersion: z.literal(1),
   engine: engineName.extract(["product"]),
@@ -95,7 +94,7 @@ export const productOutput = z.strictObject({
 
 function assessValidatedProduct(
   snapshot: Snapshot,
-  request: z.infer<typeof productInput>,
+  request: z.infer<typeof functionalInput>,
 ) {
   const { targets, selected } = selectFunctionalTargets(snapshot, request);
   const opportunities = selected.items.map((declaration) => ({
@@ -150,7 +149,7 @@ export function assessProductResult(
   snapshotInput: unknown,
   input: unknown,
 ): Result<ReturnType<typeof assessValidatedProduct>, ProductFailure> {
-  const request = productInput.safeParse(input);
+  const request = functionalInput.safeParse(input);
   if (!request.success) return err({ kind: "invalid_input", reason: "schema" });
   if (!canonicalModulePath(request.data.modulePath))
     return err({ kind: "invalid_input", reason: "module_path" });

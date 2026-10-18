@@ -47,3 +47,13 @@ it("não duplica missing columns quando a tabela inteira está ausente", () => {
     ),
   ).toEqual({ missingColumns: [], unexpectedColumns: [] });
 });
+
+it("não colapsa nomes compostos com NUL em fronteiras de tabela e coluna", () => {
+  const expected = [
+    { table: "a\0b", column: "c" },
+    { table: "a", column: "b\0c" },
+  ];
+  expect(
+    comparePostgresColumns(expected, [expected[0]!], new Set(["a\0b", "a"])),
+  ).toEqual({ missingColumns: ["a.b\0c"], unexpectedColumns: [] });
+});

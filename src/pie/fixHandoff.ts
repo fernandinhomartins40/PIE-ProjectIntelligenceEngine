@@ -5,6 +5,7 @@ import { planItemSchema } from "./planning.js";
 import { sha256 } from "./evidence.js";
 import { pageUtf8Artifact } from "./utf8Artifact.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
+import { compositeKey } from "../domain/unicodeCodePointOrder.js";
 
 export const fixHandoffInput = z.strictObject({
   snapshotId: z.string().uuid(),
@@ -212,8 +213,8 @@ export function buildFixHandoff(
       evidenceIds: ids,
     }))
     .sort((a, b) => {
-      const left = `${a.from}\0${a.to}\0${a.kind}`;
-      const right = `${b.from}\0${b.to}\0${b.kind}`;
+      const left = compositeKey([a.from, a.to, a.kind]);
+      const right = compositeKey([b.from, b.to, b.kind]);
       return left < right ? -1 : left > right ? 1 : 0;
     });
   const completeEvidenceIds = [

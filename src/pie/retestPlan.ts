@@ -202,20 +202,3 @@ export function planRetestsResult(
     return err({ kind: "policy_denied", reason: "project_scope" });
   return ok(renderRetestPlan(before, after, input.data));
 }
-
-export function planRetests(
-  beforeInput: Snapshot,
-  afterInput: Snapshot,
-  raw: unknown,
-) {
-  const result = planRetestsResult(beforeInput, afterInput, raw);
-  if (result.ok) return result.value;
-  if (result.error.kind === "invalid_snapshot")
-    throw new PieError("INTEGRITY_ERROR", "Snapshot de reteste inválido.");
-  if (result.error.kind === "policy_denied")
-    throw new PieError(
-      "INVALID_INPUT",
-      "Reteste exige snapshots correspondentes do mesmo projeto e raiz.",
-    );
-  throw new PieError("INVALID_INPUT", "Entrada de plano de reteste inválida.");
-}

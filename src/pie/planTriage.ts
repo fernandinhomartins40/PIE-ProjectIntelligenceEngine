@@ -248,25 +248,6 @@ export function validatePlanTriageHistory(
   });
 }
 
-export function applyPlanTriage<T extends z.infer<typeof planItemSchema>>(
-  item: T,
-  history: z.infer<typeof planTriageHistorySchema>,
-) {
-  if (history.itemId !== item.id)
-    throw new PieError(
-      "INTEGRITY_ERROR",
-      "Triagem não corresponde ao item do plano.",
-    );
-  return planItemSchema.parse({
-    ...item,
-    owner: history.owner,
-    status: history.status,
-    priority: history.priorityAssessment ? "assessed" : "unassessed",
-    priorityAssessment: history.priorityAssessment,
-    triageRevision: history.revision,
-  });
-}
-
 export function applyLatestPlanTriage(
   item: z.infer<typeof planItemSchema>,
   eventInput?: unknown,

@@ -1,7 +1,7 @@
 import canonicalize from "canonicalize";
 import { z } from "zod";
 import { PieError, type Snapshot } from "./contracts.js";
-import { page, pageSchema } from "./graph.js";
+import { pageSchema } from "./graph.js";
 import { sha256 } from "./evidence.js";
 import { planItemSchema } from "./planning.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
@@ -121,37 +121,4 @@ export function validateContestationSnapshot(
       "Evidence da contestação não pertence ao snapshot original.",
     );
   return record;
-}
-
-export function contestationHistory(
-  snapshotInput: Snapshot,
-  rawInput: unknown,
-  records: unknown[],
-) {
-  const request = planContestHistoryInput.parse(rawInput);
-  const snapshot = validateSnapshot(snapshotInput);
-  if (request.snapshotId !== snapshot.id)
-    throw new PieError("INVALID_INPUT", "Histórico pertence a outro snapshot.");
-  const valid = records.map((record) =>
-    validateContestationSnapshot(record, snapshot),
-  );
-  const selected = valid
-    .filter((record) => record.planDigest === request.planDigest)
-    .sort((a, b) =>
-      a.createdAt < b.createdAt
-        ? -1
-        : a.createdAt > b.createdAt
-          ? 1
-          : a.id < b.id
-            ? -1
-            : a.id > b.id
-              ? 1
-              : 0,
-    );
-  return planContestHistorySchema.parse({
-    schemaVersion: 1,
-    snapshotId: snapshot.id,
-    planDigest: request.planDigest,
-    items: page(selected, { offset: request.offset, limit: request.limit }),
-  });
 }

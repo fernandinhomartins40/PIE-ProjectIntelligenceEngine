@@ -706,28 +706,3 @@ export function compareVerificationRunsResult(
     ),
   );
 }
-
-export function compareVerificationRuns(
-  beforeInput: unknown,
-  beforeSnapshot: Snapshot,
-  afterInput: unknown,
-  afterSnapshot: Snapshot,
-  rawInput: unknown,
-) {
-  const result = compareVerificationRunsResult(
-    beforeInput,
-    beforeSnapshot,
-    afterInput,
-    afterSnapshot,
-    rawInput,
-  );
-  if (result.ok) return result.value;
-  if (result.error.kind === "invalid_run")
-    throw new PieError("INTEGRITY_ERROR", "Registro de execucao invalido.");
-  throw new PieError(
-    "INVALID_INPUT",
-    result.error.kind === "policy_denied"
-      ? "Execucoes devem ser distintas, ordenadas e pertencer ao mesmo projeto e raiz."
-      : "Entrada de comparacao de execucoes invalida.",
-  );
-}

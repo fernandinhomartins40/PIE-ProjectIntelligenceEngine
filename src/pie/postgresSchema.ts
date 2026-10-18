@@ -1,3 +1,5 @@
+import { compositeKey } from "../domain/unicodeCodePointOrder.js";
+
 export type PostgresColumn = { table: string; column: string };
 
 export function comparePostgresColumns(
@@ -5,7 +7,8 @@ export function comparePostgresColumns(
   actual: readonly PostgresColumn[],
   existingTables: ReadonlySet<string>,
 ) {
-  const key = ({ table, column }: PostgresColumn) => `${table}\0${column}`;
+  const key = ({ table, column }: PostgresColumn) =>
+    compositeKey([table, column]);
   const ownedTables = new Set(expected.map(({ table }) => table));
   const expectedKeys = new Set(
     expected
