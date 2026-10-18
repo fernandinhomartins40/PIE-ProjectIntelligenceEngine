@@ -503,6 +503,10 @@ T4.3 adiciona fato produzido pelo parser YAML de `.github/workflows/*.yml|yaml` 
 
 `assessProductResult` agora separa schema inválido, caminho de módulo inválido, snapshot rejeitado e identidade divergente; erros internos seguem propagando. `PieService` traduz as tags em `PieError` e preserva a paridade de adapters. O conteúdo do motor continua limitado a lacunas de Evidence: jornadas, fricção e oportunidades UX não são alegadas como observadas. `pieProduct`, `pieUnifiedPlan` e `pieAdapters` passaram 14/14; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1/T4.2 seguem parciais.
 
+## Result tipado no motor de segurança — 17/10/2026
+
+`reviewSecurityResult` classifica entrada inválida, snapshot inválido e divergência de identidade; falhas internas da leitura, AST e validação de saída continuam propagando. O `PieService` usa a fronteira assíncrona antes da conversão para erro de domínio. O scanner mantém as regras de Evidence/hash, redaction e limites existentes; não amplia cobertura nem afirma validade de findings suspeitos. `pieSecurityReview` e `pieAdapters` passaram 13/13; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1/T4.3 seguem parciais.
+
 ## Result tipado na revisão de dados — 17/10/2026
 
 `reviewDataResult` separa entrada inválida, snapshot inválido e divergência de snapshot em falhas tagged; erros inesperados seguem propagando. `PieService.dataReview` valida o identificador necessário à leitura, usa a fronteira Result para o contrato completo e traduz falhas para `PieError` estável; o wrapper de domínio preserva o consumidor de planejamento. `pieDataReview` e `pieUnifiedPlan`: 3/3 passaram com Git/SQLite locais e paridade CLI/API/MCP. T1.1 continua parcial: Result ainda não é uniforme nos demais engines, adapters e runners.

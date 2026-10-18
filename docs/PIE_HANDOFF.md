@@ -522,6 +522,8 @@ Continuação T4.3: o adapter YAML agora emite Evidence por linha para `permissi
 
 Continuidade do T1.1: motor de produto/UX recebeu `assessProductResult`; a fronteira usa tags para entrada/snapshot inválidos e divergência, com tratamento especial para caminho não canônico. `pieProduct`, `pieUnifiedPlan` e `pieAdapters` passaram 14/14. `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T4.2 continua parcial e não há evidência de jornada observada.
 
+Continuidade T1.1/T4.3: motor de segurança agora expõe `reviewSecurityResult` assíncrono e consome-o pelo `PieService`; falhas de entrada/snapshot/identidade são tags, enquanto falhas internas do scanner não são ocultadas. `pieSecurityReview` e `pieAdapters` passaram 13/13. `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. Findings continuam suspeitos e redigidos conforme o contrato.
+
 ## Continuidade — Result em revisão de dados — 17/10/2026
 
 `reviewDataResult` adiciona tags para input, snapshot e identidade divergentes; somente falhas esperadas são convertidas e erros internos continuam propagando. `PieService` converte as tags para erros do domínio e mantém os contratos CLI/API/MCP. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts` passou: 2 arquivos, 3 testes. Build PIE, `check:fast`, `format:check` e `docs:check` também passaram. T1.1 segue parcial; não declarar uniformidade global.

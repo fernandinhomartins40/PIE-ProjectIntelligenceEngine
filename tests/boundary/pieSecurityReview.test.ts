@@ -14,9 +14,36 @@ import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
 import { discoverProject } from "../../src/pie/discovery.js";
-import { reviewSecurity } from "../../src/pie/security.js";
+import {
+  reviewSecurity,
+  reviewSecurityResult,
+} from "../../src/pie/security.js";
 
 const exec = promisify(execFile);
+
+async function expectSecurityInputFailures(
+  snapshot: unknown,
+  snapshotId: string,
+) {
+  await expect(
+    reviewSecurityResult(snapshot, { snapshotId, limit: -1 }),
+  ).resolves.toEqual({
+    ok: false,
+    error: { kind: "invalid_input" },
+  });
+  await expect(
+    reviewSecurityResult(snapshot, {
+      snapshotId: "00000000-0000-4000-8000-000000000000",
+    }),
+  ).resolves.toEqual({
+    ok: false,
+    error: { kind: "policy_denied", reason: "snapshot_mismatch" },
+  });
+  await expect(reviewSecurityResult({}, { snapshotId })).resolves.toEqual({
+    ok: false,
+    error: { kind: "invalid_snapshot" },
+  });
+}
 
 async function verifySecurityAdapters(input: {
   service: PieService;
@@ -323,6 +350,7 @@ it("bounds credential findings and reports incomplete coverage at the cap", asyn
       randomUUID(),
     );
     const result = await reviewSecurity(snapshot, { snapshotId: snapshot.id });
+    await expectSecurityInputFailures(snapshot, snapshot.id);
     expect(result.findings.total).toBe(10_000);
     expect(result.coverage.findingsTruncated).toBe(true);
     expect(result.state).toBe("incomplete");

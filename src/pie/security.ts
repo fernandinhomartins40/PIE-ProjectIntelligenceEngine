@@ -10,10 +10,16 @@ import { parse } from "@babel/parser";
 import traverse from "@babel/traverse";
 import type { Node } from "@babel/types";
 import { z } from "zod";
+import { err, ok, type Result } from "../domain/result.js";
 
 export const securityInput = pageSchema.extend({
   snapshotId: z.string().uuid(),
 });
+
+export type SecurityFailure =
+  | { kind: "invalid_input" }
+  | { kind: "invalid_snapshot" }
+  | { kind: "policy_denied"; reason: "snapshot_mismatch" };
 
 const secretKind = z.enum([
   "aws_access_key_id",
@@ -722,13 +728,37 @@ function reportState(snapshot: Snapshot, scan: SnapshotScan) {
 }
 
 /** Scans only current files whose bytes still match static Evidence in the snapshot. */
+export async function reviewSecurityResult(
+  snapshotInput: unknown,
+  rawInput: unknown,
+): Promise<Result<ReturnType<typeof securityOutput.parse>, SecurityFailure>> {
+  const input = securityInput.safeParse(rawInput);
+  if (!input.success) return err({ kind: "invalid_input" });
+  let snapshot: Snapshot;
+  try {
+    snapshot = validateSnapshot(snapshotInput);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_snapshot" });
+    throw cause;
+  }
+  if (input.data.snapshotId !== snapshot.id)
+    return err({ kind: "policy_denied", reason: "snapshot_mismatch" });
+  return ok(securityReport(snapshot, input.data, await scanSnapshot(snapshot)));
+}
+
 export async function reviewSecurity(
   snapshotInput: unknown,
   rawInput: unknown,
 ) {
-  const input = securityInput.parse(rawInput);
-  const snapshot = validateSnapshot(snapshotInput);
-  if (input.snapshotId !== snapshot.id)
-    throw new PieError("INVALID_INPUT", "Snapshot de segurança diverge.");
-  return securityReport(snapshot, input, await scanSnapshot(snapshot));
+  const result = await reviewSecurityResult(snapshotInput, rawInput);
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot de seguran?a inv?lido.");
+  if (result.error.kind === "policy_denied")
+    throw new PieError("INVALID_INPUT", "Snapshot de seguran?a diverge.");
+  throw new PieError("INVALID_INPUT", "Entrada de seguran?a inv?lida.");
 }

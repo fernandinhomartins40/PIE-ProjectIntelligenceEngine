@@ -730,4 +730,10 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 
 - `npm.cmd run test:focused -- tests/boundary/pieProduct.test.ts tests/boundary/pieUnifiedPlan.test.ts tests/boundary/pieAdapters.test.ts`: 3 arquivos/14 testes passaram. Cobrem tags de falha, plano unificado e paridade/adaptação de produto.
 - `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
+
+## Result tipado no motor de segurança — 17/10/2026
+
+- `npm.cmd run test:focused -- tests/boundary/pieSecurityReview.test.ts tests/boundary/pieAdapters.test.ts`: 2 arquivos/13 testes passaram. A boundary valida scan Git/SQLite real, redaction do valor, limites e paridade CLI/API/MCP; adapters passaram sem regressão.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
+- A mudança não amplia padrões detectados nem remove validação de hash/Evidence, redaction, limites ou incertezas do relatório.
 - As tags não transformam declarações estáticas em jornadas ou oportunidades UX observadas.
