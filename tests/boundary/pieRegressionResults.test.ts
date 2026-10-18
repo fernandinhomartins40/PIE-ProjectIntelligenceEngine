@@ -80,6 +80,7 @@ async function persistRun(
   declarationId?: string,
   runtimeLocations: Array<{ sourcePath: string; line: number }> = [],
   runtimeInstrumentation = true,
+  runtimeReportComplete = true,
 ) {
   const id = randomUUID();
   const authorization = nodeTestGrantSchema.parse({
@@ -154,7 +155,7 @@ async function persistRun(
         ...nodeResult,
         schemaVersion: 2 as const,
         runtimeLocations: {
-          reportComplete: true,
+          reportComplete: runtimeReportComplete,
           locations: runtimeLocations,
           limitations: [],
         },
@@ -228,6 +229,34 @@ async function expectLegacyRunUninstrumented(input: {
       },
     },
   });
+
+  const incompleteRun = await persistRun(
+    input.store,
+    input.snapshot,
+    [
+      { name: "save", outcome: "passed" },
+      { name: "load", outcome: "passed" },
+    ],
+    image,
+    input.declarationId,
+    [],
+    true,
+    false,
+  );
+  const incompleteComparison = await input.service.verificationComparison({
+    beforeRunId: input.instrumentedRun.id,
+    afterRunId: incompleteRun.id,
+  });
+  expect(
+    incompleteComparison.declaredBindings.after.bindings.items,
+  ).toMatchObject([
+    {
+      runtimeObservation: {
+        state: "unknown",
+        evidenceId: incompleteRun.evidence.id,
+      },
+    },
+  ]);
 }
 
 async function assertProjectHistoryAdapters(input: {
