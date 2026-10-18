@@ -114,6 +114,11 @@ export class JobWorker {
           "Lease perdida antes do início do workflow.",
         );
       }
+      if (controller.signal.aborted)
+        throw new PieError(
+          "POLICY_DENIED",
+          "Job cancelado ou expirado antes do início do workflow.",
+        );
       let result: object;
       if (job.kind === "discovery" && this.workflow.kind === "discovery") {
         result = await this.workflow.service.discover(

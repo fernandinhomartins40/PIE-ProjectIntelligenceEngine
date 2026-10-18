@@ -806,3 +806,9 @@ Atualização de gates finais — 18/10/2026
 - `JobWorker` realiza heartbeat apos validar a raiz autorizada e antes de chamar discovery/VERIFY. Cancelamento persistido encerra o job sem iniciar workflow; token/lease perdidos impedem despacho.
 - `npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 5 passaram, 1 skipped (worker CLI continuo Linux-only). A regressao usa fila SQLite e `PieService` reais; persiste cancelamento entre claim e despacho e confirma nenhum projeto/snapshot ou resultado publicado.
 - Esta validacao cobre a corrida antes do inicio do workflow, nao todo cancelamento durante execucao/finalizacao. PostgreSQL runtime e execucao Linux nao foram executados localmente.
+
+## Corrida de heartbeat e cancelamento na publicacao final - 18/10/2026
+
+- Antes do despacho, `JobWorker` recusa executar quando o AbortSignal ja foi acionado, inclusive por heartbeat periodico concorrente ao heartbeat imediato.
+- Nova regressao em `tests/boundary/pieJobs.test.ts` cancela no limite de publicacao usando fila SQLite e `PieService` reais: job `cancelled`, sem payload de sucesso; snapshot OBSERVE ja persistido continua consultavel no historico imutavel.
+- `npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 6 passaram e 1 worker CLI continuo Linux-only foi skipped. Cancelamento tardio nao reverte discovery concluida. PostgreSQL e Linux runtime permanecem sem prova local.
