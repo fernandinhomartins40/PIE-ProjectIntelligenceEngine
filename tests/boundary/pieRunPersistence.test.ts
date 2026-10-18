@@ -18,6 +18,7 @@ import { startPieApi } from "../../src/pie/api.js";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import type { VerificationRun } from "../../src/pie/execution/runContracts.js";
+import { exportVerificationResult } from "../../src/pie/execution/runExport.js";
 
 async function readAdapters(path: string, repo: string, run: VerificationRun) {
   const script = resolve("scripts/pie.mjs");
@@ -210,6 +211,22 @@ async function exercise(store: PiePersistence, root: string, repo: string) {
   expect(run.result.state).toBe("blocked");
   await store.saveVerification(run);
   await store.saveVerification(run);
+  expect(
+    exportVerificationResult(run, snapshot, {
+      id: run.id,
+      limitBytes: 3,
+    }),
+  ).toEqual({ ok: false, error: { kind: "invalid_input" } });
+  expect(exportVerificationResult({}, snapshot, { id: run.id })).toEqual({
+    ok: false,
+    error: { kind: "invalid_run" },
+  });
+  expect(exportVerificationResult(run, snapshot, { id: randomUUID() })).toEqual(
+    {
+      ok: false,
+      error: { kind: "policy_denied", reason: "run_id_mismatch" },
+    },
+  );
   expect(await service.verification(run.id)).toEqual(run);
   expect(await service.evidence(run.evidence.id)).toEqual(run.evidence);
   expect(await service.verifications(snapshot.id, { limit: 1 })).toMatchObject({

@@ -531,3 +531,5 @@ Continuidade T1.1/T3.1: `planRetestsResult` tipa input invalido, snapshot invali
 ## Continuidade — Result em revisão de dados — 17/10/2026
 
 `reviewDataResult` adiciona tags para input, snapshot e identidade divergentes; somente falhas esperadas são convertidas e erros internos continuam propagando. `PieService` converte as tags para erros do domínio e mantém os contratos CLI/API/MCP. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts` passou: 2 arquivos, 3 testes. Build PIE, `check:fast`, `format:check` e `docs:check` também passaram. T1.1 segue parcial; não declarar uniformidade global.
+
+Continuation T1.1/T1.2: VERIFY export uses `exportVerificationResult`; invalid input, invalid historical run, and mismatched ID are distinct. `pieRunPersistence` SQLite/adapters passed; PostgreSQL skipped without `PIE_TEST_DATABASE_URL`. Focused test, `pie:build`, `check:fast`, `docs:check`, `format:check`, and `git diff --check` passed.

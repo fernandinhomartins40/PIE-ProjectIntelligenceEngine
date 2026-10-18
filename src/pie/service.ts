@@ -53,7 +53,7 @@ import {
   compareVerificationRunsResult,
   verificationComparisonInput,
 } from "./regressionResults.js";
-import { exportVerification as renderVerificationExport } from "./execution/runExport.js";
+import { exportVerificationResult } from "./execution/runExport.js";
 import { verificationExportInput } from "./execution/runContracts.js";
 import { exportPlan as renderPlanExport } from "./planExport.js";
 import {
@@ -164,6 +164,20 @@ function retestPlanValue(result: ReturnType<typeof planRetestsResult>) {
   throw new PieError(
     "INVALID_INPUT",
     "Entrada ou escopo do plano de reteste invalido.",
+  );
+}
+
+function verificationExportValue(
+  result: ReturnType<typeof exportVerificationResult>,
+) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_run")
+    throw new PieError("INTEGRITY_ERROR", "Registro de execução inválido.");
+  throw new PieError(
+    "INVALID_INPUT",
+    result.error.kind === "policy_denied"
+      ? "Execução da exportação diverge."
+      : "Entrada de exportação inválida.",
   );
 }
 
@@ -377,10 +391,18 @@ export class PieService {
   }
   exportVerification(input: unknown) {
     return this.#read(async () => {
-      const request = verificationExportInput.parse(input);
-      const run = await this.store.verification(request.id);
+      const id = verificationExportInput.shape.id.safeParse(
+        typeof input === "object" && input !== null
+          ? (input as { id?: unknown }).id
+          : undefined,
+      );
+      if (!id.success)
+        throw new PieError("INVALID_INPUT", "Entrada de exportação inválida.");
+      const run = await this.store.verification(id.data);
       const snapshot = await this.store.snapshot(run.snapshotId);
-      return renderVerificationExport(run, snapshot, request);
+      return verificationExportValue(
+        exportVerificationResult(run, snapshot, input),
+      );
     });
   }
   httpProbe(id: string) {
