@@ -16279,9 +16279,38 @@ Archive: https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz
 Integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==
 Scope: npm runtime dependency, including optional platform packages.
 
---- UPSTREAM_NOTICE_GAP ---
+--- UPSTREAM_SOURCE_LICENSE ---
+Source: https://raw.githubusercontent.com/brianc/node-pg-types/d9d9dfb87eb50914043cbc178c301b7dd3b0c50d/README.md#license
+Source revision: d9d9dfb87eb50914043cbc178c301b7dd3b0c50d
+npm registry gitHead verified for: pg-types@2.2.0
+Preserved file: licenses/pg-types-MIT.txt
+SHA-256: c565667e0560bba6502cda29fd9d461fd3acaf9dac24dda4d2758ce0f8b720cd
 
-The integrity-verified published archive contains no standalone LICENSE, COPYING, COPYRIGHT or NOTICE document recognized by this collector. Its package metadata declares license "MIT". This is an unresolved upstream notice gap, not recovered attribution or permission to omit applicable notices. Review the actual upstream source before redistributing this component. PIE remains a private package pending release review.
+## license
+
+The MIT License (MIT)
+
+Copyright (c) 2014 Brian M. Carlson
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
 
 ===== postgres-array@2.0.0 =====
 Declared license: MIT
@@ -16320,9 +16349,24 @@ Archive: https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz
 Integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==
 Scope: npm runtime dependency, including optional platform packages.
 
---- UPSTREAM_NOTICE_GAP ---
+--- UPSTREAM_SOURCE_LICENSE ---
+Source: https://raw.githubusercontent.com/hoegaarden/pgpass/4230ed5e417ba6044ea7eb80b7c33db9ec301398/README.md#license
+Source revision: 4230ed5e417ba6044ea7eb80b7c33db9ec301398
+npm registry gitHead verified for: pgpass@1.0.5
+Preserved file: licenses/pgpass-MIT.txt
+SHA-256: f660a02f22de943c8c28a93791e8571c67f9088be93226fd526842b586cb4db4
 
-The integrity-verified published archive contains no standalone LICENSE, COPYING, COPYRIGHT or NOTICE document recognized by this collector. Its package metadata declares license "MIT". This is an unresolved upstream notice gap, not recovered attribution or permission to omit applicable notices. Review the actual upstream source before redistributing this component. PIE remains a private package pending release review.
+## License
+
+Copyright (c) 2013-2016 Hannes Hörl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
 
 ===== pkg-types@2.3.3 =====
 Declared license: MIT

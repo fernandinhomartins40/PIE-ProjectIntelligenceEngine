@@ -4,8 +4,8 @@ PIE adds pinned Prisma/PostgreSQL dependencies to this fork. Their published
 archive identities, integrity hashes and original notice documents are retained
 in `licenses/npm-dependencies.txt` and `licenses/npm-runtime-notices.txt`.
 Seven added archive identities lack recognized standalone notice documents.
-Exact root LICENSE files from the package registry `gitHead` are now preserved
-for the two Radix packages and Remeda; the other four entries still explicitly
+Exact upstream LICENSE texts from the package registry `gitHead` are now
+preserved for the two Radix packages, Remeda, `pg-types`, and `pgpass`; the other two entries still explicitly
 record `UPSTREAM_NOTICE_GAP` and require source-level review before redistribution.
 The package remains private; a passing inventory consistency check does not
 establish legal completeness.

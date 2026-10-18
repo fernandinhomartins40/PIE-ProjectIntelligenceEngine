@@ -78,5 +78,15 @@
     "file": "licenses/remeda-MIT.txt",
     "source": "https://raw.githubusercontent.com/remeda/remeda/f9e681a707fd8cac00c43c10591c44e17f577610/LICENSE",
     "sha256": "acf30083045d768ce20640237313ee31a45d548d66ef76df5bb5fb0745479535"
+  },
+  {
+    "file": "licenses/pg-types-MIT.txt",
+    "source": "https://raw.githubusercontent.com/brianc/node-pg-types/d9d9dfb87eb50914043cbc178c301b7dd3b0c50d/README.md#license",
+    "sha256": "c565667e0560bba6502cda29fd9d461fd3acaf9dac24dda4d2758ce0f8b720cd"
+  },
+  {
+    "file": "licenses/pgpass-MIT.txt",
+    "source": "https://raw.githubusercontent.com/hoegaarden/pgpass/4230ed5e417ba6044ea7eb80b7c33db9ec301398/README.md#license",
+    "sha256": "f660a02f22de943c8c28a93791e8571c67f9088be93226fd526842b586cb4db4"
   }
 ]

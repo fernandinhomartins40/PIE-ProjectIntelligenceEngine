@@ -14,7 +14,7 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 ## Continuidade T0.2 — notices npm por `gitHead` exato — 18/10/2026
 
-Revisão dos tarballs Radix (`@radix-ui/react-compose-refs@1.1.2`, `@radix-ui/react-use-layout-effect@1.1.1`) e Remeda `2.33.4`: SRI corresponde ao lockfile, todos os três arquivos publicados não têm notice standalone, e os `gitHead` do registro npm apontam aos commits preservados. As cópias LICENSE estão fixadas com SHA-256 em `licenses/upstream-sources.json` e nas entries runtime. Quatro `UPSTREAM_NOTICE_GAP` de arquivo permanecem; outras questões de atribuição e revisão de redistribuição continuam abertas. `licenses:check`, `docs:check` e `format:check` passaram; ledger `complete=false`. Próximo: revisar os quatro packages restantes apenas por fonte exata vinculada à publicação; não inferir autores ou copyright.
+Notices recuperados de cinco identidades do lockfile: dois pacotes Radix e Remeda por LICENSE raiz, `pg-types@2.2.0` e `pgpass@1.0.5` pelas seções MIT dos READMEs nos commits publicados em `gitHead`. SRI dos tarballs confere com o lockfile; as fontes estão fixadas por URL/SHA-256 em `licenses/upstream-sources.json` e nas entradas runtime. Dois `UPSTREAM_NOTICE_GAP` permanecem (`@prisma/dev@0.24.17`, sem `gitHead`/repositório no metadado npm, e `postgres@3.4.7`, sem texto de licença no commit exato); outras questões de atribuição e revisão de redistribuição continuam abertas. `licenses:check`, `docs:check` e `format:check` passaram antes desta segunda rodada; ledger `complete=false`. Próximo: investigar apenas fonte exata para os dois gaps restantes; não inferir autores ou copyright.
 
 ## Próxima frente — prova semântica de capacidade a partir de testes — 18/10/2026
 
