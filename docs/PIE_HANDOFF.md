@@ -766,3 +766,7 @@ Refs revalidadas: HEAD/PIE `951755e1f`, upstream `eb2c3b589`, fork REA `d200b861
 ## Boundary real Windows de processo — 18/10/2026
 
 Corrigi assertions portáveis em `tests/boundary/process/providerProcess.test.ts`: DACL Windows é verificada pela autoridade nativa; coordenadas do launcher são avaliadas segundo Job Object no Windows e grupo/comando no POSIX. As boundaries `providerProcess`, `providerProcessOutput` e `windowsOutputCapture` passaram: 25 testes, 6 skips POSIX. O processo Windows de captura produziu/reteve 8.454.144 bytes em 493 ms, SHA-256 `cd6b2297b720cc1b868f5479d51ce7e5f2e8259470193f8112dd2df8a73658c`, deadline 30 s. Próximo: gates gerais e CI do commit, depois rodar o teste POSIX em Linux/macOS. Não confundir esse resultado com validação da CI integral nem dos providers externos.
+
+## Estado de CI e matriz após lifecycle Windows — 18/10/2026
+
+HEAD/`origin/main` `cd4e4fac4`. GitHub Actions: CI #252 do commit anterior aparece como `Queued` e CI #253 deste commit como `Pending`, aguardando #252; não há resultado integral para registrar. Local Windows: `pieJobs`/worker tem cobertura anterior, e as novas boundaries do processo passaram 25 testes com 6 skips POSIX; `windowsOwnedCommand.test.ts` passou 6/6. Captura Windows real: 8.454.144 bytes em 493 ms. `wsl --status` retornou código 50; não há runtime Linux/WSL disponível neste host. Próximo: acompanhar #252/#253, validar o hash final após término da fila e obter execução POSIX em runner Linux; não declarar T0.1/T6.3 concluídas.
