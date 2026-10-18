@@ -2,6 +2,36 @@ import { useEffect, useState } from "react";
 import { api, type InfrastructureReview as Review } from "./api.js";
 import { message, Notice, Pager } from "./components.js";
 
+type SettingKey =
+  Review["components"]["items"][number]["settings"][number]["key"];
+
+function settingLabel(key: SettingKey): string {
+  switch (key) {
+    case "image":
+      return "Imagem";
+    case "port":
+      return "Porta";
+    case "restart":
+      return "Reinício";
+    case "healthcheck":
+      return "Healthcheck";
+    case "replicas":
+      return "Réplicas declaradas";
+    case "cpus_limit":
+      return "CPU (limite declarado)";
+    case "memory_limit":
+      return "Memória (limite declarado)";
+    case "pids_limit":
+      return "PIDs (limite declarado)";
+    case "cpus_reservation":
+      return "CPU (reserva declarada)";
+    case "memory_reservation":
+      return "Memória (reserva declarada)";
+    case "pids_reservation":
+      return "PIDs (reserva declarada)";
+  }
+}
+
 export function InfrastructureReview({
   snapshotId,
   onEvidence,
@@ -102,7 +132,8 @@ export function InfrastructureReview({
                 <ul aria-label="Configurações Compose declaradas">
                   {component.settings.map((setting) => (
                     <li key={setting.evidenceId}>
-                      {setting.key}: <code>{setting.value}</code> ·{" "}
+                      {settingLabel(setting.key)}: <code>{setting.value}</code>{" "}
+                      ·{" "}
                       <button
                         type="button"
                         onClick={() => onEvidence(setting.evidenceId)}

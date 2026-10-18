@@ -33,7 +33,19 @@ const componentSchema = z.strictObject({
   ),
   settings: z.array(
     z.strictObject({
-      key: z.enum(["image", "port", "restart", "healthcheck"]),
+      key: z.enum([
+        "image",
+        "port",
+        "restart",
+        "healthcheck",
+        "replicas",
+        "cpus_limit",
+        "memory_limit",
+        "pids_limit",
+        "cpus_reservation",
+        "memory_reservation",
+        "pids_reservation",
+      ]),
       value: z.string(),
       evidenceId: z.string().uuid(),
     }),
@@ -45,7 +57,7 @@ const componentSchema = z.strictObject({
 
 const measurement = z.literal("NOT_MEASURED");
 export const infrastructureOutput = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   engine: z.literal("infrastructure"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
@@ -178,7 +190,7 @@ function reviewValidatedInfrastructure(
 ) {
   const { components, sourceFacts } = inventoryFacts(snapshot);
   return infrastructureOutput.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     engine: "infrastructure",
     snapshotId: snapshot.id,
     state: "unverified",
@@ -201,8 +213,8 @@ function reviewValidatedInfrastructure(
       sourceFacts,
       runtimeMeasured: false,
       limitations: [
-        "Inventário limitado a serviços, dependências, imagem, portas, política de reinício e presença de healthcheck Compose já parseados e diretivas Nginx selecionadas com Evidence; não examina Dockerfile, CI, processos, volumes ou configuração efetiva.",
-        "Declarações estáticas não comprovam serviços ativos, relações de consumidores, funcionamento do healthcheck, persistência, exposição efetiva, limites de recursos, segurança ou necessidade operacional.",
+        "Inventário limitado a serviços, dependências, imagem, portas, política de reinício, presença de healthcheck, réplicas e limites/reservas literais de CPU/memória/PIDs no Compose já parseado, mais diretivas Nginx selecionadas com Evidence; não examina Dockerfile, CI, processos, volumes ou configuração efetiva.",
+        "Limites/reservas e réplicas são valores declarados: não comprovam que Docker Compose/Swarm ou o host os aplicam. Também não se provam serviços ativos, relações de consumidores, funcionamento do healthcheck, persistência, exposição efetiva, segurança ou necessidade operacional.",
         "Métricas de CPU/RAM/disco/I/O/rede/latência p95/p99/reinícios são NOT_MEASURED; esta análise não executa Docker, carga ou comandos na aplicação-alvo.",
         ...(components.length === 0
           ? [

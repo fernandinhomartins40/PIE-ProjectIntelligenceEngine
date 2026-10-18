@@ -26,7 +26,7 @@ it.skipIf(!existsSync(executablePath))(
     await exec("git", ["init", repo]);
     await writeFile(
       join(repo, "compose.yaml"),
-      'services:\n  api:\n    image: node:24-alpine\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n',
+      'services:\n  api:\n    image: node:24-alpine\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n',
     );
     await exec("git", ["-C", repo, "add", "."]);
     const store = await openStore(join(root, "history.sqlite"), repo);
@@ -61,6 +61,13 @@ it.skipIf(!existsSync(executablePath))(
         .waitFor();
       await serviceCard.getByText("unless-stopped", { exact: true }).waitFor();
       await serviceCard.getByText("declared", { exact: true }).waitFor();
+      await serviceCard
+        .getByText("CPU (limite declarado):", { exact: false })
+        .waitFor();
+      await serviceCard.getByText("512M", { exact: true }).waitFor();
+      await serviceCard
+        .getByText("Réplicas declaradas:", { exact: false })
+        .waitFor();
       expect(
         await page.getByText("DO_NOT_RETAIN", { exact: false }).count(),
       ).toBe(0);

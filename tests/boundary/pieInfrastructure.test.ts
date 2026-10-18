@@ -64,6 +64,13 @@ function expectComposeRuntimeSettings(
       expect.objectContaining({ key: "port", value: "127.0.0.1:8080:3000" }),
       expect.objectContaining({ key: "restart", value: "unless-stopped" }),
       expect.objectContaining({ key: "healthcheck", value: "declared" }),
+      expect.objectContaining({ key: "replicas", value: "2" }),
+      expect.objectContaining({ key: "cpus_limit", value: "0.50" }),
+      expect.objectContaining({ key: "memory_limit", value: "512M" }),
+      expect.objectContaining({ key: "pids_limit", value: "128" }),
+      expect.objectContaining({ key: "cpus_reservation", value: "0.25" }),
+      expect.objectContaining({ key: "memory_reservation", value: "256M" }),
+      expect.objectContaining({ key: "pids_reservation", value: "64" }),
     ]),
   );
   expect(
@@ -77,7 +84,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
   await mkdir(repository);
   await writeFile(
     join(repository, "compose.yaml"),
-    'services:\n  api:\n    image: node:24-alpine\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    depends_on:\n      - database\n  database:\n    image: postgres\n',
+    'services:\n  api:\n    image: node:24-alpine\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      - database\n  database:\n    image: postgres\n',
   );
   await writeFile(
     join(repository, "nginx.conf"),

@@ -8,7 +8,19 @@ export const relationShapeSchema = z.strictObject({
 });
 
 export const composeServiceSettingSchema = z.strictObject({
-  key: z.enum(["image", "port", "restart", "healthcheck"]),
+  key: z.enum([
+    "image",
+    "port",
+    "restart",
+    "healthcheck",
+    "replicas",
+    "cpus_limit",
+    "memory_limit",
+    "pids_limit",
+    "cpus_reservation",
+    "memory_reservation",
+    "pids_reservation",
+  ]),
   value: z.string().max(900),
 });
 

@@ -204,7 +204,18 @@ function structured(path: string, source: string): AdapterRead {
         line,
       });
       const setting = (
-        key: "image" | "port" | "restart" | "healthcheck",
+        key:
+          | "image"
+          | "port"
+          | "restart"
+          | "healthcheck"
+          | "replicas"
+          | "cpus_limit"
+          | "memory_limit"
+          | "pids_limit"
+          | "cpus_reservation"
+          | "memory_reservation"
+          | "pids_reservation",
         value: string,
         segments: string[],
       ) =>
@@ -227,6 +238,43 @@ function structured(path: string, source: string): AdapterRead {
         }
       if (Object.hasOwn(service, "healthcheck"))
         setting("healthcheck", "declared", ["services", name, "healthcheck"]);
+      const deployment = object(service.deploy);
+      if (
+        typeof deployment?.replicas === "number" &&
+        Number.isFinite(deployment.replicas)
+      )
+        setting("replicas", String(deployment.replicas), [
+          "services",
+          name,
+          "deploy",
+          "replicas",
+        ]);
+      const resources = object(deployment?.resources);
+      for (const [section, suffix] of [
+        ["limits", "limit"],
+        ["reservations", "reservation"],
+      ] as const) {
+        const values = object(resources?.[section]);
+        for (const [field, key] of [
+          ["cpus", `cpus_${suffix}`],
+          ["memory", `memory_${suffix}`],
+          ["pids", `pids_${suffix}`],
+        ] as const) {
+          const value = values?.[field];
+          if (
+            typeof value === "string" ||
+            (typeof value === "number" && Number.isFinite(value))
+          )
+            setting(key, String(value), [
+              "services",
+              name,
+              "deploy",
+              "resources",
+              section,
+              field,
+            ]);
+        }
+      }
       const depends = Array.isArray(service.depends_on)
         ? service.depends_on.filter(
             (item): item is string => typeof item === "string",

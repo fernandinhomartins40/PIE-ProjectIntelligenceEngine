@@ -514,6 +514,17 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
     "    restart: unless-stopped",
     "    healthcheck:",
     '      test: ["CMD", "echo", "DO_NOT_RETAIN"]',
+    "    deploy:",
+    "      replicas: 2",
+    "      resources:",
+    "        limits:",
+    '          cpus: "0.50"',
+    "          memory: 512M",
+    "          pids: 128",
+    "        reservations:",
+    '          cpus: "0.25"',
+    "          memory: 256M",
+    "          pids: 64",
   ].join("\n");
   const parsed = readDeclarations("compose.yaml", source, 20)!;
   const settings = parsed.declarations.flatMap((declaration) => {
@@ -533,6 +544,13 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
       },
       { key: "restart", value: "unless-stopped", parent: "api", line: 6 },
       { key: "healthcheck", value: "declared", parent: "api", line: 7 },
+      { key: "replicas", value: "2", parent: "api", line: 10 },
+      { key: "cpus_limit", value: "0.50", parent: "api", line: 13 },
+      { key: "memory_limit", value: "512M", parent: "api", line: 14 },
+      { key: "pids_limit", value: "128", parent: "api", line: 15 },
+      { key: "cpus_reservation", value: "0.25", parent: "api", line: 17 },
+      { key: "memory_reservation", value: "256M", parent: "api", line: 18 },
+      { key: "pids_reservation", value: "64", parent: "api", line: 19 },
     ]),
   );
   expect(JSON.stringify(settings)).not.toContain("DO_NOT_RETAIN");
