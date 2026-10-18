@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { posix } from "node:path";
 import { type Snapshot, PieError } from "./contracts.js";
 import { page, pageSchema } from "./graph.js";
 import {
@@ -38,6 +39,9 @@ const componentSchema = z.strictObject({
         "port",
         "restart",
         "healthcheck",
+        "build_context",
+        "build_dockerfile",
+        "build_inline",
         "replicas",
         "cpus_limit",
         "memory_limit",
@@ -50,6 +54,20 @@ const componentSchema = z.strictObject({
       evidenceId: z.string().uuid(),
     }),
   ),
+  builds: z.array(
+    z.strictObject({
+      context: z.string(),
+      dockerfile: z.string().nullable(),
+      candidatePath: z.string().nullable(),
+      dockerfileObservation: z.enum([
+        "observed_in_snapshot",
+        "not_observed_in_snapshot",
+        "unresolved",
+        "inline_content_not_retained",
+      ]),
+      evidenceIds: z.array(z.string().uuid()).min(1),
+    }),
+  ),
   redactionStatus: z.enum(["not_collected", "redacted", "not_required"]),
   evidenceLimitations: z.array(z.string()),
   state: z.literal("unverified"),
@@ -57,7 +75,7 @@ const componentSchema = z.strictObject({
 
 const measurement = z.literal("NOT_MEASURED");
 export const infrastructureOutput = z.strictObject({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   engine: z.literal("infrastructure"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
@@ -85,6 +103,35 @@ export const infrastructureOutput = z.strictObject({
   }),
 });
 
+function resolveComposeDockerfilePath(
+  composePath: string,
+  context: string,
+  dockerfile: string,
+): string | null {
+  if (
+    !context ||
+    !dockerfile ||
+    context.includes("$") ||
+    dockerfile.includes("$") ||
+    context.includes("\\") ||
+    dockerfile.includes("\\") ||
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(context) ||
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(dockerfile) ||
+    posix.isAbsolute(context) ||
+    posix.isAbsolute(dockerfile) ||
+    /^[a-z]:[\\/]/i.test(context) ||
+    /^[a-z]:[\\/]/i.test(dockerfile) ||
+    context.startsWith("~") ||
+    dockerfile.startsWith("~")
+  )
+    return null;
+  const base = posix.normalize(posix.join(posix.dirname(composePath), context));
+  const candidate = posix.normalize(posix.join(base, dockerfile));
+  const withinProject = (path: string) =>
+    path !== ".." && !path.startsWith("../") && !path.startsWith("/");
+  return withinProject(base) && withinProject(candidate) ? candidate : null;
+}
+
 function inventoryFacts(snapshot: Snapshot) {
   const facts = snapshot.declarations.map((fact) =>
     adapterFactSchema.parse(fact),
@@ -105,6 +152,9 @@ function inventoryFacts(snapshot: Snapshot) {
     (fact) =>
       fact.adapter === "nginx-config" &&
       (fact.kind === "config_directive" || fact.kind === "location"),
+  );
+  const composeFiles = snapshot.nodes.filter((node) =>
+    /(?:^|\/)(?:docker-)?compose[^/]*\.ya?ml$/i.test(node.path),
   );
   const evidenceById = new Map(
     snapshot.evidence.map((item) => [item.id, item]),
@@ -138,6 +188,54 @@ function inventoryFacts(snapshot: Snapshot) {
           ...setting,
           evidenceId: fact.evidenceId,
         }));
+      const buildSettings = serviceSettings.filter(
+        (setting) =>
+          setting.key === "build_context" ||
+          setting.key === "build_dockerfile" ||
+          setting.key === "build_inline",
+      );
+      const builds = buildSettings
+        .filter((setting) => setting.key === "build_context")
+        .map((contextSetting) => {
+          const dockerfileSetting = buildSettings.find(
+            (setting) => setting.key === "build_dockerfile",
+          );
+          const inlineSetting = buildSettings.find(
+            (setting) => setting.key === "build_inline",
+          );
+          const dockerfile = dockerfileSetting?.value ?? null;
+          const candidatePath =
+            !inlineSetting && dockerfile && composeFiles.length === 1
+              ? resolveComposeDockerfilePath(
+                  service.source.path,
+                  contextSetting.value,
+                  dockerfile,
+                )
+              : null;
+          const matched = candidatePath
+            ? snapshot.nodes.some((node) => node.path === candidatePath)
+            : false;
+          return {
+            context: contextSetting.value,
+            dockerfile,
+            candidatePath,
+            dockerfileObservation: inlineSetting
+              ? ("inline_content_not_retained" as const)
+              : !candidatePath
+                ? ("unresolved" as const)
+                : matched
+                  ? ("observed_in_snapshot" as const)
+                  : ("not_observed_in_snapshot" as const),
+            evidenceIds: [
+              contextSetting.evidenceId,
+              ...(dockerfileSetting
+                ? [dockerfileSetting.evidenceId]
+                : inlineSetting
+                  ? [inlineSetting.evidenceId]
+                  : []),
+            ],
+          };
+        });
       return {
         id: service.id,
         kind: "compose_service" as const,
@@ -152,6 +250,7 @@ function inventoryFacts(snapshot: Snapshot) {
           evidenceId: fact.evidenceId,
         })),
         settings: serviceSettings,
+        builds,
         state: "unverified" as const,
       };
     },
@@ -168,6 +267,7 @@ function inventoryFacts(snapshot: Snapshot) {
       ...evidenceDetails(fact.evidenceId),
       dependencies: [],
       settings: [],
+      builds: [],
       state: "unverified" as const,
     })),
   );
@@ -190,7 +290,7 @@ function reviewValidatedInfrastructure(
 ) {
   const { components, sourceFacts } = inventoryFacts(snapshot);
   return infrastructureOutput.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     engine: "infrastructure",
     snapshotId: snapshot.id,
     state: "unverified",
@@ -213,7 +313,7 @@ function reviewValidatedInfrastructure(
       sourceFacts,
       runtimeMeasured: false,
       limitations: [
-        "Inventário limitado a serviços, dependências, imagem, portas, política de reinício, presença de healthcheck, réplicas e limites/reservas literais de CPU/memória/PIDs no Compose já parseado, mais diretivas Nginx selecionadas com Evidence; não examina Dockerfile, CI, processos, volumes ou configuração efetiva.",
+        "Inventário limitado a fatos Compose/Nginx já parseados. Referências de build identificam contexto e Dockerfile declarados; caminhos locais só são resolvidos com um único arquivo Compose observado no snapshot. Dockerfile não observado não significa ausência; contextos externos, dinâmicos ou ambíguos ficam sem resolução. dockerfile_inline é indicado sem reter seu conteúdo. Nenhum Dockerfile é interpretado nem build executado.",
         "Limites/reservas e réplicas são valores declarados: não comprovam que Docker Compose/Swarm ou o host os aplicam. Também não se provam serviços ativos, relações de consumidores, funcionamento do healthcheck, persistência, exposição efetiva, segurança ou necessidade operacional.",
         "Métricas de CPU/RAM/disco/I/O/rede/latência p95/p99/reinícios são NOT_MEASURED; esta análise não executa Docker, carga ou comandos na aplicação-alvo.",
         ...(components.length === 0

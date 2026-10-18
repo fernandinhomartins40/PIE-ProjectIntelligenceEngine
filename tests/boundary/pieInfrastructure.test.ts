@@ -73,9 +73,26 @@ function expectComposeRuntimeSettings(
       expect.objectContaining({ key: "pids_reservation", value: "64" }),
     ]),
   );
+  expect(api?.builds).toEqual([
+    expect.objectContaining({
+      context: "app",
+      dockerfile: "Dockerfile.api",
+      candidatePath: "app/Dockerfile.api",
+      dockerfileObservation: "observed_in_snapshot",
+      evidenceIds: expect.arrayContaining([expect.any(String)]),
+    }),
+  ]);
   expect(
     api?.settings.every((setting) => evidenceIds.has(setting.evidenceId)),
   ).toBe(true);
+}
+
+async function writeDockerComposeFixture(repository: string) {
+  await mkdir(join(repository, "app"));
+  await writeFile(
+    join(repository, "app", "Dockerfile.api"),
+    "FROM node:24-alpine\n",
+  );
 }
 
 it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", async () => {
@@ -84,8 +101,9 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
   await mkdir(repository);
   await writeFile(
     join(repository, "compose.yaml"),
-    'services:\n  api:\n    image: node:24-alpine\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      - database\n  database:\n    image: postgres\n',
+    'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n      args:\n        TOKEN: NEVER_RETAIN\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      - database\n  database:\n    image: postgres\n',
   );
+  await writeDockerComposeFixture(repository);
   await writeFile(
     join(repository, "nginx.conf"),
     "events { worker_connections 1024; }\nhttp { server { listen 8080; client_max_body_size 10m; ssl_certificate /etc/nginx/cert.pem; location /api { proxy_pass http://api:3000; } } }\n",

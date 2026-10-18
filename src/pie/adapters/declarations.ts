@@ -22,6 +22,16 @@ const object = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null;
 
+const transportAuthentication = /^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/i;
+
+function redactBuildContext(value: string) {
+  const redacted = transportAuthentication.test(value);
+  return {
+    value: value.replace(transportAuthentication, "$1[REDACTED]@"),
+    redacted,
+  };
+}
+
 function manifest(path: string, source: string): AdapterRead {
   let value: unknown;
   try {
@@ -209,6 +219,9 @@ function structured(path: string, source: string): AdapterRead {
           | "port"
           | "restart"
           | "healthcheck"
+          | "build_context"
+          | "build_dockerfile"
+          | "build_inline"
           | "replicas"
           | "cpus_limit"
           | "memory_limit"
@@ -218,6 +231,7 @@ function structured(path: string, source: string): AdapterRead {
           | "pids_reservation",
         value: string,
         segments: string[],
+        redactions: string[] = [],
       ) =>
         declarations.push({
           adapter: "compose",
@@ -225,6 +239,7 @@ function structured(path: string, source: string): AdapterRead {
           name: composeServiceSettingName({ key, value }),
           parent: name,
           line: lineAt(segments),
+          ...(redactions.length ? { redactions } : {}),
         });
       if (typeof service.image === "string")
         setting("image", service.image, ["services", name, "image"]);
@@ -238,6 +253,50 @@ function structured(path: string, source: string): AdapterRead {
         }
       if (Object.hasOwn(service, "healthcheck"))
         setting("healthcheck", "declared", ["services", name, "healthcheck"]);
+      const buildSegments = ["services", name, "build"];
+      const build = service.build;
+      if (typeof build === "string") {
+        const context = redactBuildContext(build);
+        setting(
+          "build_context",
+          context.value,
+          buildSegments,
+          context.redacted
+            ? ["Userinfo de autenticação no contexto remoto foi redigido."]
+            : [],
+        );
+        setting("build_dockerfile", "Dockerfile", buildSegments);
+      } else if (object(build)) {
+        const config = object(build)!;
+        const context = redactBuildContext(
+          typeof config.context === "string" ? config.context : ".",
+        );
+        setting(
+          "build_context",
+          context.value,
+          typeof config.context === "string"
+            ? [...buildSegments, "context"]
+            : buildSegments,
+          context.redacted
+            ? ["Userinfo de autenticação no contexto remoto foi redigido."]
+            : [],
+        );
+        if (typeof config.dockerfile_inline === "string")
+          setting("build_inline", "declared", [
+            ...buildSegments,
+            "dockerfile_inline",
+          ]);
+        else
+          setting(
+            "build_dockerfile",
+            typeof config.dockerfile === "string"
+              ? config.dockerfile
+              : "Dockerfile",
+            typeof config.dockerfile === "string"
+              ? [...buildSegments, "dockerfile"]
+              : buildSegments,
+          );
+      }
       const deployment = object(service.deploy);
       if (
         typeof deployment?.replicas === "number" &&
@@ -292,7 +351,7 @@ function structured(path: string, source: string): AdapterRead {
     return {
       declarations,
       limitations: [
-        "Compose: inventário limitado a serviços, dependências, image, ports, restart e presença de healthcheck; interpolação, include, extends, profiles, volumes, build, environment, secrets e comportamento de containers não resolvidos. O comando de healthcheck não é retido.",
+        "Compose: inventário limitado a serviços, dependências, image, ports, restart, presença de healthcheck, escalares selecionados de deploy e referências de build (contexto/Dockerfile). Interpolação, include, extends, profiles, volumes, build.args, environment, secrets e comportamento de containers não são resolvidos; conteúdo de dockerfile_inline e comando de healthcheck não são retidos. Userinfo de autenticação em URL de contexto é redigido.",
       ],
     };
   }

@@ -514,6 +514,11 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
     "    restart: unless-stopped",
     "    healthcheck:",
     '      test: ["CMD", "echo", "DO_NOT_RETAIN"]',
+    "    build:",
+    "      context: backend",
+    "      dockerfile: Dockerfile.prod",
+    "      args:",
+    "        TOKEN: DO_NOT_RETAIN_BUILD_ARG",
     "    deploy:",
     "      replicas: 2",
     "      resources:",
@@ -544,16 +549,52 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
       },
       { key: "restart", value: "unless-stopped", parent: "api", line: 6 },
       { key: "healthcheck", value: "declared", parent: "api", line: 7 },
-      { key: "replicas", value: "2", parent: "api", line: 10 },
-      { key: "cpus_limit", value: "0.50", parent: "api", line: 13 },
-      { key: "memory_limit", value: "512M", parent: "api", line: 14 },
-      { key: "pids_limit", value: "128", parent: "api", line: 15 },
-      { key: "cpus_reservation", value: "0.25", parent: "api", line: 17 },
-      { key: "memory_reservation", value: "256M", parent: "api", line: 18 },
-      { key: "pids_reservation", value: "64", parent: "api", line: 19 },
+      { key: "build_context", value: "backend", parent: "api", line: 10 },
+      {
+        key: "build_dockerfile",
+        value: "Dockerfile.prod",
+        parent: "api",
+        line: 11,
+      },
+      { key: "replicas", value: "2", parent: "api", line: 15 },
+      { key: "cpus_limit", value: "0.50", parent: "api", line: 18 },
+      { key: "memory_limit", value: "512M", parent: "api", line: 19 },
+      { key: "pids_limit", value: "128", parent: "api", line: 20 },
+      { key: "cpus_reservation", value: "0.25", parent: "api", line: 22 },
+      { key: "memory_reservation", value: "256M", parent: "api", line: 23 },
+      { key: "pids_reservation", value: "64", parent: "api", line: 24 },
     ]),
   );
   expect(JSON.stringify(settings)).not.toContain("DO_NOT_RETAIN");
+  expect(JSON.stringify(settings)).not.toContain("DO_NOT_RETAIN_BUILD_ARG");
+});
+
+it("Compose redige autenticação em contexto remoto e não retém Dockerfile inline", () => {
+  const parsed = readDeclarations(
+    "compose.yaml",
+    [
+      "services:",
+      "  remote:",
+      "    build: https://user:secret@example.test/repo.git",
+      "  inline:",
+      "    build:",
+      "      context: .",
+      '      dockerfile_inline: "FROM alpine\\nRUN echo NEVER_RETAIN_INLINE"',
+    ].join("\n"),
+    20,
+  )!;
+  const settings = parsed.declarations.flatMap((declaration) => {
+    const value = parseComposeServiceSettingName(declaration.name);
+    return value ? [value] : [];
+  });
+  expect(settings).toContainEqual({
+    key: "build_context",
+    value: "https://[REDACTED]@example.test/repo.git",
+  });
+  expect(settings).toContainEqual({ key: "build_inline", value: "declared" });
+  expect(JSON.stringify(parsed)).not.toContain("user:secret@");
+  expect(JSON.stringify(parsed)).not.toContain("NEVER_RETAIN_INLINE");
+  expect(JSON.stringify(parsed)).not.toContain("FROM alpine");
 });
 
 it("Nginx integra inventário Git, evidência e trace sem ler include externo", async () => {

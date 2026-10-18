@@ -15,6 +15,12 @@ function settingLabel(key: SettingKey): string {
       return "Reinício";
     case "healthcheck":
       return "Healthcheck";
+    case "build_context":
+      return "Contexto de build";
+    case "build_dockerfile":
+      return "Dockerfile declarado";
+    case "build_inline":
+      return "Dockerfile inline";
     case "replicas":
       return "Réplicas declaradas";
     case "cpus_limit":
@@ -128,6 +134,45 @@ export function InfrastructureReview({
                   .
                 </p>
               )}
+              {component.kind === "compose_service" &&
+                component.builds.map((build, index) => (
+                  <div key={`${component.id}:build:${index}`}>
+                    <p>
+                      Build declarado: contexto <code>{build.context}</code>
+                      {build.dockerfile && (
+                        <>
+                          , Dockerfile <code>{build.dockerfile}</code>
+                        </>
+                      )}
+                    </p>
+                    {build.candidatePath && (
+                      <p>
+                        Caminho candidato no repositório:{" "}
+                        <code>{build.candidatePath}</code>
+                      </p>
+                    )}
+                    <p>
+                      {build.dockerfileObservation === "observed_in_snapshot"
+                        ? "Dockerfile observado no snapshot"
+                        : build.dockerfileObservation ===
+                            "not_observed_in_snapshot"
+                          ? "Dockerfile não observado neste snapshot; ausência não confirmada"
+                          : build.dockerfileObservation ===
+                              "inline_content_not_retained"
+                            ? "Dockerfile inline declarado; conteúdo não retido"
+                            : "Referência de Dockerfile não resolvida"}
+                    </p>
+                    {build.evidenceIds.map((evidenceId) => (
+                      <button
+                        key={evidenceId}
+                        type="button"
+                        onClick={() => onEvidence(evidenceId)}
+                      >
+                        Evidence do build
+                      </button>
+                    ))}
+                  </div>
+                ))}
               {component.settings.length > 0 && (
                 <ul aria-label="Configurações Compose declaradas">
                   {component.settings.map((setting) => (
