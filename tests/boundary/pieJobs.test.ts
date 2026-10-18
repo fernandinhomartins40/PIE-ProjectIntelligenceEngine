@@ -229,6 +229,31 @@ it("VERIFY preserva grant, separa workers e nunca repete execução interrompida
     expect(queue.claim("peer", 500, root, "verification")).toBeNull();
     expect(queue.get(owned.id).state).toBe("cancelling");
     expect(queue.finish(owned.id, owned.leaseToken!, "cancelled")).toBe(true);
+    const interrupted = queue.enqueue({
+      ...input,
+      idempotencyKey: "shutdown-verify",
+    });
+    const interruptedClaim = queue.claim(
+      "verification",
+      500,
+      root,
+      "verification",
+    )!;
+    expect(interruptedClaim.id).toBe(interrupted.id);
+    expect(
+      queue.interrupt(
+        interrupted.id,
+        interruptedClaim.leaseToken!,
+        "WORKER_SHUTDOWN",
+      ),
+    ).toBe(true);
+    expect(queue.get(interrupted.id)).toMatchObject({
+      state: "failed",
+      attempts: 1,
+      errorCode: "WORKER_SHUTDOWN",
+      result: null,
+    });
+    expect(queue.claim("replacement", 500, root, "verification")).toBeNull();
   } finally {
     queue.close();
     await rm(root, { recursive: true, force: true });

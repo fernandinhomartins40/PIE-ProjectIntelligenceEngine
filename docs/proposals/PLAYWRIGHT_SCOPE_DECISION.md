@@ -37,6 +37,12 @@ O runner executa código de teste e browser dentro de um ambiente temporário; p
 
 Usar aplicações e dados de teste próprios. Provar CLI, MCP, API e UI sobre o mesmo serviço; grants ausentes, expirados, divergentes ou alterados devem falhar antes de iniciar processos. Testes reais devem demonstrar destino autorizado e bloqueio de destinos não autorizados, limites, cancelamento durante execução e finalização, cleanup com retry, rejeição de resultados de lease antiga, retenção/expiração de artefatos e redação de valores marcados sensíveis. Skipped, blocked, report incompleto ou falha de cleanup nunca contam como sucesso.
 
+## Contrato de resultado proposto
+
+Uma operacao compartilhada recebe um grant de browser versionado e retorna inline um recibo com schemaVersion, runId, IDs do projeto/snapshot, treeDigest, identidade do origin aprovado, estado agregado (passed, failed, blocked ou incomplete), resultados por identidade de teste (arquivo, titlePath, status e duracao), cobertura/limitacoes, Evidence e estado de cleanup. Cada observacao tem metodo e source locator: console/page error, request failure ou artefato. Evidence conserva hash, tamanho, origem, captura, sensibilidade/redacao, criacao e TTL; itens incompletos ou expirados nao sao prova atual. Credenciais e conteudo marcado sensivel nao entram no recibo nem em logs. CLI, MCP, API e UI chamam o mesmo servico e schemas canonicos.
+
+O resultado nao afirma que caso aprovado cobre capacidade de produto, que o servidor executa os bytes do snapshot, nem que a jornada foi completa quando ha testes skipped/blocked, truncamento, rede inacessivel ou cleanup incompleto. Esses estados permanecem explicitos e inconclusivos.
+
 ## Alternativas existentes
 
 Para uma observação sem navegação, usar HTTP VERIFY, que captura GET/HEAD e limita bytes/tempo. Para testes de backend já escritos em Node, usar o grant Node VERIFY existente. A suíte Playwright em `tests/` valida o próprio PIE e não é evidência de execução Playwright contra projetos auditados.

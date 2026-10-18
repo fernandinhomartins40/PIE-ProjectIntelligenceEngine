@@ -779,4 +779,6 @@ HEAD/`origin/main` `cd4e4fac4`. GitHub Actions: CI #252 do commit anterior apare
 
 Interrupcao graciosa do worker libera o lease de discovery atomicamente e reencaminha apenas dentro de maxAttempts. Token obsoleto, lease expirada e cancelamento concorrente foram cobertos. Verification nao e repetido automaticamente. Boundary SQLite passou 11 testes com 1 skip Linux-only. A boundary PG tem caso novo, mas foi skipped: PIE_TEST_DATABASE_URL ausente; Docker daemon nao esta rodando. check:fast, docs:check e format:check passaram.
 
-Proximo gate T3.2: revisar docs/proposals/PLAYWRIGHT_SCOPE_DECISION.md. Nao integrar runner ate decisao explicita do mantenedor em issue/discussao, conforme CONTRIBUTING.md. Workflow remoto deste SHA: PIE integration #194 e Release #241 In progress; CI #256 Pending, https://github.com/fernandinhomartins40/PIE-ProjectIntelligenceEngine/actions?query=56efecf38.
+Proximo gate T3.2: revisar docs/proposals/PLAYWRIGHT_SCOPE_DECISION.md e registrar a decisao de escopo antes de qualquer integracao do runner. Nao adicionar pacote, comando ou grant ate aprovacao explicita.
+
+No SHA 56efecf38, PIE integration #194 terminou success (run 39156193161); CI #256 (run 39156193149) ainda estava In progress. Release #241 (run 39156193170) falhou com permissao insuficiente para criar/aprovar PR. O commit docs e6a7eb133 aguardava CI #256 como #257. Docker daemon ausente e sem PIE_TEST_DATABASE_URL, entao nao foi possivel rodar PostgreSQL local.
