@@ -696,3 +696,5 @@ Gates gerais ALTER TABLE composto passaram: pie:build, check:fast, docs:check (l
 
 T4.5: CREATE UNIQUE INDEX ON ONLY agora resolve a tabela apos ONLY; nome de indice schema-qualified e fail-closed. UNIQUE nao e confundido com PK Prisma. Boundaries: 41/41; gates gerais apos esta mudanca ainda precisam rodar. Fonte: https://www.postgresql.org/docs/current/sql-createindex.html .
 Gates gerais ON ONLY passaram: pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check. Focused Data Review/adapters 41/41. PostgreSQL runtime nao executado.
+
+T4.5: NULLS NOT DISTINCT em UNIQUE inline/tabela, indice e ALTER constraint agora e fail-closed; facts de seletor nao sao emitidos e Data Review preserva estado inconclusivo. Focused 43/43; pie:build, check:fast, docs:check passaram (ledger complete=false). PostgreSQL runtime nao executado. Referencias: https://www.postgresql.org/docs/current/sql-createtable.html e https://www.postgresql.org/docs/current/sql-createindex.html .

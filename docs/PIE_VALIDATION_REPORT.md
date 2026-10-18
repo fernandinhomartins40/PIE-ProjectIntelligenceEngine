@@ -938,3 +938,7 @@ Validacao geral apos ALTER TABLE composto: `npm.cmd run pie:build`, `npm.cmd run
 
 Resolvida tabela-alvo apos `ON ONLY`; nome de indice com schema qualificado deixa migration incompleta. Boundary integrada valida que o fact pertence a tabela, mantendo UNIQUE versus Prisma PK como mismatch. Focused Data Review/adapters: 41/41. PostgreSQL runtime nao executado.
 Validacao geral apos ON ONLY: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; focused Data Review/adapters 41/41.
+
+## UNIQUE NULLS NOT DISTINCT - T4.5 - 18/10/2026
+
+As variantes de UNIQUE com NULLS NOT DISTINCT em CREATE TABLE, CREATE UNIQUE INDEX e ALTER TABLE nao geram facts de seletor, pois o parser nao representa a semantica de NULL equivalente. A migration fica incompleta e Data Review inconclusivo. Testes focused Data Review/adapters passaram 43/43. Gates pie:build, check:fast e docs:check passaram; ledger manteve complete=false. PostgreSQL runtime nao executado.

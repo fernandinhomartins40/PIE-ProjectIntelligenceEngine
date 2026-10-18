@@ -679,3 +679,7 @@ Continuidade T4.5 - ALTER TABLE com multiplas acoes - 18/10/2026
 Continuidade T4.5 - CREATE UNIQUE INDEX ON ONLY - 18/10/2026
 
 O parser ignora o modificador `ONLY` ao resolver a tabela-alvo de `CREATE UNIQUE INDEX ... ON ONLY tabela`; nome de indice qualificado por schema e recusado e marca inventory incompleto (PostgreSQL nao permite schema no nome do indice). Teste Git/SQLite confirma Evidence/fact associado a tabela correta. Um indice UNIQUE observado permanece mismatch para Prisma `@id` que exige primary key; nao se promove uniqueness a PK. Focused Data Review/adapters 41/41. Referencia: https://www.postgresql.org/docs/current/sql-createindex.html .
+
+Continuidade T4.5 - UNIQUE NULLS NOT DISTINCT - 18/10/2026
+
+PostgreSQL permite NULLS NOT DISTINCT em UNIQUE inline/de tabela, CREATE UNIQUE INDEX e ALTER TABLE ADD CONSTRAINT. Como isso altera a semantica de igualdade de NULL e nao cabe no seletor Prisma atual, as tres formas deixam a instrucao sem facts e marcam migration inventory incompleta. Parser direto e Data Review Git/SQLite confirmam inconclusao sem alinhamento. Focused Data Review/adapters: 43/43. Gates: pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check passaram. PostgreSQL runtime nao foi executado. Fonte: https://www.postgresql.org/docs/current/sql-createtable.html e https://www.postgresql.org/docs/current/sql-createindex.html .

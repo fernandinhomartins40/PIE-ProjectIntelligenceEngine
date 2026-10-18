@@ -369,6 +369,10 @@ export function readSqlMigration(source: string): AdapterRead {
               markUnsupportedDdl(statement);
               continue;
             }
+            if (hasTriple(statement, "nulls", "not", "distinct")) {
+              markUnsupportedDdl(statement);
+              continue;
+            }
             const columns = literalColumnList(statement, open);
             add(
               "config_directive",
@@ -410,6 +414,10 @@ export function readSqlMigration(source: string): AdapterRead {
         markUnsupportedDdl(statement);
         continue;
       }
+      if (hasTriple(statement, "nulls", "not", "distinct")) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       bodyStart = statement.findIndex(
         (token, tokenIndex) => keyword(token, "(") && tokenIndex >= target.next,
       );
@@ -437,7 +445,10 @@ export function readSqlMigration(source: string): AdapterRead {
       }
       table = target.name;
       index = target.next;
-      if (hasTopLevelComma(statement, index)) {
+      if (
+        hasTopLevelComma(statement, index) ||
+        hasTriple(statement, "nulls", "not", "distinct")
+      ) {
         markUnsupportedDdl(statement);
         continue;
       }

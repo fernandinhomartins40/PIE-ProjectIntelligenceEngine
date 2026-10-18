@@ -174,6 +174,26 @@ it("resolve ON ONLY e rejeita nome de indice qualificado por schema", () => {
   ]);
 });
 
+it("nao reduz UNIQUE NULLS NOT DISTINCT a seletor comum", () => {
+  const parsed = readSqlMigration(
+    [
+      'CREATE TABLE "ColumnUnique" ("email" TEXT UNIQUE NULLS NOT DISTINCT);',
+      'CREATE TABLE "TableUnique" ("email" TEXT, UNIQUE NULLS NOT DISTINCT ("email"));',
+      'CREATE UNIQUE INDEX "IndexUnique_key" ON "IndexUnique" ("email") NULLS NOT DISTINCT;',
+      'ALTER TABLE "AlterUnique" ADD CONSTRAINT "AlterUnique_key" UNIQUE NULLS NOT DISTINCT ("email");',
+    ].join("\n"),
+  );
+  expect(parsed.limitations).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("linha 1"),
+      expect.stringContaining("linha 2"),
+      expect.stringContaining("linha 3"),
+      expect.stringContaining("linha 4"),
+    ]),
+  );
+  expect(parsed.declarations).toEqual([]);
+});
+
 async function collectDataReviewExport(
   service: PieService,
   snapshotId: string,
@@ -1263,6 +1283,46 @@ it("mantem ALTER TABLE composto inconclusivo no Data Review", async () => {
     [
       'CREATE TABLE "User" ("id" INTEGER);',
       'ALTER TABLE "User" ADD CONSTRAINT "User_key" UNIQUE ("id"), DROP CONSTRAINT "User_old_key";',
+    ].join("\n"),
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("mantem seletor NULLS NOT DISTINCT inconclusivo no Data Review", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-null-equality-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_null_equality");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id Int @id", "  email String? @unique", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    [
+      'CREATE TABLE "User" ("id" INTEGER, "email" TEXT);',
+      'CREATE UNIQUE INDEX "User_email_key" ON "User" ("email") NULLS NOT DISTINCT;',
     ].join("\n"),
   );
   await exec("git", ["-C", repo, "add", "."]);
