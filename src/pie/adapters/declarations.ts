@@ -1,4 +1,4 @@
-import { parseDocument, LineCounter, isMap, isScalar } from "yaml";
+import { parseDocument, LineCounter, isMap, isScalar, isSeq } from "yaml";
 import { z } from "zod";
 import {
   Arg as DockerfileArg,
@@ -295,13 +295,22 @@ function structured(path: string, source: string): AdapterRead {
   if (!parsed) throw new AdapterParseFailure("invalid_structure");
   const lineAt = (segments: string[]): number => {
     const parent = document.getIn(segments.slice(0, -1), true);
-    if (!isMap(parent)) return 1;
-    const key = parent.items.find(
-      (pair) => isScalar(pair.key) && pair.key.value === segments.at(-1),
-    )?.key;
-    return isScalar(key) && key.range
-      ? lineCounter.linePos(key.range[0]).line
-      : 1;
+    if (isMap(parent)) {
+      const key = parent.items.find(
+        (pair) => isScalar(pair.key) && pair.key.value === segments.at(-1),
+      )?.key;
+      return isScalar(key) && key.range
+        ? lineCounter.linePos(key.range[0]).line
+        : 1;
+    }
+    if (isSeq(parent)) {
+      const index = Number(segments.at(-1));
+      const item = Number.isSafeInteger(index) ? parent.items[index] : null;
+      const range = (item as { range?: [number, number, number] } | null)
+        ?.range;
+      return range ? lineCounter.linePos(range[0]).line : 1;
+    }
+    return 1;
   };
   const declarations: Declaration[] = [];
   const isCompose = /(?:^|\/)(?:docker-)?compose[^/]*\.ya?ml$/i.test(path);
@@ -334,7 +343,9 @@ function structured(path: string, source: string): AdapterRead {
           | "pids_limit"
           | "cpus_reservation"
           | "memory_reservation"
-          | "pids_reservation",
+          | "pids_reservation"
+          | "volume_mount"
+          | "volume_definition",
         value: string,
         segments: string[],
         redactions: string[] = [],
@@ -359,6 +370,25 @@ function structured(path: string, source: string): AdapterRead {
         }
       if (Object.hasOwn(service, "healthcheck"))
         setting("healthcheck", "declared", ["services", name, "healthcheck"]);
+      if (Array.isArray(service.volumes))
+        service.volumes.forEach((volume, index) => {
+          const value =
+            typeof volume === "string"
+              ? volume
+              : object(volume)
+                ? JSON.stringify(volume)
+                : null;
+          setting(
+            "volume_mount",
+            value ?? "unsupported_declaration",
+            ["services", name, "volumes", String(index)],
+            value === null
+              ? [
+                  "A declaração de volume tem tipo não suportado; conteúdo não interpretado.",
+                ]
+              : [],
+          );
+        });
       const buildSegments = ["services", name, "build"];
       const build = service.build;
       if (typeof build === "string") {
@@ -453,6 +483,30 @@ function structured(path: string, source: string): AdapterRead {
           parent: name,
           line,
         });
+    }
+    const topLevelVolumes = object(parsed.volumes);
+    for (const [name, raw] of Object.entries(topLevelVolumes ?? {})) {
+      const definition = object(raw);
+      const normalized: Record<string, unknown> = {};
+      const external = definition?.external;
+      if (typeof external === "boolean") normalized.external = external;
+      else if (object(external))
+        normalized.external =
+          typeof object(external)!.name === "string"
+            ? object(external)!.name
+            : true;
+      if (typeof definition?.driver === "string")
+        normalized.driver = definition.driver;
+      const value = Object.keys(normalized).length
+        ? JSON.stringify(normalized)
+        : "declared_with_details_not_retained";
+      declarations.push({
+        adapter: "compose",
+        kind: "config_directive",
+        name: composeServiceSettingName({ key: "volume_definition", value }),
+        parent: name,
+        line: lineAt(["volumes", name]),
+      });
     }
     return {
       declarations,

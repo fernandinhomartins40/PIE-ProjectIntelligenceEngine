@@ -35,6 +35,10 @@ function settingLabel(key: SettingKey): string {
       return "Memória (reserva declarada)";
     case "pids_reservation":
       return "PIDs (reserva declarada)";
+    case "volume_mount":
+      return "Montagem de volume declarada";
+    case "volume_definition":
+      return "Volume Compose declarado";
   }
 }
 
@@ -100,7 +104,9 @@ export function InfrastructureReview({
               aria-label={
                 component.kind === "compose_service"
                   ? `Serviço ${component.name}`
-                  : `Diretiva Nginx ${component.name}`
+                  : component.kind === "nginx_directive"
+                    ? `Diretiva Nginx ${component.name}`
+                    : `Volume Compose ${component.name}`
               }
               className="card"
               key={component.id}
@@ -108,10 +114,12 @@ export function InfrastructureReview({
               <h3>
                 {component.kind === "compose_service"
                   ? `Serviço ${component.name}`
-                  : "Diretiva Nginx declarada"}
+                  : component.kind === "nginx_directive"
+                    ? "Diretiva Nginx declarada"
+                    : `Volume Compose ${component.name}`}
               </h3>
               <p>
-                {component.kind === "compose_service" ? "Compose" : "Nginx"}:{" "}
+                {component.kind === "nginx_directive" ? "Nginx" : "Compose"}:{" "}
                 <code>{component.path}</code>
                 {component.line ? `:${component.line}` : ""} · não verificado em
                 runtime
@@ -132,6 +140,35 @@ export function InfrastructureReview({
                     .map((dependency) => dependency.name)
                     .join(", ")}
                   .
+                </p>
+              )}
+              {component.kind === "compose_service" && (
+                <ul aria-label="Montagens Compose declaradas">
+                  {component.settings
+                    .filter((setting) => setting.key === "volume_mount")
+                    .map((setting, index) => (
+                      <li key={`${setting.evidenceId}:${index}`}>
+                        <code>{setting.value}</code> · não verificado em runtime{" "}
+                        <button
+                          type="button"
+                          onClick={() => onEvidence(setting.evidenceId)}
+                        >
+                          Evidence
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              )}
+              {component.kind === "compose_volume" && (
+                <p>
+                  Definição declarada:{" "}
+                  <code>{component.settings[0]?.value}</code>{" "}
+                  <button
+                    type="button"
+                    onClick={() => onEvidence(component.evidenceId)}
+                  >
+                    Evidence
+                  </button>
                 </p>
               )}
               {component.kind === "compose_service" &&

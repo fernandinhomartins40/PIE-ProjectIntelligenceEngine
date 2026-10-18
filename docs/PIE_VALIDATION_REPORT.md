@@ -74,7 +74,7 @@
 
 - `npm.cmd run verify:package:windows`, sob Node 24.18.0/npm 11.16.0: passou. Instalou tarball local em prefixo temporário e verificou CLI help, catálogo MCP completo (207 ferramentas), setup de OpenCode/VS Code/Copilot CLI, idempotência, uninstall e update para a versão exata via registry fixture local.
 - O primeiro ensaio sob Node 22.17.1 falhou em `build:cached` ao importar `.ts`, antes da instalação. No ensaio aprovado, Node 24 foi fixado também para comandos npm descendentes. O pacote declara engines compatíveis com Node 24.18.0.
-- Limites: não executa casos de symlink do verifier genérico, Linux/macOS, PostgreSQL, Docker ou providers REA reais. T0.3 e T6.2 permanecem parciais.
+- Limites: fatos est?ticos n?o comprovam frontend/expans?o, seguran?a de imagem, build/deploy ou runtime. Dockerfile inline e corpos `RUN`/`CMD`/`ENTRYPOINT`/`HEALTHCHECK`/`COPY`/`ADD` n?o s?o retidos; `ARG`/`ENV` preservam apenas nomes. Normaliza??o sem?ntica de volumes, Nginx real, containers e m?tricas de VPS permanecem pendentes.
 
 ## Leitura limitada do grant HTTP pela CLI — 17/10/2026
 
@@ -846,3 +846,10 @@ Atualização de gates finais — 18/10/2026
 - `npm.cmd run check:fast`, `npm.cmd run format:check` e `npm.cmd run docs:check` passaram após regeneração dos inventários de terceiros. O ledger gerado continua `complete=false`.
 - Medição diagnóstica de fixture sintética de 274 bytes/13 linhas: fria 10,133 ms; 1.000 hits quentes 66,921 ms/0,066921 ms por hit; CPU de processo 94 ms; RSS 50,55→55,48 MiB; heap final 13,91 MiB. São números de um processo Node, não pico da família nem atribuição isolada ao parser. Não há Dockerfile versionado no alvo para comparação equivalente antes/depois; a implementação anterior não parseava esse tipo de arquivo. Tokens, Docker/VPS, recursos de família e custo em alvo real não foram medidos.
 - Limites: fatos estáticos não comprovam frontend/expansão, segurança de imagem, build/deploy ou runtime. Dockerfile inline e corpos `RUN`/`CMD`/`ENTRYPOINT`/`HEALTHCHECK`/`COPY`/`ADD` não são retidos; `ARG`/`ENV` preservam apenas nomes. Montagens Compose, Nginx real, containers e métricas de VPS permanecem pendentes.
+
+## Montagens Compose estáticas — 18/10/2026
+
+- Implementados adapter de mounts declarados por serviço e componentes separados para definições top-level; opções arbitrárias de driver não são serializadas. Evidence mantém caminho/linha originais. Interpretação de sintaxe, expansão e aplicação runtime seguem desconhecidas.
+- `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts`: 16/16 passaram com fixtures apenas nos testes e Git/SQLite reais. Cobre sintaxe curta/longa, referências de volume nomeado, linha e Evidence.
+- `npm.cmd run pie:web:build`; `npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts`: 1/1 passou em Chrome, apresentando mount e volume nomeado. `npm.cmd run pie:web:typecheck` passou.
+- Tamb?m passaram `npm.cmd run check:fast`, `npm.cmd run format:check` e `npm.cmd run docs:check`; o ledger permanece `complete=false`. Nenhum Docker/Compose real ou VPS foi executado.

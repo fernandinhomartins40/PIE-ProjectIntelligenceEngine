@@ -627,3 +627,9 @@ Contrato `infrastructure-review` schemaVersion 5 integra facts ao build por cami
 Validação executada após `npm ci` (Node 24.18.0/npm 11.16.0): `pie:build`; adapters/infrastructure/MCP focused 17/17; `pie:web:build` + `pieInfrastructureWeb` 1/1; `pie:web:typecheck`; `check:fast`; `format:check`; `docs:check`; `npm audit --audit-level=low` com zero reportadas; `licenses:refresh-notices` adicionou três notices MIT sem gaps e `licenses:generate` registrou 905 lockados/368 runtime. Ledger `complete=false` permanece correto.
 
 Medição sintética diagnóstica (274 B/13 linhas): fria 10,133 ms; 1.000 hits quentes 66,921 ms; CPU 94 ms; RSS do processo 50,55→55,48 MiB; heap 13,91 MiB. Não mede process family nem VPS; o PIE não contém Dockerfiles versionados para baseline comparável, token cost não medido. Próxima frente segura: analisar montagens Compose e recursos top-level com contratos/Evidence, mantendo valores de `build.args`/environment e comportamento efetivo desconhecidos. T2.3/T4.4 parciais.
+
+# Continuidade T2.3/T4.4 — mounts Compose — 18/10/2026
+
+Compose agora gera facts para mounts de serviço e componente para volumes top-level. Valores de mount são a declaração curta original ou o objeto longo serializado; definições de volume só expõem external/nome e driver conhecidos. Cada fato mantém Evidence e linha. Não normaliza opções de montagem nem confirma existência ou aplicação pelo Docker.
+
+Validação: adapter/infrastructure 16/16; painel Chrome 1/1 e typecheck passaram. Gates gerais e documentação ainda serão executados nesta continuação. T2.3/T4.4 continuam parciais; volumes externos, interpolação, drivers/opts completos, runtime e métricas seguem sem prova.

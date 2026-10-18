@@ -68,6 +68,8 @@ export const composeServiceSettingSchema = z.strictObject({
     "cpus_reservation",
     "memory_reservation",
     "pids_reservation",
+    "volume_mount",
+    "volume_definition",
   ]),
   value: z.string().max(900),
 });

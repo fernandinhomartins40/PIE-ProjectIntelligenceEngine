@@ -522,6 +522,11 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
     "      dockerfile: Dockerfile.prod",
     "      args:",
     "        TOKEN: DO_NOT_RETAIN_BUILD_ARG",
+    "    volumes:",
+    '      - "data:/var/lib/app:ro"',
+    "      - type: bind",
+    "        source: ./config",
+    "        target: /etc/app",
     "    deploy:",
     "      replicas: 2",
     "      resources:",
@@ -533,6 +538,9 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
     '          cpus: "0.25"',
     "          memory: 256M",
     "          pids: 64",
+    "volumes:",
+    "  data:",
+    "    external: true",
   ].join("\n");
   const parsed = readDeclarations("compose.yaml", source, 20)!;
   const settings = parsed.declarations.flatMap((declaration) => {
@@ -552,6 +560,28 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
       },
       { key: "restart", value: "unless-stopped", parent: "api", line: 6 },
       { key: "healthcheck", value: "declared", parent: "api", line: 7 },
+      {
+        key: "volume_mount",
+        value: "data:/var/lib/app:ro",
+        parent: "api",
+        line: 15,
+      },
+      {
+        key: "volume_mount",
+        value: JSON.stringify({
+          type: "bind",
+          source: "./config",
+          target: "/etc/app",
+        }),
+        parent: "api",
+        line: 16,
+      },
+      {
+        key: "volume_definition",
+        value: JSON.stringify({ external: true }),
+        parent: "data",
+        line: 31,
+      },
       { key: "build_context", value: "backend", parent: "api", line: 10 },
       {
         key: "build_dockerfile",
@@ -559,13 +589,13 @@ it("Compose retém imagem/portas/restart e apenas presença do healthcheck", () 
         parent: "api",
         line: 11,
       },
-      { key: "replicas", value: "2", parent: "api", line: 15 },
-      { key: "cpus_limit", value: "0.50", parent: "api", line: 18 },
-      { key: "memory_limit", value: "512M", parent: "api", line: 19 },
-      { key: "pids_limit", value: "128", parent: "api", line: 20 },
-      { key: "cpus_reservation", value: "0.25", parent: "api", line: 22 },
-      { key: "memory_reservation", value: "256M", parent: "api", line: 23 },
-      { key: "pids_reservation", value: "64", parent: "api", line: 24 },
+      { key: "replicas", value: "2", parent: "api", line: 20 },
+      { key: "cpus_limit", value: "0.50", parent: "api", line: 23 },
+      { key: "memory_limit", value: "512M", parent: "api", line: 24 },
+      { key: "pids_limit", value: "128", parent: "api", line: 25 },
+      { key: "cpus_reservation", value: "0.25", parent: "api", line: 27 },
+      { key: "memory_reservation", value: "256M", parent: "api", line: 28 },
+      { key: "pids_reservation", value: "64", parent: "api", line: 29 },
     ]),
   );
   expect(JSON.stringify(settings)).not.toContain("DO_NOT_RETAIN");

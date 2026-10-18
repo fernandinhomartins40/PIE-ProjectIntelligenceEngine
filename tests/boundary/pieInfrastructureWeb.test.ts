@@ -26,7 +26,7 @@ it.skipIf(!existsSync(executablePath))(
     await exec("git", ["init", repo]);
     await writeFile(
       join(repo, "compose.yaml"),
-      'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n    ports:\n      - "127.0.0.1:8080:3000"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n',
+      'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n    ports:\n      - "127.0.0.1:8080:3000"\n    volumes:\n      - "data:/var/lib/app:ro"\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\nvolumes:\n  data:\n    external: true\n',
     );
     await mkdir(join(repo, "app"));
     await writeFile(
@@ -74,9 +74,16 @@ it.skipIf(!existsSync(executablePath))(
         .waitFor();
       await serviceCard.getByText("512M", { exact: true }).waitFor();
       await serviceCard
+        .getByRole("list", { name: "Configurações Compose declaradas" })
+        .getByText("Montagem de volume declarada", { exact: false })
+        .waitFor();
+      await serviceCard
         .getByText("app/Dockerfile.api", { exact: true })
         .waitFor();
       await serviceCard.getByText("Dockerfile observado no snapshot").waitFor();
+      await section
+        .getByRole("article", { name: "Volume Compose data" })
+        .waitFor();
       const dockerfileInstructions = serviceCard.getByRole("list", {
         name: "Instruções Dockerfile observadas",
       });
