@@ -918,3 +918,8 @@ Validação geral desta extensão: `npm.cmd run pie:build`, `npm.cmd run check:f
 `CREATE TEMP/TEMPORARY TABLE` e `CREATE TABLE ... AS` falham fechados sem facts de tabela ou constraints. Boundary de parser cobre TEMP e GLOBAL TEMPORARY e CTAS com funcao/parenteses; Data Review integrado cobre migration CTAS. Focused Data Review/adapters: 33/33. PostgreSQL runtime nao executado.
 Validacao geral da extensao TEMP/CTAS: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; Data Review/adapters 33/33.
 Revalidacao apos ampliar CTAS com lista opcional de nomes de coluna: focused Data Review/adapters 33/33; `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram.
+
+## SELECT INTO em migrations — T4.5 — 18/10/2026
+
+`SELECT ... INTO` top-level, inclusive apos CTE, marca inventory incompleto e nao emite facts. Regressao confirma que `INSERT ... SELECT` e leitura `SELECT` comum nao sao marcados. Data Review Git/SQLite confirma inconclusividade. Focused Data Review/adapters: 35/35. PostgreSQL runtime nao executado.
+Validacao geral apos adicionar SELECT INTO: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; focused Data Review/adapters 35/35.

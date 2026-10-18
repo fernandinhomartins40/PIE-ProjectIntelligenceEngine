@@ -200,6 +200,21 @@ function hasTopLevelKeyword(tokens: Token[], start: number, value: string) {
   return false;
 }
 
+function hasTopLevelSelectInto(tokens: Token[]) {
+  let depth = 0;
+  let selected = false;
+  for (const token of tokens) {
+    if (keyword(token, "(") || keyword(token, "[")) depth++;
+    else if (keyword(token, ")") || keyword(token, "]")) depth--;
+    else if (depth === 0) {
+      if (!selected && keyword(token, "select")) selected = true;
+      else if (selected && keyword(token, "into")) return true;
+      else if (selected && keyword(token, "from")) return false;
+    }
+  }
+  return false;
+}
+
 function identifierList(tokens: Token[], start: number): string[] | null {
   if (!keyword(tokens[start], "(")) return null;
   const values: string[] = [];
@@ -456,6 +471,9 @@ export function readSqlMigration(source: string): AdapterRead {
       continue;
     } else if (statement.some((token) => token.value === "set_config")) {
       markUnsupportedSchemaContext(statement);
+      continue;
+    } else if (hasTopLevelSelectInto(statement)) {
+      markUnsupportedDdl(statement);
       continue;
     } else continue;
 
