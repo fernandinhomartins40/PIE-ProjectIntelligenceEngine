@@ -473,36 +473,47 @@ async function verifyHttpProbeExportAdapters(
     (tool) => tool.name === "pie_http_probe_export",
   )!;
   const validate = ajv.compile(exportTool.outputSchema as AnySchema);
-  const page = await client.callTool({
-    name: "pie_http_probe_export",
-    arguments: { id, offset: 0, limitBytes: 1_000_000 },
-  });
-  expect(page.isError).not.toBe(true);
-  expect(
-    validate(page.structuredContent),
-    JSON.stringify(validate.errors),
-  ).toBe(true);
-  const value = page.structuredContent as {
-    recordId: string;
-    offset: number;
-    nextOffset: number | null;
-    sha256: string;
-    content: string;
-  };
-  expect(value.recordId).toBe(id);
-  expect(value.offset).toBe(0);
-  expect(value.nextOffset).toBeNull();
-  const content = value.content;
-  const cli = await exec(process.execPath, [
-    script,
-    "http-probe-export",
-    id,
-    "--db",
-    db,
-  ]);
-  expect(cli.stdout.trim()).toBe(content);
-  expect(value.sha256).toBe(createHash("sha256").update(content).digest("hex"));
-  expect(JSON.parse(content)).toMatchObject({ id });
+  for (const format of ["json", "md", "html"] as const) {
+    const page = await client.callTool({
+      name: "pie_http_probe_export",
+      arguments: { id, format, offset: 0, limitBytes: 1_000_000 },
+    });
+    expect(page.isError).not.toBe(true);
+    expect(
+      validate(page.structuredContent),
+      JSON.stringify(validate.errors),
+    ).toBe(true);
+    const value = page.structuredContent as {
+      recordId: string;
+      format: string;
+      offset: number;
+      nextOffset: number | null;
+      sha256: string;
+      content: string;
+    };
+    expect(value.recordId).toBe(id);
+    expect(value.format).toBe(format);
+    expect(value.offset).toBe(0);
+    expect(value.nextOffset).toBeNull();
+    const cli = await exec(process.execPath, [
+      script,
+      "http-probe-export",
+      id,
+      "--db",
+      db,
+      "--format",
+      format,
+    ]);
+    expect(cli.stdout.trim()).toBe(value.content);
+    expect(value.sha256).toBe(
+      createHash("sha256").update(value.content).digest("hex"),
+    );
+    if (format === "json")
+      expect(JSON.parse(value.content)).toMatchObject({ id });
+    if (format === "md") expect(value.content).toContain("# Sondagem HTTP PIE");
+    if (format === "html")
+      expect(value.content).toContain('<html lang="pt-BR">');
+  }
 }
 
 async function verifySnapshotExportAdapters(

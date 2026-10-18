@@ -1,8 +1,8 @@
 ## Export de registros HTTP — 18/10/2026
 
-Exportação histórica de sondagens HTTP foi acrescentada por serviço compartilhado, CLI, API local autenticada e MCP. O fluxo relê e valida o registro persistido contra Evidence/snapshot, retorna JSON paginado UTF-8 com hashes e não reexecuta a requisição.
+Exportação histórica de sondagens HTTP foi acrescentada por serviço compartilhado, CLI, API local autenticada e MCP, em JSON, Markdown e HTML paginados em UTF-8. O fluxo relê e valida o registro persistido contra Evidence/snapshot, inclui hashes e escapa o conteúdo HTML; não reexecuta a requisição.
 
-Validação: `pie:build`; boundary HTTP SQLite/API com concatenação de páginas de 128 bytes e SHA-256; boundary MCP stdio com schema Ajv, paridade com CLI; `toolSchemaValidity` 15/15; `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. PostgreSQL real não foi exercitado. Próximas frentes continuam T6.1 exports restantes/CI geral, T3.1 execução de cliente ligada a processo autorizado e T4.1 semântica das asserções; não interpretar esta exportação como aprovação funcional.
+Validação: `pie:build`; boundary HTTP SQLite/API em três formatos, com concatenação de páginas de 128 bytes e SHA-256; boundary MCP stdio com schema Ajv e paridade com CLI nos três formatos; `toolSchemaValidity` 15/15; `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. PostgreSQL real não foi exercitado. Próximas frentes continuam T6.1 exports restantes/CI geral, T3.1 execução de cliente ligada a processo autorizado e T4.1 semântica das asserções; não interpretar esta exportação como aprovação funcional.
 
 ## Pr?xima frente ? comprovar workflow PIE incremental e ampliar sele??o ? 17/10/2026
 

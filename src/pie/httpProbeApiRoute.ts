@@ -81,6 +81,7 @@ export async function handleHttpProbeRoute(
       await service.exportHttpProbe(
         httpProbeExportInput.parse({
           id,
+          format: url.searchParams.get("format") ?? "json",
           offset: Number(url.searchParams.get("offset") ?? 0),
           limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
         }),

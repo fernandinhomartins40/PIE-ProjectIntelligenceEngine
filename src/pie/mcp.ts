@@ -450,7 +450,7 @@ export function createPieMcp(
     "pie_http_probe_export",
     {
       description:
-        "Exporta em páginas UTF-8 o registro HTTP local imutável, com snapshot, digest, Evidence e SHA-256. Revalida a observação persistida e não envia outra requisição.",
+        "Exporta em JSON, Markdown ou HTML paginados em UTF-8 o registro HTTP local imutável, com snapshot, digest, Evidence e SHA-256. Revalida a observação persistida e não envia outra requisição.",
       inputSchema: httpProbeExportInput,
       outputSchema: withError(httpProbeExportOutput),
       annotations: read,

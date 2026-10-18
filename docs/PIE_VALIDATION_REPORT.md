@@ -1,7 +1,7 @@
 ## Exportação do histórico HTTP preservado — 18/10/2026
 
-- `PieService.exportHttpProbe`, `http-probe-export <id>`, GET autenticado `/v1/http-probes/:id/export` e `pie_http_probe_export` revalidam registro, Evidence e snapshot antes de paginar JSON UTF-8. Exportar não envia nova requisição; páginas carregam treeDigest, Evidence ID, digest do registro e SHA-256 do artefato completo.
-- `pieHttpPersistence.test.ts`: export HTTP API em páginas de 128 bytes, remontagem idêntica ao registro e digest final passaram junto ao cenário de persistência SQLite real. `pieMcp.test.ts`: CLI/MCP paridade e Ajv passaram; `toolSchemaValidity.test.ts`: 15/15. `pie:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram.
+- `PieService.exportHttpProbe`, `http-probe-export <id>`, GET autenticado `/v1/http-probes/:id/export` e `pie_http_probe_export` revalidam registro, Evidence e snapshot antes de paginar JSON, Markdown ou HTML UTF-8. Exportar não envia nova requisição; páginas carregam treeDigest, Evidence ID, digest do registro e SHA-256 do artefato completo. HTML escapa o JSON preservado.
+- `pieHttpPersistence.test.ts`: export HTTP API nos três formatos, páginas de 128 bytes, remontagem idêntica do JSON e SHA-256 dos artefatos passaram junto ao cenário de persistência SQLite real. `pieMcp.test.ts`: paridade CLI/MCP nos três formatos e Ajv passaram; as três boundaries focadas passaram 19/19; `toolSchemaValidity.test.ts`: 15/15. `pie:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram.
 - PostgreSQL real não foi exercitado nesta alteração. T6.1 continua parcial e o ledger global `complete=false`.
 
 ## Sincronização da descoberta no E2E Chrome — 18/10/2026

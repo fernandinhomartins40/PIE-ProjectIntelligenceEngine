@@ -24,7 +24,7 @@ async function verifyHttpApi(details: {
   service: PieService;
   grant: unknown;
   snapshotId: string;
-  record: { id: string };
+  record: { id: string; evidence: { id: string } };
 }) {
   const token = "local-http-probe-test-token-with-more-than-32-chars";
   const headers = { Authorization: `Bearer ${token}` };
@@ -35,36 +35,46 @@ async function verifyHttpApi(details: {
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual(details.record);
 
-  let offset = 0;
-  let exported = "";
-  let artifactDigest = "";
-  do {
-    const page = await fetch(
-      `${details.api.url}/v1/http-probes/${details.record.id}/export?offset=${offset}&limitBytes=128`,
-      { headers },
+  for (const format of ["json", "md", "html"] as const) {
+    let offset = 0;
+    let exported = "";
+    let artifactDigest = "";
+    do {
+      const page = await fetch(
+        `${details.api.url}/v1/http-probes/${details.record.id}/export?format=${format}&offset=${offset}&limitBytes=128`,
+        { headers },
+      );
+      expect(page.status).toBe(200);
+      const value = (await page.json()) as {
+        recordId: string;
+        snapshotId: string;
+        evidenceId: string;
+        format: string;
+        offset: number;
+        nextOffset: number | null;
+        sha256: string;
+        content: string;
+      };
+      expect(value.recordId).toBe(details.record.id);
+      expect(value.snapshotId).toBe(details.snapshotId);
+      expect(value.evidenceId).toBe(details.record.evidence.id);
+      expect(value.format).toBe(format);
+      expect(value.offset).toBe(offset);
+      artifactDigest = value.sha256;
+      exported += value.content;
+      if (value.nextOffset === null) break;
+      offset = value.nextOffset;
+    } while (true);
+    expect(artifactDigest).toBe(
+      createHash("sha256").update(exported).digest("hex"),
     );
-    expect(page.status).toBe(200);
-    const value = (await page.json()) as {
-      recordId: string;
-      snapshotId: string;
-      evidenceId: string;
-      offset: number;
-      nextOffset: number | null;
-      sha256: string;
-      content: string;
-    };
-    expect(value.recordId).toBe(details.record.id);
-    expect(value.snapshotId).toBe(details.snapshotId);
-    expect(value.offset).toBe(offset);
-    artifactDigest = value.sha256;
-    exported += value.content;
-    if (value.nextOffset === null) break;
-    offset = value.nextOffset;
-  } while (true);
-  expect(JSON.parse(exported)).toEqual(details.record);
-  expect(artifactDigest).toBe(
-    createHash("sha256").update(exported).digest("hex"),
-  );
+    if (format === "json") expect(JSON.parse(exported)).toEqual(details.record);
+    if (format === "md") expect(exported).toContain("# Sondagem HTTP PIE");
+    if (format === "html") {
+      expect(exported).toContain('<html lang="pt-BR">');
+      expect(exported).toContain("&quot;");
+    }
+  }
 
   const run = await fetch(`${details.api.url}/v1/http-probes`, {
     method: "POST",

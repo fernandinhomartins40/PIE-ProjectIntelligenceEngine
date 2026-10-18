@@ -100,7 +100,7 @@ export async function runPie(args: string[]): Promise<void> {
       "Resultados persistidos: verification <run-id> | verification-export <run-id> | verification-diff <run-antes-id> <run-depois-id> | verifications <snapshot-id> | project-verifications <project-id> --limit <1–200> --offset <n>. Consulta/exportação e comparação não iniciam testes.",
     );
     console.log(
-      "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova; http-probe-export <run-id> exporta o registro imutável e http-probes <snapshot-id> lista o histórico. Exportação não envia requisições nem inicia o servidor do projeto.",
+      "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova; http-probe-export <run-id> --format json|md|html exporta o registro imutável e http-probes <snapshot-id> lista o histórico. Exportação não envia requisições nem inicia o servidor do projeto.",
     );
     console.log(
       "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id> | data-review <snapshot-id> | security-review <snapshot-id> | infrastructure-review <snapshot-id>; aceitam --limit <1–200> --offset <n>. Código estático não comprova runtime; métricas não medidas permanecem NOT_MEASURED.",
@@ -584,6 +584,9 @@ export async function runPie(args: string[]): Promise<void> {
           do {
             const exported = await service.exportHttpProbe({
               id,
+              format: z
+                .enum(["json", "md", "html"])
+                .parse(parsed.values.format ?? "json"),
               offset,
               limitBytes: 1_000_000,
             });
