@@ -545,3 +545,7 @@ A fila agora valida de forma idêntica as durações de lease em `claim` e `hear
 ## Continuidade — facts de UNIQUE no motor de dados
 
 O parser de migrations registra colunas literais de índices/constraints UNIQUE no snapshot e deixa expressões desconhecidas sem lista de colunas. `pieDataReview` + `pieAdapters`: 12/12 passaram. A próxima etapa do motor precisa alinhar esses facts aos seletores Prisma com mappings explícitos, mantendo incompletude para sintaxe desconhecida. Não houve validação de PostgreSQL runtime nem cálculo do estado final de migrations.
+
+## Continuidade — comparação de seletores de dados
+
+Contrato `data-review` schemaVersion 5 compara colunas Prisma únicas/primárias aos facts SQL com Proveniência e mappings literais; distingue alinhado observado, mismatch observado, não observado e inconclusivo. `pieDataReview` + `pieAdapters`: 12/12 passaram com Git/SQLite; inclui PK/UNIQUE composta, `@map`, mismatch e expressão funcional não comparável. Revalidar gates completos após atualização dos documentos; não houve PostgreSQL runtime. O painel web ainda não apresenta este resultado de Data Review, e migrations continuam sem cálculo de estado final; T4.5/T1.5 seguem parciais.

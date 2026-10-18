@@ -771,3 +771,9 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - O adapter `sql-migration` retém `sourceFields` ordenados em Evidence para índices/constraints UNIQUE literais em `CREATE UNIQUE INDEX`, `CREATE TABLE` e `ALTER TABLE ... ADD ... UNIQUE`. Expressões como `lower(email)` preservam a observação da constraint com `relation: null`, sem inventar a coluna.
 - `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 2 arquivos, 12 testes passaram. Fixture Git/SQLite valida mapeamento de tabela, coluna simples, constraint composta, `ALTER TABLE`, índice funcional desconhecido, Evidence e paridade service/CLI/API/MCP já coberta.
 - Limites: os fatos ainda não são comparados aos seletores `@unique`/`@@unique` do Prisma; migrations não são reduzidas a estado final e nenhuma constraint aplicada no PostgreSQL foi consultada. T4.5 continua parcial.
+
+## Seletores únicos Prisma↔SQL — contrato schemaVersion 5 — 18/10/2026
+
+- Factos Prisma de `@id`, `@unique`, `@@id`, `@@unique` agora preservam colunas literais; migrations preservam PK/UNIQUE ordenados. `data-review` compara seletores com `@@map`/`@map` literal e retorna Evidence de ambas as fontes mais `uncertainty`. Mismatch é observação de fontes; `not_observed` não declara ausência no PostgreSQL; índice funcional e diretiva/mapping não literal permanecem inconclusivos.
+- `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 2 arquivos, 12 testes passaram. Cobertura inclui PK e UNIQUE simples/compostos, coluna mapeada, mismatch, expressão `lower(email)`, schema dinâmico, Evidence e paridade service/CLI/API/MCP com validação Ajv.
+- `check:fast`, `format:check`, `docs:check` e `git diff --check` serão executados antes da publicação. Não houve validação PostgreSQL real; o estado final/aplicado das migrations segue desconhecido. T4.5 permanece parcial.

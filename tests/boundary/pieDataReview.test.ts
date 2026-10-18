@@ -33,7 +33,7 @@ function expectPrismaSelectors(
         parent: "natural_key",
         relation: {
           field: null,
-          sourceFields: ["code"],
+          sourceFields: ["natural_code"],
           targetFields: null,
         },
       }),
@@ -75,24 +75,44 @@ function expectPrismaSelectors(
         kind: "config_directive",
         name: "@id",
         parent: "Product.id",
+        relation: {
+          field: null,
+          sourceFields: ["id"],
+          targetFields: null,
+        },
       }),
       expect.objectContaining({
         adapter: "prisma-schema",
         kind: "config_directive",
         name: "@@id",
         parent: "Pair",
+        relation: {
+          field: null,
+          sourceFields: ["left", "right"],
+          targetFields: null,
+        },
       }),
       expect.objectContaining({
         adapter: "prisma-schema",
         kind: "config_directive",
         name: "@unique",
         parent: "NaturalKey.code",
+        relation: {
+          field: null,
+          sourceFields: ["code"],
+          targetFields: null,
+        },
       }),
       expect.objectContaining({
         adapter: "prisma-schema",
         kind: "config_directive",
         name: "@@unique",
         parent: "CompoundUnique",
+        relation: {
+          field: null,
+          sourceFields: ["left", "right"],
+          targetFields: null,
+        },
       }),
       expect.objectContaining({
         adapter: "prisma-schema",
@@ -151,7 +171,7 @@ async function writeDataReviewFixture(repo: string) {
       "  id String @id",
       "}",
       "model NaturalKey {",
-      "  code String @unique",
+      '  code String @unique @map("natural_code")',
       "  @@map(",
       '    "natural_key"',
       "  )",
@@ -175,6 +195,15 @@ async function writeDataReviewFixture(repo: string) {
       "model UnresolvedMap {",
       "  id String @id",
       "  @@map(TABLE_NAME)",
+      "}",
+      "model MismatchedUnique {",
+      "  code String @unique",
+      "}",
+      "model FunctionalUnique {",
+      "  email String @unique",
+      "}",
+      "model MissingPrimaryKey {",
+      "  id String @id",
       "}",
       "model Account {",
       "  id String @id",
@@ -226,8 +255,8 @@ async function writeDataReviewFixture(repo: string) {
     [
       "-- SELECT 'CREATE TABLE \"Membership\" (id text PRIMARY KEY)';",
       'CREATE TABLE "Product" ("id" TEXT NOT NULL, PRIMARY KEY ("id"));',
-      'CREATE TABLE "natural_key" ("code" TEXT NOT NULL);',
-      'CREATE UNIQUE INDEX "NaturalKey_code_key" ON "natural_key" ("code");',
+      'CREATE TABLE "natural_key" ("natural_code" TEXT NOT NULL);',
+      'CREATE UNIQUE INDEX "NaturalKey_code_key" ON "natural_key" ("natural_code");',
       'CREATE TABLE "Membership" ("id" TEXT, "unique" text, "email" text, note text DEFAULT $tag$UNIQUE fake$tag$);',
       'ALTER TABLE "Membership" ADD CONSTRAINT "Membership_email_key" UNIQUE ("email");',
       'CREATE UNIQUE INDEX "Membership_email_lower_key" ON "Membership" (lower("email"));',
@@ -242,6 +271,10 @@ async function writeDataReviewFixture(repo: string) {
       'CREATE TABLE "OrphanEntry" ("id" TEXT PRIMARY KEY, "actorId" TEXT);',
       'CREATE TABLE "TenantUser" ("tenantId" TEXT, "id" TEXT, PRIMARY KEY ("tenantId", "id"));',
       'CREATE TABLE "CompositeChild" ("id" TEXT PRIMARY KEY, "tenantId" TEXT, "parentId" TEXT, FOREIGN KEY ("tenantId", "parentId") REFERENCES "TenantUser" ("tenantId", "id"));',
+      'CREATE TABLE "MismatchedUnique" ("code" TEXT, UNIQUE ("other"));',
+      'CREATE TABLE "FunctionalUnique" ("email" TEXT);',
+      'CREATE UNIQUE INDEX "FunctionalUnique_email_lower_key" ON "FunctionalUnique" (lower("email"));',
+      'CREATE TABLE "MissingPrimaryKey" ("id" TEXT);',
     ].join("\n"),
   );
 }
@@ -249,7 +282,7 @@ async function writeDataReviewFixture(repo: string) {
 function expectDataReview(input: unknown) {
   const expected = dataReviewOutput.parse(input);
   expect(expected).toMatchObject({
-    schemaVersion: 4,
+    schemaVersion: 5,
     engine: "data",
     state: "unverified",
     models: {
@@ -264,7 +297,7 @@ function expectDataReview(input: unknown) {
     coverage: {
       runtime: false,
       schemaFiles: 1,
-      examinedModels: 13,
+      examinedModels: 16,
       unexaminedSchemaFiles: 0,
       migrationFiles: 1,
       unexaminedMigrationFiles: 0,
@@ -276,10 +309,25 @@ function expectDataReview(input: unknown) {
       expect.objectContaining({
         model: expect.objectContaining({ name: "Product" }),
         state: "unique_constraint_observed",
+        selectors: expect.objectContaining({
+          state: "aligned_observed",
+          expected: [
+            expect.objectContaining({ kind: "primary_key", columns: ["id"] }),
+          ],
+        }),
       }),
       expect.objectContaining({
         model: expect.objectContaining({ name: "NaturalKey" }),
         state: "unique_constraint_observed",
+        selectors: expect.objectContaining({
+          state: "aligned_observed",
+          expected: [
+            expect.objectContaining({
+              kind: "unique",
+              columns: ["natural_code"],
+            }),
+          ],
+        }),
       }),
       expect.objectContaining({
         model: expect.objectContaining({ name: "Membership" }),
@@ -288,10 +336,35 @@ function expectDataReview(input: unknown) {
       expect.objectContaining({
         model: expect.objectContaining({ name: "Pair" }),
         state: "unique_constraint_observed",
+        selectors: expect.objectContaining({
+          state: "aligned_observed",
+          expected: [
+            expect.objectContaining({
+              kind: "primary_key",
+              columns: ["left", "right"],
+            }),
+          ],
+        }),
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "CompoundUnique" }),
+        selectors: expect.objectContaining({ state: "aligned_observed" }),
       }),
       expect.objectContaining({
         model: expect.objectContaining({ name: "UnresolvedMap" }),
         state: "migration_inventory_incomplete",
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "MismatchedUnique" }),
+        selectors: expect.objectContaining({ state: "mismatch_observed" }),
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "MissingPrimaryKey" }),
+        selectors: expect.objectContaining({ state: "not_observed" }),
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "FunctionalUnique" }),
+        selectors: expect.objectContaining({ state: "inconclusive" }),
       }),
     ]),
   );

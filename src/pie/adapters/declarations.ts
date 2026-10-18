@@ -279,6 +279,38 @@ function prismaRelationColumns(
   };
 }
 
+function prismaFieldList(
+  tokens: Array<{ value: string; line: number; literal?: boolean }>,
+  open: number,
+): string[] | null {
+  if (tokens[open]?.value !== "(") return null;
+  let cursor = open + 1;
+  while (tokens[cursor]?.value === "\n") cursor++;
+  if (tokens[cursor]?.value !== "[") return null;
+  const fields: string[] = [];
+  let expectField = true;
+  for (cursor++; cursor < tokens.length; cursor++) {
+    const token = tokens[cursor]!;
+    if (token.value === "\n") continue;
+    if (token.value === "]")
+      return !expectField && fields.length > 0 ? fields : null;
+    if (token.value === ",") {
+      if (expectField) return null;
+      expectField = true;
+      continue;
+    }
+    if (
+      token.literal ||
+      expectField === false ||
+      !/^[A-Za-z_]\w*$/.test(token.value)
+    )
+      return null;
+    fields.push(token.value);
+    expectField = false;
+  }
+  return null;
+}
+
 function prisma(source: string): AdapterRead {
   const tokens = prismaTokens(source);
   const declarations: Declaration[] = [];
@@ -410,6 +442,15 @@ function prisma(source: string): AdapterRead {
         kind: "config_directive",
         name,
         parent: fieldName ? `${model}.${fieldName}` : model,
+        ...(["@id", "@unique"].includes(name) && fieldName
+          ? {
+              relation: {
+                field: null,
+                sourceFields: [fieldName],
+                targetFields: null,
+              },
+            }
+          : {}),
         line: attribute.line,
       });
     }
@@ -470,6 +511,15 @@ function prisma(source: string): AdapterRead {
         kind: "config_directive",
         name,
         parent: model,
+        ...(["@@id", "@@unique"].includes(name)
+          ? {
+              relation: {
+                field: null,
+                sourceFields: prismaFieldList(modelTokens, tokenIndex + 3),
+                targetFields: null,
+              },
+            }
+          : {}),
         line: attribute.line,
       });
     }
@@ -489,7 +539,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v7", path, sha256(source), limit],
+    ["pie-declarations-v8", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }

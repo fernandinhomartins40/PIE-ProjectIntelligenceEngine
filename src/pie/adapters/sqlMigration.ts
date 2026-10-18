@@ -291,9 +291,22 @@ export function readSqlMigration(source: string): AdapterRead {
         index++;
         if (keyword(statement[index], "constraint")) index += 2;
         const kind = statement[index]?.quoted ? "" : statement[index]?.value;
-        if (kind === "primary" && keyword(statement[index + 1], "key"))
-          add("config_directive", "primary_key", table, statement[0]!.line);
-        else if (kind === "unique") {
+        if (kind === "primary" && keyword(statement[index + 1], "key")) {
+          const open = statement.findIndex(
+            (token, tokenIndex) =>
+              tokenIndex > index + 1 && keyword(token, "("),
+          );
+          const columns = literalColumnList(statement, open);
+          add(
+            "config_directive",
+            "primary_key",
+            table,
+            statement[0]!.line,
+            columns
+              ? { field: null, sourceFields: columns, targetFields: null }
+              : undefined,
+          );
+        } else if (kind === "unique") {
           const open = statement.findIndex(
             (token, tokenIndex) =>
               tokenIndex >= index + 1 && keyword(token, "("),
@@ -346,9 +359,30 @@ export function readSqlMigration(source: string): AdapterRead {
     }
     for (const definition of definitions) {
       const line = definition[0]!.line;
-      if (hasPair(definition, "primary", "key"))
-        add("config_directive", "primary_key", table, line);
-      else if (definition.some((token) => keyword(token, "unique"))) {
+      if (hasPair(definition, "primary", "key")) {
+        const primaryIndex = definition.findIndex((token, tokenIndex) =>
+          keyword(token, "primary"),
+        );
+        const open = definition.findIndex(
+          (token, tokenIndex) =>
+            tokenIndex > primaryIndex + 1 && keyword(token, "("),
+        );
+        const columns =
+          open >= 0
+            ? literalColumnList(definition, open)
+            : identifier(definition, 0)
+              ? [identifier(definition, 0)!]
+              : null;
+        add(
+          "config_directive",
+          "primary_key",
+          table,
+          line,
+          columns
+            ? { field: null, sourceFields: columns, targetFields: null }
+            : undefined,
+        );
+      } else if (definition.some((token) => keyword(token, "unique"))) {
         const uniqueIndex = definition.findIndex((token) =>
           keyword(token, "unique"),
         );

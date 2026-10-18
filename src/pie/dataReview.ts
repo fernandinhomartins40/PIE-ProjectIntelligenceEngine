@@ -36,6 +36,31 @@ const migrationFindingSchema = z.strictObject({
     "unique_constraint_observed",
     "migration_inventory_incomplete",
   ]),
+  selectors: z.strictObject({
+    state: z.enum([
+      "not_declared",
+      "aligned_observed",
+      "mismatch_observed",
+      "not_observed",
+      "inconclusive",
+    ]),
+    expected: z.array(
+      z.strictObject({
+        kind: z.enum(["primary_key", "unique"]),
+        columns: z.array(z.string()).nullable(),
+        evidenceIds: z.array(z.string().uuid()).min(1),
+      }),
+    ),
+    observed: z.array(
+      z.strictObject({
+        kind: z.enum(["primary_key", "unique"]),
+        columns: z.array(z.string()).nullable(),
+        evidenceIds: z.array(z.string().uuid()).min(1),
+      }),
+    ),
+    evidenceIds: z.array(z.string().uuid()),
+    uncertainty: z.array(z.string()),
+  }),
   evidenceIds: z.array(z.string().uuid()).min(1),
   observation: z.string(),
   uncertainty: z.array(z.string()),
@@ -58,7 +83,7 @@ const relationFindingSchema = z.strictObject({
 });
 
 export const dataReviewOutput = z.strictObject({
-  schemaVersion: z.literal(4),
+  schemaVersion: z.literal(5),
   engine: z.literal("data"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
@@ -172,19 +197,99 @@ function reviewValidatedData(
     const tables = migrationFacts.filter(
       (fact) => fact.kind === "model" && fact.name === tableName,
     );
-    const constraints = tables.flatMap((table) =>
-      migrationFacts.filter(
+    const constraints = migrationFacts.filter(
+      (fact) =>
+        fact.kind === "config_directive" &&
+        fact.parent === tableName &&
+        ["primary_key", "unique"].includes(fact.name),
+    );
+    const expectedSelectors = declarations
+      .filter(
         (fact) =>
           fact.kind === "config_directive" &&
-          fact.parent === table.name &&
-          fact.source.path === table.source.path &&
-          ["primary_key", "unique"].includes(fact.name),
-      ),
-    );
+          fact.source.path === model.source.path &&
+          fact.parent?.split(".")[0] === model.name &&
+          ["@id", "@@id", "@unique", "@@unique"].includes(fact.name),
+      )
+      .map((fact) => {
+        const fieldName = fact.name.startsWith("@@")
+          ? null
+          : fact.parent?.slice(model.name.length + 1);
+        const declared =
+          fact.relation?.sourceFields ?? (fieldName ? [fieldName] : null);
+        const mapped = declared?.map((field) => {
+          const fieldMapping = declarations.find(
+            (candidate) =>
+              candidate.kind === "config_directive" &&
+              candidate.name === "@map" &&
+              candidate.source.path === model.source.path &&
+              (candidate.parent === `${model.name}.${field}` ||
+                candidate.parent?.startsWith(`${model.name}.${field}.`)),
+          );
+          return {
+            column: !fieldMapping
+              ? field
+              : fieldMapping.parent?.startsWith(`${model.name}.${field}.`)
+                ? fieldMapping.parent.slice(
+                    model.name.length + field.length + 2,
+                  )
+                : null,
+            evidenceId: fieldMapping?.evidenceId,
+          };
+        });
+        return {
+          kind:
+            fact.name === "@id" || fact.name === "@@id"
+              ? ("primary_key" as const)
+              : ("unique" as const),
+          columns: mapped?.every((field) => field.column !== null)
+            ? mapped.map((field) => field.column!)
+            : null,
+          evidenceIds: [
+            fact.evidenceId,
+            ...new Set(
+              mapped?.flatMap((field) =>
+                field.evidenceId ? [field.evidenceId] : [],
+              ) ?? [],
+            ),
+          ],
+        };
+      });
     const incomplete =
       snapshot.coverage.status === "partial" ||
       incompleteMigrationPaths.size > 0 ||
       unresolvedMapping;
+    const observedSelectors = constraints.map((fact) => ({
+      kind: fact.name as "primary_key" | "unique",
+      columns: fact.relation?.sourceFields ?? null,
+      evidenceIds: [fact.evidenceId],
+    }));
+    const selectorState =
+      expectedSelectors.length === 0
+        ? "not_declared"
+        : incomplete ||
+            expectedSelectors.some((selector) => selector.columns === null)
+          ? "inconclusive"
+          : expectedSelectors.every((expected) =>
+                observedSelectors.some(
+                  (observed) =>
+                    observed.columns !== null &&
+                    (expected.kind === "unique" ||
+                      observed.kind === "primary_key") &&
+                    JSON.stringify(expected.columns) ===
+                      JSON.stringify(observed.columns),
+                ),
+              )
+            ? "aligned_observed"
+            : observedSelectors.some((selector) => selector.columns === null)
+              ? "inconclusive"
+              : observedSelectors.length === 0
+                ? "not_observed"
+                : "mismatch_observed";
+    const selectorEvidenceIds = [
+      ...expectedSelectors.flatMap((selector) => selector.evidenceIds),
+      ...observedSelectors.flatMap((selector) => selector.evidenceIds),
+    ];
     const state = incomplete
       ? "migration_inventory_incomplete"
       : migrationFiles.length === 0
@@ -204,6 +309,16 @@ function reviewValidatedData(
       id: `data:migration-review:${model.id}`,
       model,
       state,
+      selectors: {
+        state: selectorState,
+        expected: expectedSelectors,
+        observed: observedSelectors,
+        evidenceIds: [...new Set(selectorEvidenceIds)],
+        uncertainty: [
+          "A comparacao usa somente declarations Prisma e facts de migration com colunas literais reconhecidas; o resultado nao comprova constraints aplicadas nem o estado final apos migrations posteriores.",
+          "not_observed significa que nenhuma constraint SQL compativel foi observada no subconjunto analisado; nao prova ausencia no banco ou em sintaxe nao suportada.",
+        ],
+      },
       evidenceIds: [...new Set(evidenceIds)],
       observation:
         state === "unique_constraint_observed"
@@ -400,7 +515,7 @@ function reviewValidatedData(
     limit: input.limit,
   });
   return dataReviewOutput.parse({
-    schemaVersion: 4,
+    schemaVersion: 5,
     engine: "data",
     snapshotId: snapshot.id,
     state: "unverified",
