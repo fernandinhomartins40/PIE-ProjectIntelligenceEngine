@@ -2,7 +2,7 @@
 
 - Exports persistidos HTTP, funcional e VERIFY agora aceitam JSON, Markdown ou HTML. O renderer compartilhado inclui contexto Evidence/snapshot, escapa HTML e mantém o JSON integral em bloco de código. Os exports revalidam seus registros e não repetem execução HTTP nem análise/teste.
 - `pieHttpPersistence.test.ts`: API SQLite, paginação de 128 bytes, reconstrução JSON e digest dos três formatos, 3/3. `pieApi.test.ts`, `pieRunPersistence.test.ts`, `pieMcp.test.ts` e `toolSchemaValidity.test.ts`: 22 testes passaram e 1 cenário PostgreSQL foi skipped por falta de serviço; incluem paridade API/CLI/MCP, SHA-256 e Ajv. `pie:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram.
-- GitHub Actions verificado em 18/10/2026: PIE integration #190 passou para `2ff2131`; #191 estava em andamento para `9b9bd27`; CI geral #247 executava para `2ff2131` e #248 aguardava serialização para `9b9bd27`. Nenhum desses estados prova CI geral aprovado para a mudança final. PostgreSQL real não foi exercitado localmente. T6.1 e o ledger global `complete=false` continuam parciais.
+- GitHub Actions verificado em 18/10/2026: PIE integration #190 (`2ff2131`) e #191 (`9b9bd27`) passaram; #192 (`db3dbd0`) estava na fila. CI geral #247 (`2ff2131`) falhou após 16 minutos, com os cinco shards de teste falhando, apesar de build, source tests, checks estáticos e várias matrizes passarem. A API pública dos logs retornou 403; a causa não foi estabelecida. CI #248 (`9b9bd27`) estava na fila e #250 (`db3dbd0`) aguardava serialização. Não há resultado geral conclusivo para a revisão atual. PostgreSQL real não foi exercitado localmente. T6.1 e o ledger global `complete=false` continuam parciais.
 
 ## Sincronização da descoberta no E2E Chrome — 18/10/2026
 
