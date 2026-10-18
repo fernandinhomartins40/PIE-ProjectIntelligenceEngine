@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Próxima validação — ordenação da triagem manual — 18/10/2026
+
+A regra confirmada é lexicográfica: impacto desc., risco desc., esforço asc.; ID desempata e notas ausentes ficam por último. A boundary `pieUnifiedPlan` foi reforçada com combinações discriminantes para os três critérios e passou 2/2 usando Git/SQLite reais; `check:fast`, `docs:check` e `format:check` também passaram. Notas continuam exclusivamente humanas.
+
 ## Próxima frente — histórico de exportações e CI incremental — 17/10/2026
 
 Export de snapshot JSON/Markdown/HTML agora é um workflow único do `PieService`, paginado em UTF-8 e compartilhado por CLI, GET autenticado `/v1/snapshots/:id/export` e MCP `pie_snapshot_export`. API/MCP/CLI produzem o mesmo HTML; páginas validam offset, hash, identidade e não cortam codepoints. Testes focados `pieApi`, `pieMcp`, `pieComparison`: 6/6; atualização da CI incremental e export persistido de relatórios funcionais/VERIFY ainda pendentes. Próximo: revisar ownership/contrato da CI incremental do repo e integrar export histórico somente sobre registros persistidos e verificados.

@@ -19,6 +19,11 @@
 
 # PIE — Registro de validação contínua
 
+## Ordenação da prioridade manual do plano — 18/10/2026
+
+- Reforçada a boundary `tests/boundary/pieUnifiedPlan.test.ts` com notas que distinguem os três níveis da regra confirmada pelo usuário: impacto decrescente, risco decrescente e menor esforço; o caso continua validando item sem nota após remoção da avaliação. Nenhuma nota é criada automaticamente.
+- `npm.cmd run test:focused -- tests/boundary/pieUnifiedPlan.test.ts`: 2/2 passaram com repositório Git e SQLite reais; `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false` e README consistency 5/5), `npm.cmd run format:check` (4.156 arquivos) e `git diff --check` passaram. PostgreSQL local não foi exercitado nesta validação.
+
 ## Contestação do plano — 17/10/2026
 
 - A boundary `pieUnifiedPlan`, `pieDoctor` e `piePostgres` executou 3 testes com sucesso; 1 teste Postgres foi ignorado porque `PIE_TEST_DATABASE_URL` não está configurada. SQLite/Git reais cobrem contestação justificada, hash/item histórico, retry idempotente, triggers que rejeitam UPDATE/DELETE, digest e Evidence inválidos, paginação e paridade CLI/API/MCP. Ajv valida os schemas MCP.

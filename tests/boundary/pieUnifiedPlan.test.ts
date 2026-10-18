@@ -831,8 +831,8 @@ async function verifyPriorityOrdering(
   const rankedItems = items.slice(0, 4);
   expect(rankedItems).toHaveLength(4);
   const scores = [
-    { impact: 1, risk: 1, effort: 5 },
-    { impact: 5, risk: 4, effort: 3 },
+    { impact: 4, risk: 5, effort: 1 },
+    { impact: 5, risk: 1, effort: 1 },
     { impact: 5, risk: 5, effort: 5 },
     { impact: 5, risk: 5, effort: 1 },
   ];
