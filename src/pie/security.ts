@@ -595,7 +595,9 @@ function workflowPermissionFindings(
     (fact) =>
       fact.adapter === "github-actions" &&
       fact.kind === "config_directive" &&
-      fact.name === "workflow.permissions.write-all" &&
+      ["workflow.permissions.write-all", "job.permissions.write-all"].includes(
+        fact.name,
+      ) &&
       currentFiles.has(fact.source.path),
   );
   const findings = facts.slice(0, remaining).flatMap((fact) => {
@@ -613,7 +615,9 @@ function workflowPermissionFindings(
         state: "suspected",
         severity: "high",
         kind: "workflow_write_all_permissions",
-        condition: "O workflow declara permissions: write-all.",
+        condition: fact.parent
+          ? "O job " + fact.parent + " declara permissions: write-all."
+          : "O workflow declara permissions: write-all.",
         impact:
           "Um token GITHUB_TOKEN concedido a esse escopo pode receber permissões de escrita amplas, aumentando o impacto de código de workflow comprometido ou acionado por conteúdo não confiável.",
         probability: "unassessed",
@@ -623,7 +627,7 @@ function workflowPermissionFindings(
           "O parser YAML observou a declaração literal write-all; nenhum workflow ou token foi executado.",
         uncertainty: [
           "A análise não determina se o workflow é ativo, quais eventos o acionam, se o token é disponibilizado ou quais controles adicionais limitam seu uso.",
-          "Somente a forma literal write-all é detectada; permissões granulares, expressões e políticas fora do repositório não são avaliadas.",
+          "Somente write-all literal em workflow/job é detectado; permissões granulares, expressões e políticas fora do repositório não são avaliadas.",
         ],
         reproduction: [
           "Revisar a permissão na linha indicada e conferir os eventos e jobs do mesmo arquivo sem executar o workflow.",

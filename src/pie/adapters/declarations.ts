@@ -190,10 +190,27 @@ function githubActionsWorkflow(source: string): AdapterRead {
     });
   };
   addWriteAll();
+  const jobs = document.getIn(["jobs"], true);
+  if (isMap(jobs)) {
+    for (const job of jobs.items) {
+      if (!isScalar(job.key) || typeof job.key.value !== "string") continue;
+      const jobName = job.key.value;
+      const segments = ["jobs", jobName, "permissions"];
+      const permissions = document.getIn(segments, true);
+      if (!isScalar(permissions) || permissions.value !== "write-all") continue;
+      declarations.push({
+        adapter: "github-actions",
+        kind: "config_directive",
+        name: "job.permissions.write-all",
+        parent: jobName,
+        line: lineAt(segments),
+      });
+    }
+  }
   return {
     declarations,
     limitations: [
-      "Workflow GitHub Actions: somente permissions: write-all literal no nível do workflow é declarado; ausência de permissions, permissões de job/granulares, eventos, expressões e execução efetiva não são avaliados.",
+      "GitHub Actions: declara write-all literal no workflow ou job; permissões granulares, eventos, expressões e execução efetiva não são avaliados.",
     ],
   };
 }
@@ -539,7 +556,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v8", path, sha256(source), limit],
+    ["pie-declarations-v9", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }

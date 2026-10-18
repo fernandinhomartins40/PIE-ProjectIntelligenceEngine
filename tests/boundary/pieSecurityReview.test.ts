@@ -118,7 +118,7 @@ async function verifySecurityFindings(
     engine: "security",
     state: "suspected_findings",
     findings: {
-      total: 8,
+      total: 9,
       items: [
         {
           category: "credential_like_material",
@@ -151,7 +151,7 @@ async function verifySecurityFindings(
       workflowPermissionPatterns: "partial",
       astFilesExamined: 4,
       astFilesSkipped: 0,
-      filesExamined: 5,
+      filesExamined: 6,
       filesSkipped: 0,
       runtime: false,
     },
@@ -202,9 +202,16 @@ async function verifySecurityFindings(
         source: { path: ".github/workflows/ci.yml", line: 3 },
         evidenceIds: [expect.any(String)],
       }),
+      expect.objectContaining({
+        category: "workflow_privilege",
+        kind: "workflow_write_all_permissions",
+        condition: "O job deploy declara permissions: write-all.",
+        source: { path: ".github/workflows/job-permissions.yml", line: 5 },
+        evidenceIds: [expect.any(String)],
+      }),
     ]),
   );
-  expect(allFindings.findings.items).toHaveLength(8);
+  expect(allFindings.findings.items).toHaveLength(9);
   expect(allFindings.findings.items[0]).toMatchObject({
     condition: expect.any(String),
     impact: expect.any(String),
@@ -265,6 +272,22 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       "",
     ].join("\n"),
   );
+  await writeFile(
+    join(repo, ".github", "workflows", "job-permissions.yml"),
+    [
+      "name: Job permissions",
+      "on: [push]",
+      "jobs:",
+      "  deploy:",
+      "    permissions: write-all",
+      "    steps: []",
+      "  build:",
+      "    permissions:",
+      "      contents: read",
+      "    steps: []",
+      "",
+    ].join("\n"),
+  );
   await exec("git", ["-C", repo, "add", "."]);
 
   const store = await openStore(db, repo);
@@ -303,7 +326,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(6);
+    expect(stale.findings.total).toBe(7);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
@@ -322,10 +345,12 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       snapshotId: discovered.snapshot.id,
       limit: 20,
     });
-    expect(staleWorkflow.findings.total).toBe(5);
+    expect(staleWorkflow.findings.total).toBe(6);
     expect(
       staleWorkflow.findings.items.some(
-        (finding) => finding.kind === "workflow_write_all_permissions",
+        (finding) =>
+          finding.kind === "workflow_write_all_permissions" &&
+          finding.source.path === ".github/workflows/ci.yml",
       ),
     ).toBe(false);
     expect(staleWorkflow.coverage.filesSkipped).toBe(2);
