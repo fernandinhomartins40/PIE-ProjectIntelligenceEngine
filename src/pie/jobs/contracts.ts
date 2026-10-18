@@ -1,6 +1,14 @@
 import { z } from "zod";
-import { policySchema } from "../contracts.js";
+import { PieError, policySchema } from "../contracts.js";
 import { nodeTestGrantSchema } from "../execution/contracts.js";
+
+export function validateLeaseMs(leaseMs: number): void {
+  if (!Number.isSafeInteger(leaseMs) || leaseMs < 100 || leaseMs > 300_000)
+    throw new PieError(
+      "INVALID_INPUT",
+      "A duração da lease deve ser um inteiro entre 100 e 300000 ms.",
+    );
+}
 
 export const jobPayload = policySchema.superRefine((policy, ctx) => {
   if (

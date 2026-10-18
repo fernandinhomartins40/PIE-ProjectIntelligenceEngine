@@ -528,3 +528,9 @@ T4.3 adiciona fato produzido pelo parser YAML de `.github/workflows/*.yml|yaml` 
 O doctor agora consulta `information_schema.tables` e exige a presença das 11 tabelas mapeadas pelo `prisma/schema.prisma`; conectado com tabelas ausentes, retorna `incomplete`, sem executar migrations. `PostgresPieStore.connect()` verifica somente conectividade e `openPersistence()` impede operar sobre schema sem as tabelas esperadas. A consulta não valida colunas, índices, triggers, histórico `_prisma_migrations` nem comportamento de workers.
 
 Validação executada: `npm.cmd run test:focused -- tests/boundary/pieDoctor.test.ts` passou (3/3); `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram. O teste compara a lista requerida com todos os `@@map` do schema atual; redaction e SQLite read-only continuam cobertos. PostgreSQL real não foi executado: `PIE_TEST_DATABASE_URL` ausente e Docker indisponível. T6.2 continua parcial.
+
+## Limites uniformes para leases de jobs — 18/10/2026
+
+O contrato compartilhado agora aceita durações de lease somente como inteiros seguros entre 100 e 300.000 ms. `claim()` e `heartbeat()` aplicam a mesma validação nos adapters SQLite e PostgreSQL antes de iniciar transações; heartbeat inválido não altera a lease ativa. Isso evita duração fracionária/coerção divergente e falsa confirmação de renovação para zero, negativo ou infinito.
+
+`npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 4 passaram e 1 teste CLI foi skipped por ser Linux-only; fila SQLite real cobriu claim/heartbeat inválidos e preservação da expiração original, além das regressões existentes. PostgreSQL real não executado sem `PIE_TEST_DATABASE_URL`. `check:fast`, format e docs serão registrados após os gates desta entrega. T1.3 continua parcial.

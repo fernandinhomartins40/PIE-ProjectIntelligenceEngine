@@ -254,6 +254,19 @@ it("fila real persiste, usa leases, recupera após perda de worker e impede resu
     );
     const owned = queue.claim("worker-a", 500)!;
     expect(peer.claim("worker-b", 500)).toBeNull();
+    for (const invalidLease of [
+      0,
+      -1,
+      100.5,
+      300_001,
+      Number.POSITIVE_INFINITY,
+    ]) {
+      expect(() =>
+        queue.heartbeat(first.id, owned.leaseToken!, invalidLease),
+      ).toThrow();
+      expect(() => queue.claim("invalid-duration", invalidLease)).toThrow();
+    }
+    expect(queue.get(first.id).leaseUntil).toBe(owned.leaseUntil);
     now = 1501;
     const recovered = peer.claim("worker-b", 500)!;
     expect(recovered.attempts).toBe(2);

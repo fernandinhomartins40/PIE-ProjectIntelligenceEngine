@@ -537,3 +537,7 @@ Continuation T1.1/T1.2: VERIFY export uses `exportVerificationResult`; invalid i
 ## Continuidade — doctor do PostgreSQL — 18/10/2026
 
 Doctor e `openPersistence` passaram a exigir a presença das 11 tabelas do schema Prisma por consulta somente leitura a `information_schema`. Teste focado `pieDoctor` passou 3/3; `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. Sem PostgreSQL de teste nem Docker local, a integração real segue pendente; a sondagem não confirma colunas, índices ou migrations aplicadas. Próxima frente: continuar critérios pendentes de setup/Compose, workers ou motores conforme o plano mestre, sem marcar T6.2 concluída.
+
+## Continuidade — contratos da fila persistente
+
+A fila agora valida de forma idêntica as durações de lease em `claim` e `heartbeat` para SQLite/PostgreSQL: inteiros seguros entre 100 e 300.000 ms. `pieJobs` passou 4 testes e pulou 1 cenário Linux-only; PostgreSQL real segue sem validação local por falta de `PIE_TEST_DATABASE_URL`. Próximo: continuar a matriz de lifecycle e execução isolada dos jobs, distinguindo sempre as regressões SQLite da prova PostgreSQL real.

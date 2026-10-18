@@ -8,6 +8,7 @@ import {
   type Job,
   type JobKind,
   type JobQueue,
+  validateLeaseMs,
 } from "./contracts.js";
 import { admitJob } from "./admission.js";
 
@@ -103,6 +104,7 @@ export class PostgresJobQueue implements JobQueue {
         "INVALID_INPUT",
         "Owner e lease válidos são obrigatórios.",
       );
+    validateLeaseMs(leaseMs);
     return this.#client.$transaction(async (tx) => {
       const now = await this.#now(tx);
       await tx.$executeRaw`UPDATE pie_jobs SET state=CASE WHEN state='cancelling' THEN 'cancelled' WHEN kind='verification' OR attempts>=max_attempts THEN 'failed' ELSE 'queued' END, owner=NULL, lease_token=NULL, lease_until=NULL, error_code=CASE WHEN kind='verification' THEN 'EXECUTION_INTERRUPTED' ELSE 'LEASE_EXPIRED' END, updated_at=${now} WHERE state IN ('running','cancelling') AND lease_until<=${now}`;
@@ -131,6 +133,7 @@ export class PostgresJobQueue implements JobQueue {
     token: string,
     leaseMs: number,
   ): Promise<boolean> {
+    validateLeaseMs(leaseMs);
     return this.#client.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id::text FROM pie_jobs WHERE id=${id}::uuid FOR UPDATE`;
       const row = await tx.job.findUnique({ where: { id } });

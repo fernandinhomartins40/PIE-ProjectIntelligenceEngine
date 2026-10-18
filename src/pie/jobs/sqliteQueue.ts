@@ -7,6 +7,7 @@ import {
   type Job,
   type JobKind,
   type JobQueue,
+  validateLeaseMs,
 } from "./contracts.js";
 import { admitJob } from "./admission.js";
 
@@ -119,6 +120,7 @@ export class SqliteJobQueue implements JobQueue {
         "INVALID_INPUT",
         "Owner e lease válidos são obrigatórios.",
       );
+    validateLeaseMs(leaseMs);
     return this.#transaction(() => {
       const now = this.now();
       const stale = this.#db
@@ -168,6 +170,7 @@ export class SqliteJobQueue implements JobQueue {
     });
   }
   heartbeat(id: string, token: string, leaseMs: number): boolean {
+    validateLeaseMs(leaseMs);
     return this.#transaction(() => {
       const job = this.get(id);
       if (

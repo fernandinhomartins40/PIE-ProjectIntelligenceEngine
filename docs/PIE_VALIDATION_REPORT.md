@@ -759,3 +759,9 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - `doctor` usa `information_schema.tables`, verifica as 11 tabelas mapeadas pelo Prisma e reporta `incomplete` quando faltam tabelas; não executa migrations. `openPersistence` também recusa schema estruturalmente incompleto, com falha explícita, sem fallback para SQLite.
 - `npm.cmd run test:focused -- tests/boundary/pieDoctor.test.ts`: 3/3 passaram. Teste de contrato compara tabela requerida com `@@map` reais; os testes existentes cobrem SQLite read-only e redaction de credenciais. `PIE_TEST_DATABASE_URL` ausente e Docker indisponível, portanto PostgreSQL real não foi verificado nesta entrega. Colunas, índices, triggers e histórico de migrations permanecem fora do alcance da sondagem.
 - `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
+
+## Validação de duração da lease — 18/10/2026
+
+- Regra única em `src/pie/jobs/contracts.ts`: lease inteira segura de 100 a 300.000 ms, usada por `claim` e `heartbeat` nos adapters SQLite/PostgreSQL. Entrada inválida é recusada antes da transação.
+- `npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 4 passaram, 1 skipped por plataforma Linux; fila SQLite real confirmou que heartbeat inválido não muda a expiração persistida. PostgreSQL real não foi executado porque `PIE_TEST_DATABASE_URL` está ausente.
+- T1.3 segue parcial; a validação uniforme de contrato não comprova concorrência/falhas do adapter PostgreSQL nesta máquina.
