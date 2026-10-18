@@ -115,7 +115,12 @@ function schemaFileIncomplete(snapshot: Snapshot, path: string): boolean {
       (normalized.includes("omitidas por") ||
         normalized.includes("formato declarativo nao analisado") ||
         normalized.includes("acima do limite") ||
-        normalized.includes("migration sql ddl fora do subconjunto suportado"))
+        normalized.includes(
+          "migration sql ddl fora do subconjunto suportado",
+        ) ||
+        normalized.includes(
+          "migration sql contexto de schema fora do subconjunto suportado",
+        ))
     );
   });
 }

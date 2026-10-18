@@ -773,3 +773,44 @@ it("nao associa tabela qualificada por schema ao nome Prisma homonimo", async ()
     await rm(root, { recursive: true, force: true });
   }
 });
+
+it("nao assume schema default apos SET search_path em migration", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-search-path-"));
+  const repo = join(root, "repo");
+  await mkdir(join(repo, "prisma", "migrations", "001_search_path"), {
+    recursive: true,
+  });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id String @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(repo, "prisma", "migrations", "001_search_path", "migration.sql"),
+    'SET search_path TO other;\nCREATE TABLE "User" ("id" TEXT PRIMARY KEY);\n',
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+    expect(review.coverage.limitations.join(" ")).toContain(
+      "Migration SQL contexto de schema fora do subconjunto suportado na linha 1",
+    );
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -898,4 +898,4 @@ cap_add/cap_drop literais agora sao fatos com Evidence; security-review schemaVe
 
 ## DDL de migration fora do subconjunto — 18/10/2026
 
-`ALTER TABLE` nao reconhecido, DDL `DROP`/`TRUNCATE`/`RENAME` e nomes SQL qualificados agora marcam a migration incompleta. Facts de schema qualificado nao sao comparados a nomes Prisma homonimos. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 23/23. Isso e fail-closed para SQL fora do subconjunto, nao calculo integral de migrations nem verificacao PostgreSQL aplicada.
+`ALTER TABLE` nao reconhecido, DDL `DROP`/`TRUNCATE`/`RENAME`, nomes qualificados e contexto de schema (`SET/RESET search_path`, `SET SCHEMA`, `set_config`) marcam a migration incompleta. Facts de schema qualificado nao sao comparados a nomes Prisma homonimos. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 24/24.

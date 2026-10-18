@@ -225,6 +225,10 @@ export function readSqlMigration(source: string): AdapterRead {
     limitations.push(
       `Migration SQL DDL fora do subconjunto suportado na linha ${statement[0]?.line ?? 1}; estado final permanece inconclusivo.`,
     );
+  const markUnsupportedSchemaContext = (statement: Token[]) =>
+    limitations.push(
+      `Migration SQL contexto de schema fora do subconjunto suportado na linha ${statement[0]?.line ?? 1}; resolução de nomes permanece inconclusiva.`,
+    );
   const add = (
     kind: Declaration["kind"],
     name: string,
@@ -374,6 +378,15 @@ export function readSqlMigration(source: string): AdapterRead {
       ["drop", "truncate", "rename"].includes(statement[0]?.value ?? "")
     ) {
       markUnsupportedDdl(statement);
+      continue;
+    } else if (
+      ["set", "reset"].includes(statement[0]?.value ?? "") &&
+      statement.some((token) => ["search_path", "schema"].includes(token.value))
+    ) {
+      markUnsupportedSchemaContext(statement);
+      continue;
+    } else if (statement.some((token) => token.value === "set_config")) {
+      markUnsupportedSchemaContext(statement);
       continue;
     } else continue;
 

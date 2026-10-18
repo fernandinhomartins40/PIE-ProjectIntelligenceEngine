@@ -669,3 +669,5 @@ Compose security schemaVersion 6 tambem registra `capability_add`/`capability_dr
 Data Review: DDL de migration nao reconhecido em `ALTER TABLE`, operacoes `DROP`/`TRUNCATE`/`RENAME` e nomes qualificados por schema causam estado incompleto, preservando seletores como inconclusivos. Fixtures Git/SQLite confirmam PK removida e rejeitam associacao `other.User` ao modelo Prisma `User`. `pieDataReview` 3/3 e `pieAdapters` 20/20. PostgreSQL runtime indisponivel localmente e ainda pendente; o parser nao calcula estado final completo.
 
 Atualizacao T4.5: nomes SQL qualificados nao geram facts de tabela/constraint e deixam a migration inconclusiva, evitando cruzar schemas homonimos sem search_path/@@schema suportados. Boundary Git/SQLite cobre DROP de PK e other.User versus Prisma User; Data Review 3/3, adapters 20/20. PostgreSQL runtime continua nao verificado.
+
+Data Review tambem trata SET/RESET search_path, SET SCHEMA e set_config como contexto de schema nao resolvido. Boundary real Git/SQLite demonstra que migration com SET search_path TO other nao produz alinhamento do modelo Prisma User. pieDataReview 4/4; adapter 20/20. Nenhum PostgreSQL runtime foi executado.
