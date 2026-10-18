@@ -156,16 +156,33 @@ async function postgresCheck(connection: string | undefined): Promise<Check> {
   try {
     store = new PostgresPieStore(connection);
     await store.connect();
-    const { missingTables } = await store.inspectSchema();
-    if (missingTables.length > 0)
+    const { missingTables, migrations } = await store.inspectSchema();
+    if (missingTables.length > 0 || migrations.status !== "current") {
+      const migrationIssues =
+        migrations.status === "missing_history"
+          ? "histórico _prisma_migrations ausente"
+          : [
+              migrations.missing > 0
+                ? `${migrations.missing} migration(s) não aplicada(s)`
+                : null,
+              migrations.unfinished > 0
+                ? `${migrations.unfinished} tentativa(s) sem finalização`
+                : null,
+              migrations.unknown > 0
+                ? `${migrations.unknown} migration(s) fora desta versão`
+                : null,
+            ]
+              .filter((issue): issue is string => issue !== null)
+              .join(", ");
       return {
         status: "incomplete",
-        detail: `PostgreSQL acessível; schema PIE incompleto, faltam ${missingTables.length} tabela(s). Nenhuma migration foi executada.`,
+        detail: `PostgreSQL acessível; schema PIE/migrations incompleto (${missingTables.length} tabela(s) ausente(s); ${migrationIssues}). Nenhuma migration foi executada.`,
       };
+    }
     return {
       status: "available",
       detail:
-        "PostgreSQL acessível e todas as tabelas do schema PIE estão presentes. Nenhuma migration foi executada; colunas e índices não foram validados.",
+        "PostgreSQL acessível; todas as tabelas PIE e migrations desta versão estão presentes e finalizadas. Nenhuma migration foi executada; colunas e índices não foram validados.",
     };
   } catch {
     return {
@@ -215,7 +232,7 @@ export async function inspectPieEnvironment(databasePath: string) {
     notes: [
       "O estado geral cobre runtime, Git e backend de persistência selecionado; SQLite ausente pode ser inicializado pela operação normal.",
       "As verificações são somente leitura; nenhuma migração, instalação, pull de imagem ou criação de banco foi realizada.",
-      "PostgreSQL disponível confirma conexão e presença das tabelas do schema; não valida colunas, índices, histórico de migrations nem comportamento dos workers.",
+      "PostgreSQL disponível confirma conexão, tabelas esperadas e histórico de migrations desta versão sem tentativas incompletas; não valida colunas, índices, conteúdo nem comportamento dos workers.",
       "Docker disponível significa daemon acessível; imagens autorizadas e limites de execução não foram verificados.",
     ],
   };

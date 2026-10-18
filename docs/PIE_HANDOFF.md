@@ -587,3 +587,7 @@ Apos claim, o worker agora renova/consulta a lease antes de iniciar discovery ou
 ## Corrida de heartbeat e cancelamento durante publicacao final - T1.3 - 18/10/2026
 
 A checagem pre-dispatch agora tambem respeita AbortSignal ja acionado pelo heartbeat periodico. Boundary real SQLite/Git valida o cancelamento depois da descoberta e antes de publicar o resultado do job: estado `cancelled`, sem resultado de sucesso, com snapshot imutavel retido no historico. O cancelamento tardio nao desfaz discovery ja concluida. `pieJobs`: 6 passaram, 1 skipped Linux-only; PostgreSQL runtime e Linux real continuam pendentes.
+
+## Doctor e abertura fail-closed para migrations PostgreSQL - T1.2/T6.2 - 18/10/2026
+
+A sondagem estrutural le `_prisma_migrations`, exige as oito migrations esperadas desta versao e detecta tentativas incompletas e migrations desconhecidas (banco adiante do binario). `doctor` permanece read-only; `openPersistence` recusa schema incompleto sem fallback SQLite. Testes `pieDoctor` + `piePostgresMigrations`: 5/5 passaram; cobertura compara nomes aos diretorios Prisma reais e classifica historico aplicado, ausente, falho, pendente e futuro. PostgreSQL runtime ainda nao foi validado: `PIE_TEST_DATABASE_URL` ausente e `docker info` falhou porque o daemon Linux nao esta ativo.

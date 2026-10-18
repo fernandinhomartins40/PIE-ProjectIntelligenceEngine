@@ -812,3 +812,9 @@ Atualização de gates finais — 18/10/2026
 - Antes do despacho, `JobWorker` recusa executar quando o AbortSignal ja foi acionado, inclusive por heartbeat periodico concorrente ao heartbeat imediato.
 - Nova regressao em `tests/boundary/pieJobs.test.ts` cancela no limite de publicacao usando fila SQLite e `PieService` reais: job `cancelled`, sem payload de sucesso; snapshot OBSERVE ja persistido continua consultavel no historico imutavel.
 - `npm.cmd run test:focused -- tests/boundary/pieJobs.test.ts`: 6 passaram e 1 worker CLI continuo Linux-only foi skipped. Cancelamento tardio nao reverte discovery concluida. PostgreSQL e Linux runtime permanecem sem prova local.
+
+## Readiness de migrations PostgreSQL - 18/10/2026
+
+- `PostgresPieStore.inspectSchema` consulta tabelas e `_prisma_migrations` em leitura. A classificacao exige todas as migrations versionadas desta aplicacao finalizadas, ignora tentativas explicitamente revertidas, e denuncia faltantes, incompletas e migrations desconhecidas de uma versao futura.
+- Doctor reporta `incomplete` sem aplicar migrations; `openPersistence` recusa o banco com mensagem segura e sem fallback para SQLite. O catalogo de migrations e testado contra os diretorios reais em `prisma/migrations`.
+- `npm.cmd run test:focused -- tests/boundary/piePostgresMigrations.test.ts tests/boundary/pieDoctor.test.ts tests/boundary/piePostgres.test.ts`: 5 passaram, 1 PostgreSQL real foi skipped. `PIE_TEST_DATABASE_URL` nao esta configurada; `docker info` confirmou daemon Linux indisponivel. A consulta real ao historico nao foi exercitada neste host.

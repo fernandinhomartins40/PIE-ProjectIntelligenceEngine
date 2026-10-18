@@ -57,9 +57,15 @@ it("doctor exige que a lista estrutural do PostgreSQL acompanhe todos os models 
     readFile(sourcePath, "utf8"),
     readFile(schemaPath, "utf8"),
   ]);
-  const inspected = implementation.match(
-    /async inspectSchema\(\): Promise<\{ missingTables: string\[\] \}> \{([\s\S]*?)\n  \}/u,
-  )?.[1];
+  const inspectionStart = implementation.indexOf("async inspectSchema()");
+  const inspectionEnd = implementation.indexOf(
+    "async close()",
+    inspectionStart,
+  );
+  const inspected =
+    inspectionStart >= 0 && inspectionEnd > inspectionStart
+      ? implementation.slice(inspectionStart, inspectionEnd)
+      : undefined;
   expect(inspected).toBeDefined();
   const tables = [...schema.matchAll(/@@map\("(pie_[a-z_]+)"\)/gu)].map(
     (match) => match[1]!,
@@ -67,5 +73,7 @@ it("doctor exige que a lista estrutural do PostgreSQL acompanhe todos os models 
   expect(tables.length).toBeGreaterThan(0);
   for (const table of tables) expect(inspected).toContain(`"${table}"`);
   expect(inspected).toContain("information_schema.tables");
+  expect(inspected).toContain('"_prisma_migrations"');
+  expect(inspected).toContain("inspectAppliedMigrations");
   expect(inspected).not.toMatch(/CREATE|ALTER|DROP|migrate/u);
 });

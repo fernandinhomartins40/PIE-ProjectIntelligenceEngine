@@ -36,15 +36,41 @@ export async function openPersistence(
   const store = new PostgresPieStore(connection);
   try {
     await store.connect();
-    const { missingTables } = await store.inspectSchema();
-    if (missingTables.length > 0)
-      throw new PieError(
-        "IO_ERROR",
-        `PostgreSQL conectado, mas faltam ${missingTables.length} tabela(s) do schema PIE; migrations devem ser aplicadas explicitamente.`,
-      );
-    return store;
   } catch {
     await store.close();
+    throw new PieError(
+      "IO_ERROR",
+      "PostgreSQL indisponível; confira conexão e migrações. Não houve fallback silencioso para SQLite.",
+    );
+  }
+  try {
+    const { missingTables, migrations } = await store.inspectSchema();
+    if (missingTables.length > 0 || migrations.status !== "current") {
+      const migrationIssues =
+        migrations.status === "missing_history"
+          ? "histórico _prisma_migrations ausente"
+          : [
+              migrations.missing > 0
+                ? `${migrations.missing} migration(s) pendente(s)`
+                : null,
+              migrations.unfinished > 0
+                ? `${migrations.unfinished} tentativa(s) sem finalização`
+                : null,
+              migrations.unknown > 0
+                ? `${migrations.unknown} migration(s) fora desta versão`
+                : null,
+            ]
+              .filter((issue): issue is string => issue !== null)
+              .join(", ");
+      throw new PieError(
+        "IO_ERROR",
+        `PostgreSQL conectado, mas schema PIE/migrations incompleto (${missingTables.length} tabela(s) ausente(s)${migrationIssues ? `; ${migrationIssues}` : ""}); aplique migrations explicitamente.`,
+      );
+    }
+    return store;
+  } catch (cause) {
+    await store.close().catch(() => {});
+    if (cause instanceof PieError) throw cause;
     throw new PieError(
       "IO_ERROR",
       "PostgreSQL indisponível; confira conexão e migrações. Não houve fallback silencioso para SQLite.",

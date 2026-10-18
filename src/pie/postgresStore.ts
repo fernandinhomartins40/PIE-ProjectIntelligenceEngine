@@ -17,6 +17,11 @@ import { PieError, type Snapshot } from "./contracts.js";
 import { verifyEvidence } from "./evidence.js";
 import { pageSchema } from "./graph.js";
 import { httpProbeHistorySchema } from "./outputContracts.js";
+import {
+  inspectAppliedMigrations,
+  missingMigrationHistory,
+  type MigrationHistoryInspection,
+} from "./postgresMigrations.js";
 import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import {
@@ -69,7 +74,10 @@ export class PostgresPieStore implements PiePersistence {
   async connect(): Promise<void> {
     await this.#client.$connect();
   }
-  async inspectSchema(): Promise<{ missingTables: string[] }> {
+  async inspectSchema(): Promise<{
+    missingTables: string[];
+    migrations: MigrationHistoryInspection;
+  }> {
     const expectedTables = [
       "pie_projects",
       "pie_snapshots",
@@ -90,8 +98,20 @@ export class PostgresPieStore implements PiePersistence {
         AND table_type = 'BASE TABLE'
     `;
     const present = new Set(rows.map((row) => row.table_name));
+    const migrations = present.has("_prisma_migrations")
+      ? inspectAppliedMigrations(
+          await this.#client.$queryRaw<
+            Array<{
+              migration_name: string;
+              finished_at: Date | null;
+              rolled_back_at: Date | null;
+            }>
+          >`SELECT migration_name,finished_at,rolled_back_at FROM "_prisma_migrations"`,
+        )
+      : missingMigrationHistory();
     return {
       missingTables: expectedTables.filter((table) => !present.has(table)),
+      migrations,
     };
   }
   async close(): Promise<void> {
