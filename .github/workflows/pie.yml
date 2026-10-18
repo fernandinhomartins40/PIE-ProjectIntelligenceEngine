@@ -7,12 +7,17 @@ on:
         "apps/web/**",
         "scripts/build-pie-web.mjs",
         "src/pie/**",
+        "src/process/**",
+        "src/windows/**",
         "prisma/**",
         "prisma.config.ts",
         "scripts/pie.mjs",
         "tests/boundary/pie*.test.ts",
+        "tests/boundary/process/providerProcessOutput.test.ts",
         "tests/boundary/mcp/pie*.test.ts",
         "tests/conformance/pieCiSelection.test.ts",
+        "src/process/ProviderProcessOutput.test.ts",
+        "tests/fixtures/providerProcess.*",
         "scripts/ci/pie-tests.mjs",
         "package*.json",
         ".github/workflows/pie.yml",
@@ -23,12 +28,17 @@ on:
         "apps/web/**",
         "scripts/build-pie-web.mjs",
         "src/pie/**",
+        "src/process/**",
+        "src/windows/**",
         "prisma/**",
         "prisma.config.ts",
         "scripts/pie.mjs",
         "tests/boundary/pie*.test.ts",
+        "tests/boundary/process/providerProcessOutput.test.ts",
         "tests/boundary/mcp/pie*.test.ts",
         "tests/conformance/pieCiSelection.test.ts",
+        "src/process/ProviderProcessOutput.test.ts",
+        "tests/fixtures/providerProcess.*",
         "scripts/ci/pie-tests.mjs",
         "package*.json",
         ".github/workflows/pie.yml",
@@ -71,6 +81,8 @@ jobs:
         env:
           PIE_TEST_DATABASE_URL: postgresql://pie:pie_ci_fixture@127.0.0.1:5432/pie_test
       - run: npm run typecheck
+      - name: Verify shared process lifecycle used by PIE
+        run: node node_modules/vitest/vitest.mjs run src/process/ProviderProcessOutput.test.ts tests/boundary/process/providerProcessOutput.test.ts
       - run: npm run test:local -- tests/conformance/pieCiSelection.test.ts
       - run: node scripts/generate-third-party-inventory.mjs --check
       - run: node node_modules/vitest/vitest.mjs run tests/boundary/pieNodeResults.test.ts

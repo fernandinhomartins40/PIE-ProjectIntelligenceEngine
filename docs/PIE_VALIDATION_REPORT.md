@@ -950,3 +950,7 @@ Corrigida a interpretacao de CREATE UNIQUE INDEX ON ONLY quando a mesma migratio
 ## Drenagem de saida de processos autorizados - T1.3/T3.2 - 18/10/2026
 
 A captura stdout/stderr do `ProviderProcessSupervisor` permanece ligada ate fechamento real ou limite de 1 s apos cleanup do processo proprio. A cauda adicional e limitada a 64 KiB. Cleanup incompleto permite retry mantendo ownership/captura; saida tardia apos sucesso pode ser capturada; timeout, erro de stream ou descarte antecipado marca output incompleto sem revogar a prova de cleanup nem destruir streams herdados. Focused: `ProviderProcessOutput`, boundary do processo e `pieDockerLifecycle`/`pieDockerPlan`, 24 passaram e 1 skipped. `pie:build`, `check:fast`, `docs:check`, format e diff-check passaram. O processo POSIX real com stderr herdado foi skipped no host Windows; Linux/macOS ainda requer CI/ambiente correspondente. Mudanca upstream 701695139 foi portada manualmente; nenhum merge/cherry-pick do upstream foi feito.
+
+## CI PIE acionada por mudancas no supervisor compartilhado - T6.3 - 18/10/2026
+
+O workflow PIE agora observa alteracoes em `src/process/**`, `src/windows/**`, fixtures e boundaries do supervisor, e executa as boundaries processuais no runner Linux. A selecao incremental classifica alteracao de `ProviderProcess` como full suite, nunca como teste PIE focado isolado. YAML parse local e conformance `pieCiSelection` 2/2 passaram; processo/Docker local 24 passed, 1 skipped (Windows). A lane Linux remota ainda aguarda o push e nao esta contada como executada.

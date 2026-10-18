@@ -702,3 +702,5 @@ T4.5: NULLS NOT DISTINCT em UNIQUE inline/tabela, indice e ALTER constraint agor
 T4.5: tabela reconhecida como PARTITION BY seguida por CREATE UNIQUE INDEX ON ONLY nao produz fato global de unique; inventory fica incompleto e Prisma @unique inconclusivo. Focused Data Review/adapters 45/45. Referencia: https://www.postgresql.org/docs/current/ddl-partitioning.html . Runtime PostgreSQL continua sem prova local.
 
 T1.3/T3.2: supervisor REA diferencia process exit de output close, preserva stderr tardio e incompleto, limita drenagem/retencao (1 s/64 KiB) e mantem captura durante retry de cleanup. Em Windows, focused process/PIE Docker passou 24 testes; 1 teste real POSIX de pipe herdado ficou skipped por plataforma. Gates gerais passaram. Referencia upstream: https://github.com/morluto/rea/commit/701695139490777ece7a3ccb8508b6215a11c0fe .
+
+T6.3: filtro da lane PIE ampliado para supervisor/processo Windows e fixtures; passo Linux executa boundaries do supervisor REA. Mudanca de fonte compartilhada seleciona a suite PIE completa (teste conformance 2/2). YAML parse e testes locais passaram; pipe POSIX real permanece pendente da lane remota apos push.

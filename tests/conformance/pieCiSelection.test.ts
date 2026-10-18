@@ -19,6 +19,7 @@ it("reduces the PIE lane only for allowlisted test-only changes", () => {
 it("keeps the complete PIE suite for source, unknown, empty, or manual changes", () => {
   for (const paths of [
     ["src/pie/service.ts", "tests/boundary/pieApi.test.ts"],
+    ["src/process/ProviderProcess.ts"],
     ["tests/boundary/pieNewEngine.test.ts"],
     [],
   ])
