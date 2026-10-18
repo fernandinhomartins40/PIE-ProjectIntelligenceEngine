@@ -563,3 +563,7 @@ Continuação T6.1: export Data Review JSON/Markdown/HTML paginado UTF-8 dispon�
 ## Próxima frente — actions GitHub sem SHA — 18/10/2026
 
 Parser YAML produz facts para `uses` remoto em job reutilizável e em steps sem SHA completo, mantendo só hash da referência, job e linha. Evidência Git/SQLite via `pieSecurityReview` + `pieAdapters` cobre `@main`/`@v4`, pin SHA, action local, Docker e expressão dinâmica: 13/13. Serviço reporta findings supply-chain com schemaVersion 3, Evidence atual, não execução e não divulgação da referência, em paridade CLI/API/MCP/Ajv. O finding público genérico distingue a condição de workflow reutilizável da action de step. Nenhum workflow/action externo foi consultado ou executado. Próximo: considerar actions Docker e referências dinâmicas somente após definir cobertura/autoridade; SCA remoto permanece sujeito a opt-in explícito em VERIFY.
+
+## Integridade das arestas de import — T2.2/T1.1 — 18/10/2026
+
+`validateSnapshot` exige uma prova AST única por aresta `depends`, Evidence estática derivada, arquivo de origem compatível e, para pacote declarado, prova adicional do manifest. A mesma prova não pode sustentar duas arestas `depends`; uso adicional em `calls` Express é válido. `pieExpressCrossFile`, `pieTrace` e `pieAdapters`: 21/21 passaram com Git/SQLite. Imports omitidos por orçamento permanecem cobertura parcial; sem execução ou alegação de grafo completo.

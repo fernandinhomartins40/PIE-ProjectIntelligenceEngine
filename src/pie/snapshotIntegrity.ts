@@ -82,13 +82,27 @@ function validateDeclarations(
 function validateImportEdges(snapshot: Snapshot) {
   const nodes = new Map(snapshot.nodes.map((node) => [node.id, node]));
   const evidence = new Map(snapshot.evidence.map((item) => [item.id, item]));
+  const usedImportProofs = new Set<string>();
   for (const edge of snapshot.edges) {
     if (edge.kind !== "depends") continue;
-    const sourceNode = nodes.get(edge.from)!;
-    const targetNode = nodes.get(edge.to)!;
-    const importProof = edge.evidenceIds
+    const sourceNode = nodes.get(edge.from);
+    const targetNode = nodes.get(edge.to);
+    if (!sourceNode || !targetNode)
+      throw new PieError("INTEGRITY_ERROR", "Aresta depende sem nÃ³ vÃ¡lido.");
+    const importProofs = edge.evidenceIds
       .map((id) => evidence.get(id))
-      .find((item) => item?.observation.startsWith("Import AST "));
+      .filter((item) => item?.observation.startsWith("Import AST "));
+    if (importProofs.length > 1)
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "Aresta depende possui Evidence de imports ambÃ­gua.",
+      );
+    const importProof = importProofs[0];
+    if (importProof && usedImportProofs.has(importProof.id))
+      throw new PieError(
+        "INTEGRITY_ERROR",
+        "Evidence de import reutilizada por arestas depende ambÃ­guas.",
+      );
     if (!importProof) {
       const packageProof = snapshot.declarations.find(
         (fact) =>
@@ -128,15 +142,14 @@ function validateImportEdges(snapshot: Snapshot) {
       tuple.length !== 3 ||
       typeof tuple[0] !== "string" ||
       importProof.source.path !== sourceNode.path ||
-      importProof.source.line === null
+      importProof.source.line === null ||
+      importProof.method !== "static" ||
+      importProof.confidence !== "derived"
     )
       throw new PieError("INTEGRITY_ERROR", "Evidence de import inválida.");
+    usedImportProofs.add(importProof.id);
     if (tuple[1] === "relative-file") {
-      if (
-        tuple[2] !== targetNode.path ||
-        edge.evidenceIds.length !== 1 ||
-        importProof.source.line === null
-      )
+      if (tuple[2] !== targetNode.path || edge.evidenceIds.length !== 1)
         throw new PieError(
           "INTEGRITY_ERROR",
           "Destino relativo diverge da Evidence do import.",
@@ -160,7 +173,11 @@ function validateImportEdges(snapshot: Snapshot) {
         fact.source.path === targetNode.path &&
         edge.evidenceIds.includes(fact.evidenceId),
     );
-    if (!declaration)
+    if (
+      !declaration ||
+      edge.evidenceIds.length !== 2 ||
+      importProof.source.line === null
+    )
       throw new PieError(
         "INTEGRITY_ERROR",
         "Import sem declaração de pacote correspondente no manifest.",

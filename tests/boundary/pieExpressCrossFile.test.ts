@@ -274,6 +274,20 @@ it("relaciona mount Express cross-file a import e export estáticos com Evidence
     expectComposedRoutes(snapshot);
     const mountEdge = expectMountEvidence(snapshot, source.id, target.id);
     expect(validateSnapshot(snapshot).id).toBe(snapshot.id);
+    const importEdge = snapshot.edges.find(
+      (edge) => edge.kind === "depends" && edge.from === source.id,
+    )!;
+    const importProofId = importEdge.evidenceIds[0]!;
+    expect(() =>
+      validateSnapshot({
+        ...snapshot,
+        edges: snapshot.edges.map((edge) =>
+          edge.id === importEdge.id
+            ? { ...edge, evidenceIds: [importProofId, importProofId] }
+            : edge,
+        ),
+      }),
+    ).toThrow("Evidence de imports");
     const traced = traceSnapshot(snapshot, {
       snapshotId: snapshot.id,
       nodeId: source.id,
