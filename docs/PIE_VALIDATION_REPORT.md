@@ -942,3 +942,7 @@ Validacao geral apos ON ONLY: `npm.cmd run pie:build`, `npm.cmd run check:fast`,
 ## UNIQUE NULLS NOT DISTINCT - T4.5 - 18/10/2026
 
 As variantes de UNIQUE com NULLS NOT DISTINCT em CREATE TABLE, CREATE UNIQUE INDEX e ALTER TABLE nao geram facts de seletor, pois o parser nao representa a semantica de NULL equivalente. A migration fica incompleta e Data Review inconclusivo. Testes focused Data Review/adapters passaram 43/43. Gates pie:build, check:fast e docs:check passaram; ledger manteve complete=false. PostgreSQL runtime nao executado.
+
+## Indice ON ONLY em tabela particionada - T4.5 - 18/10/2026
+
+Corrigida a interpretacao de CREATE UNIQUE INDEX ON ONLY quando a mesma migration declara a tabela como PARTITION BY. PostgreSQL cria esse indice invalido ate os indices filhos serem anexados; o Data Review agora marca o inventario incompleto e nao alinha @unique. Testes parser e Git/SQLite integrados passaram, mantendo o caso ON ONLY nao particionado. Focused Data Review/adapters 45/45. Runtime PostgreSQL nao executado.

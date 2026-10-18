@@ -683,3 +683,7 @@ O parser ignora o modificador `ONLY` ao resolver a tabela-alvo de `CREATE UNIQUE
 Continuidade T4.5 - UNIQUE NULLS NOT DISTINCT - 18/10/2026
 
 PostgreSQL permite NULLS NOT DISTINCT em UNIQUE inline/de tabela, CREATE UNIQUE INDEX e ALTER TABLE ADD CONSTRAINT. Como isso altera a semantica de igualdade de NULL e nao cabe no seletor Prisma atual, as tres formas deixam a instrucao sem facts e marcam migration inventory incompleta. Parser direto e Data Review Git/SQLite confirmam inconclusao sem alinhamento. Focused Data Review/adapters: 43/43. Gates: pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check passaram. PostgreSQL runtime nao foi executado. Fonte: https://www.postgresql.org/docs/current/sql-createtable.html e https://www.postgresql.org/docs/current/sql-createindex.html .
+
+## Continuidade T4.5 - indice particionado ON ONLY - 18/10/2026
+
+O manual PostgreSQL documenta que CREATE INDEX ON ONLY em tabela particionada cria indice invalido ate o attach dos indices das particoes. O adapter agora retém o fato de que uma tabela declarada com PARTITION BY e particionada e omite o UNIQUE de ON ONLY nessa tabela, marcando a migration incompleta. Teste direto e Data Review Git/SQLite mantêm @unique inconclusivo; a regressao existente confirma ON ONLY em tabela nao particionada. Focused Data Review/adapters: 45/45. PostgreSQL runtime nao executado. Referencia: https://www.postgresql.org/docs/current/ddl-partitioning.html .

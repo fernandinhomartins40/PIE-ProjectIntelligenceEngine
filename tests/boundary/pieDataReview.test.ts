@@ -194,6 +194,21 @@ it("nao reduz UNIQUE NULLS NOT DISTINCT a seletor comum", () => {
   expect(parsed.declarations).toEqual([]);
 });
 
+it("nao considera global o indice ON ONLY de tabela particionada", () => {
+  const parsed = readSqlMigration(
+    [
+      'CREATE TABLE "PartitionedUser" ("id" INTEGER, "email" TEXT) PARTITION BY RANGE ("id");',
+      'CREATE UNIQUE INDEX "PartitionedUser_email_key" ON ONLY "PartitionedUser" ("email");',
+    ].join("\n"),
+  );
+  expect(parsed.limitations).toEqual(
+    expect.arrayContaining([expect.stringContaining("linha 2")]),
+  );
+  expect(parsed.declarations).toEqual([
+    expect.objectContaining({ kind: "model", name: "PartitionedUser" }),
+  ]);
+});
+
 async function collectDataReviewExport(
   service: PieService,
   snapshotId: string,
@@ -1323,6 +1338,48 @@ it("mantem seletor NULLS NOT DISTINCT inconclusivo no Data Review", async () => 
     [
       'CREATE TABLE "User" ("id" INTEGER, "email" TEXT);',
       'CREATE UNIQUE INDEX "User_email_key" ON "User" ("email") NULLS NOT DISTINCT;',
+    ].join("\n"),
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("mantem indice ON ONLY de tabela particionada inconclusivo no Data Review", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "pie-data-review-partition-index-"),
+  );
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_partition_index");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id Int @id", "  email String? @unique", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    [
+      'CREATE TABLE "User" ("id" INTEGER NOT NULL, "email" TEXT) PARTITION BY RANGE ("id");',
+      'CREATE UNIQUE INDEX "User_email_key" ON ONLY "User" ("email");',
     ].join("\n"),
   );
   await exec("git", ["-C", repo, "add", "."]);

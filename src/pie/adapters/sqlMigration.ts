@@ -272,6 +272,7 @@ function referencedTables(tokens: Token[]) {
 export function readSqlMigration(source: string): AdapterRead {
   const declarations: Declaration[] = [];
   const limitations: string[] = [];
+  const partitionedTables = new Set<string>();
   const markUnsupportedDdl = (statement: Token[]) =>
     limitations.push(
       `Migration SQL DDL fora do subconjunto suportado na linha ${statement[0]?.line ?? 1}; estado final permanece inconclusivo.`,
@@ -361,6 +362,10 @@ export function readSqlMigration(source: string): AdapterRead {
               markUnsupportedDdl(statement);
               continue;
             }
+            if (tableStart === on + 2 && partitionedTables.has(target.name)) {
+              markUnsupportedDdl(statement);
+              continue;
+            }
             const open = statement.findIndex(
               (token, tokenIndex) =>
                 tokenIndex >= target.next && keyword(token, "("),
@@ -424,6 +429,9 @@ export function readSqlMigration(source: string): AdapterRead {
       if (bodyStart < 0) {
         markUnsupportedDdl(statement);
         continue;
+      }
+      if (hasPair(statement, "partition", "by")) {
+        partitionedTables.add(table);
       }
       add("model", table, table, statement[0]!.line);
     } else if (
