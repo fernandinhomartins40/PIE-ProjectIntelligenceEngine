@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 import { inspectPieEnvironment } from "../../src/pie/doctor.js";
 import { openStore } from "../../src/pie/store.js";
 
@@ -71,8 +72,13 @@ it("doctor exige que a lista estrutural do PostgreSQL acompanhe todos os models 
     (match) => match[1]!,
   );
   expect(tables.length).toBeGreaterThan(0);
-  for (const table of tables) expect(inspected).toContain(`"${table}"`);
+  const generatedTables = Prisma.dmmf.datamodel.models
+    .map((model) => model.dbName ?? model.name)
+    .sort();
+  expect(generatedTables).toEqual(tables.sort());
+  expect(inspected).toContain("Prisma.dmmf.datamodel.models");
   expect(inspected).toContain("information_schema.tables");
+  expect(inspected).toContain("information_schema.columns");
   expect(inspected).toContain('"_prisma_migrations"');
   expect(inspected).toContain("inspectAppliedMigrations");
   expect(inspected).toContain("checksum");

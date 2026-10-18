@@ -156,8 +156,27 @@ async function postgresCheck(connection: string | undefined): Promise<Check> {
   try {
     store = new PostgresPieStore(connection);
     await store.connect();
-    const { missingTables, migrations } = await store.inspectSchema();
-    if (missingTables.length > 0 || migrations.status !== "current") {
+    const { missingTables, missingColumns, unexpectedColumns, migrations } =
+      await store.inspectSchema();
+    if (
+      missingTables.length > 0 ||
+      missingColumns.length > 0 ||
+      unexpectedColumns.length > 0 ||
+      migrations.status !== "current"
+    ) {
+      const structureIssues = [
+        missingTables.length > 0
+          ? `${missingTables.length} tabela(s) ausente(s)`
+          : null,
+        missingColumns.length > 0
+          ? `${missingColumns.length} coluna(s) esperada(s) ausente(s)`
+          : null,
+        unexpectedColumns.length > 0
+          ? `${unexpectedColumns.length} coluna(s) não esperada(s)`
+          : null,
+      ]
+        .filter((issue): issue is string => issue !== null)
+        .join(", ");
       const migrationIssues =
         migrations.status === "missing_history"
           ? "histórico _prisma_migrations ausente"
@@ -179,13 +198,13 @@ async function postgresCheck(connection: string | undefined): Promise<Check> {
               .join(", ");
       return {
         status: "incomplete",
-        detail: `PostgreSQL acessível; schema PIE/migrations incompleto (${missingTables.length} tabela(s) ausente(s); ${migrationIssues}). Nenhuma migration foi executada.`,
+        detail: `PostgreSQL acessível; schema PIE incompleto (${structureIssues || "estrutura"}${migrationIssues ? `; ${migrationIssues}` : ""}). Nenhuma migration foi executada.`,
       };
     }
     return {
       status: "available",
       detail:
-        "PostgreSQL acessível; todas as tabelas PIE e migrations desta versão estão presentes e finalizadas. Nenhuma migration foi executada; colunas e índices não foram validados.",
+        "PostgreSQL acessível; tabelas e colunas PIE desta versão estão presentes, migrations aplicadas e finalizadas. Nenhuma migration foi executada; tipos, índices, constraints e dados não foram validados.",
     };
   } catch {
     return {
@@ -235,7 +254,7 @@ export async function inspectPieEnvironment(databasePath: string) {
     notes: [
       "O estado geral cobre runtime, Git e backend de persistência selecionado; SQLite ausente pode ser inicializado pela operação normal.",
       "As verificações são somente leitura; nenhuma migração, instalação, pull de imagem ou criação de banco foi realizada.",
-      "PostgreSQL disponível confirma conexão, tabelas esperadas e histórico de migrations desta versão sem tentativas incompletas; não valida colunas, índices, conteúdo nem comportamento dos workers.",
+      "PostgreSQL disponível confirma conexão, tabelas e nomes de colunas esperados, e histórico de migrations desta versão sem tentativas incompletas; não valida tipos, índices, constraints, conteúdo nem comportamento dos workers.",
       "Docker disponível significa daemon acessível; imagens autorizadas e limites de execução não foram verificados.",
     ],
   };

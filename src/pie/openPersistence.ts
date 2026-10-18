@@ -44,8 +44,27 @@ export async function openPersistence(
     );
   }
   try {
-    const { missingTables, migrations } = await store.inspectSchema();
-    if (missingTables.length > 0 || migrations.status !== "current") {
+    const { missingTables, missingColumns, unexpectedColumns, migrations } =
+      await store.inspectSchema();
+    if (
+      missingTables.length > 0 ||
+      missingColumns.length > 0 ||
+      unexpectedColumns.length > 0 ||
+      migrations.status !== "current"
+    ) {
+      const structureIssues = [
+        missingTables.length > 0
+          ? `${missingTables.length} tabela(s) ausente(s)`
+          : null,
+        missingColumns.length > 0
+          ? `${missingColumns.length} coluna(s) esperada(s) ausente(s)`
+          : null,
+        unexpectedColumns.length > 0
+          ? `${unexpectedColumns.length} coluna(s) não esperada(s)`
+          : null,
+      ]
+        .filter((issue): issue is string => issue !== null)
+        .join(", ");
       const migrationIssues =
         migrations.status === "missing_history"
           ? "histórico _prisma_migrations ausente"
@@ -67,7 +86,7 @@ export async function openPersistence(
               .join(", ");
       throw new PieError(
         "IO_ERROR",
-        `PostgreSQL conectado, mas schema PIE/migrations incompleto (${missingTables.length} tabela(s) ausente(s)${migrationIssues ? `; ${migrationIssues}` : ""}); aplique migrations explicitamente.`,
+        `PostgreSQL conectado, mas schema PIE incompleto (${structureIssues || "estrutura"}${migrationIssues ? `; ${migrationIssues}` : ""}); aplique migrations explicitamente.`,
       );
     }
     return store;

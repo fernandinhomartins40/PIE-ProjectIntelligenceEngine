@@ -22,6 +22,7 @@ import {
   missingMigrationHistory,
   type MigrationHistoryInspection,
 } from "./postgresMigrations.js";
+import { comparePostgresColumns } from "./postgresSchema.js";
 import type { PiePersistence } from "./persistence.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
 import {
@@ -76,21 +77,17 @@ export class PostgresPieStore implements PiePersistence {
   }
   async inspectSchema(): Promise<{
     missingTables: string[];
+    missingColumns: string[];
+    unexpectedColumns: string[];
     migrations: MigrationHistoryInspection;
   }> {
-    const expectedTables = [
-      "pie_projects",
-      "pie_snapshots",
-      "pie_evidence",
-      "pie_verification_runs",
-      "pie_functional_records",
-      "pie_http_probes",
-      "pie_plan_contestations",
-      "pie_plan_triage_events",
-      "pie_graph_nodes",
-      "pie_graph_edges",
-      "pie_jobs",
-    ];
+    const expectedModels = Prisma.dmmf.datamodel.models.map((model) => ({
+      table: model.dbName ?? model.name,
+      columns: model.fields
+        .filter((field) => field.kind !== "object")
+        .map((field) => field.dbName ?? field.name),
+    }));
+    const expectedTables = expectedModels.map((model) => model.table);
     const rows = await this.#client.$queryRaw<Array<{ table_name: string }>>`
       SELECT table_name
       FROM information_schema.tables
@@ -98,6 +95,25 @@ export class PostgresPieStore implements PiePersistence {
         AND table_type = 'BASE TABLE'
     `;
     const present = new Set(rows.map((row) => row.table_name));
+    const columnRows = await this.#client.$queryRaw<
+      Array<{ table_name: string; column_name: string }>
+    >`
+      SELECT table_name,column_name
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+    `;
+    const expectedColumns = expectedModels.flatMap(({ table, columns }) =>
+      columns.map((column) => ({ table, column })),
+    );
+    const actualColumns = columnRows.map(({ table_name, column_name }) => ({
+      table: table_name,
+      column: column_name,
+    }));
+    const { missingColumns, unexpectedColumns } = comparePostgresColumns(
+      expectedColumns,
+      actualColumns,
+      present,
+    );
     const migrations = present.has("_prisma_migrations")
       ? inspectAppliedMigrations(
           await this.#client.$queryRaw<
@@ -112,6 +128,8 @@ export class PostgresPieStore implements PiePersistence {
       : missingMigrationHistory();
     return {
       missingTables: expectedTables.filter((table) => !present.has(table)),
+      missingColumns,
+      unexpectedColumns,
       migrations,
     };
   }

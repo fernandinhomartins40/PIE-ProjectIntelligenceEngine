@@ -824,3 +824,10 @@ Atualização de gates finais — 18/10/2026
 - `PostgresPieStore.inspectSchema` tambem seleciona `checksum`. O catalogo embutido contem SHA-256 esperado por migration; status `drifted` bloqueia `doctor` como incomplete e impede `openPersistence`. Prisma documenta `_prisma_migrations.checksum` como SHA-256 do arquivo migration (`prisma-engines/schema-engine/ARCHITECTURE.md`).
 - `piePostgresMigrations.test.ts` recalcula os oito hashes dos bytes de `migration.sql`, compara ao catalogo e valida checksum alterado, migration ausente/futura/incompleta e rollback. `pieDoctor` + `piePostgresMigrations`: 5 passaram; `piePostgres` real foi skipped.
 - `PIE_TEST_DATABASE_URL` continua ausente e Docker daemon Linux indisponivel; nao alegar verificacao do checksum contra banco real.
+
+## Colunas do schema PostgreSQL - 18/10/2026
+
+- `npm.cmd run test:focused -- tests/boundary/piePostgresSchema.test.ts tests/boundary/piePostgresMigrations.test.ts tests/boundary/pieDoctor.test.ts tests/boundary/piePostgres.test.ts`: 8 passaram; 1 teste de PostgreSQL real foi skipped.
+- `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger continua `complete=false`), `npm.cmd run format:check` e `git diff --check`: passaram.
+- Doctor e abertura conferem tabelas e nomes de colunas escalares esperadas pelo DMMF Prisma gerado. A comparação ignora tabelas não pertencentes ao PIE. Ela não valida tipos, índices, constraints ou dados.
+- PostgreSQL real não foi testado: `PIE_TEST_DATABASE_URL` ausente e Docker Desktop Linux daemon indisponível.

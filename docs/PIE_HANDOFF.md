@@ -595,3 +595,7 @@ A sondagem estrutural le `_prisma_migrations`, exige as oito migrations esperada
 ## Drift de checksum das migrations - T1.2 - 18/10/2026
 
 O catalogo esperado agora associa cada nome ao SHA-256 do `migration.sql`; a sondagem compara com `checksum` salvo em `_prisma_migrations` e recusa banco cujo script aplicado foi editado. A boundary calcula os hashes dos oito arquivos reais e cobre checksum divergente. O engine Prisma documenta esse campo como SHA-256 do arquivo de migration: https://github.com/prisma/prisma-engines/blob/main/schema-engine/ARCHITECTURE.md. PostgreSQL runtime nao foi exercitado neste host.
+
+## Inspeção de colunas PostgreSQL - T1.2 - 18/10/2026
+
+`inspectSchema` usa o DMMF Prisma gerado como fonte de nomes de tabelas/colunas escalares e compara com `information_schema`; doctor e abertura bloqueiam colunas esperadas ausentes e colunas inesperadas em tabelas PIE presentes. O teste sintético prova tabelas/colunas e ignora tabelas de outros sistemas. `check:fast`, `docs:check`, `format:check` passaram; 8 testes focados passaram e o teste PostgreSQL real foi skipped. Tipos, índices, constraints, dados e execução em PostgreSQL real seguem sem validação; URL de teste ausente e daemon Docker indisponível.
