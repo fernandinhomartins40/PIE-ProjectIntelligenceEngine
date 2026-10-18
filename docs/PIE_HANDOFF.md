@@ -571,3 +571,7 @@ Parser YAML produz facts para `uses` remoto em job reutilizável e em steps sem 
 ## Impacto de mudanças — T2.4 — 18/10/2026
 
 `pie_change_impact` schemaVersion 2 separa nó alterado (`changed`) de dependente alcançado e expõe `relationEvidenceIds` das arestas registradas em cada snapshot. `pieComparison`, API autenticada e MCP/CLI passaram 6/6; nenhuma inferência runtime ou dependência fora do grafo observado. Cache por commit e incremental persistente continuam pendentes.
+
+## Cache de parsing — limite e isolamento — T2.4 — 18/10/2026
+
+`pieIncrementalDiscovery` passou 5/5; cobre Evidence nova em snapshot quente, chaves por conteúdo/orçamento, mutação isolada do retorno, teto por entrada/quantidade e eviction pelo teto global de bytes. Sem mudança de runtime ou medição de ganho nesta rodada.

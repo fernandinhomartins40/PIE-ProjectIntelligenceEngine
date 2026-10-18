@@ -101,6 +101,30 @@ describe("PIE incremental discovery", () => {
     expect(analysisCacheStats()).toMatchObject({ misses: 2, hits: 0 });
   });
 
+  it("isola resultados mutáveis tanto na inserção quanto em cada hit", () => {
+    clearAnalysisCache();
+    type CachedFacts = { references: string[] };
+    const original = cachedAnalysis(
+      ["clone-boundary-test"],
+      () =>
+        ({
+          references: ["./source"],
+        }) satisfies CachedFacts,
+    );
+    original.references.push("./caller-mutation");
+    const hit = cachedAnalysis<CachedFacts>(["clone-boundary-test"], () => ({
+      references: [],
+    }));
+    expect(hit).toEqual({ references: ["./source"] });
+    hit.references.push("./hit-mutation");
+    expect(
+      cachedAnalysis<CachedFacts>(["clone-boundary-test"], () => ({
+        references: [],
+      })),
+    ).toEqual({ references: ["./source"] });
+    expect(analysisCacheStats()).toMatchObject({ hits: 2, misses: 1 });
+  });
+
   it("respeita o limite LRU de entradas e ignora resultados superdimensionados", () => {
     clearAnalysisCache();
     const { maxEntries, maxEntryBytes } = analysisCacheStats();
@@ -123,5 +147,25 @@ describe("PIE incremental discovery", () => {
       entries: maxEntries,
       evictions: 2,
     });
+  });
+
+  it("expulsa entradas antigas para respeitar o teto global serializado", () => {
+    clearAnalysisCache();
+    const { maxBytes, maxEntryBytes } = analysisCacheStats();
+    const payload = "x".repeat(maxEntryBytes - 128);
+    let index = 0;
+    while (analysisCacheStats().retainedBytes < maxBytes - maxEntryBytes) {
+      cachedAnalysis(["byte-lru-test", index], () => payload);
+      index++;
+    }
+    expect(analysisCacheStats().evictions).toBe(0);
+    const oldestKey = ["byte-lru-test", 0];
+    while (analysisCacheStats().evictions === 0)
+      cachedAnalysis(["byte-lru-test", index++], () => payload);
+    const stats = analysisCacheStats();
+    expect(stats.entries).toBeLessThan(index);
+    expect(stats.retainedBytes).toBeLessThanOrEqual(maxBytes);
+    expect(stats.evictions).toBeGreaterThan(0);
+    expect(cachedAnalysis(oldestKey, () => "evicted")).toBe("evicted");
   });
 });
