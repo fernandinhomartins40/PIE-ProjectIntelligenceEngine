@@ -35,6 +35,37 @@ async function verifyHttpApi(details: {
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual(details.record);
 
+  let offset = 0;
+  let exported = "";
+  let artifactDigest = "";
+  do {
+    const page = await fetch(
+      `${details.api.url}/v1/http-probes/${details.record.id}/export?offset=${offset}&limitBytes=128`,
+      { headers },
+    );
+    expect(page.status).toBe(200);
+    const value = (await page.json()) as {
+      recordId: string;
+      snapshotId: string;
+      evidenceId: string;
+      offset: number;
+      nextOffset: number | null;
+      sha256: string;
+      content: string;
+    };
+    expect(value.recordId).toBe(details.record.id);
+    expect(value.snapshotId).toBe(details.snapshotId);
+    expect(value.offset).toBe(offset);
+    artifactDigest = value.sha256;
+    exported += value.content;
+    if (value.nextOffset === null) break;
+    offset = value.nextOffset;
+  } while (true);
+  expect(JSON.parse(exported)).toEqual(details.record);
+  expect(artifactDigest).toBe(
+    createHash("sha256").update(exported).digest("hex"),
+  );
+
   const run = await fetch(`${details.api.url}/v1/http-probes`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },

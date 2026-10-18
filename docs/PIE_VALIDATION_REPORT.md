@@ -1,3 +1,9 @@
+## Exportação do histórico HTTP preservado — 18/10/2026
+
+- `PieService.exportHttpProbe`, `http-probe-export <id>`, GET autenticado `/v1/http-probes/:id/export` e `pie_http_probe_export` revalidam registro, Evidence e snapshot antes de paginar JSON UTF-8. Exportar não envia nova requisição; páginas carregam treeDigest, Evidence ID, digest do registro e SHA-256 do artefato completo.
+- `pieHttpPersistence.test.ts`: export HTTP API em páginas de 128 bytes, remontagem idêntica ao registro e digest final passaram junto ao cenário de persistência SQLite real. `pieMcp.test.ts`: CLI/MCP paridade e Ajv passaram; `toolSchemaValidity.test.ts`: 15/15. `pie:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram.
+- PostgreSQL real não foi exercitado nesta alteração. T6.1 continua parcial e o ledger global `complete=false`.
+
 ## Sincronização da descoberta no E2E Chrome — 18/10/2026
 
 - A boundary `pieWeb` falhou uma execução ao consultar opções de snapshots antes da resposta do `POST /v1/discover`. O teste agora aguarda a resposta bem-sucedida antes da asserção de histórico, mantendo Git, SQLite, API e Chrome reais.

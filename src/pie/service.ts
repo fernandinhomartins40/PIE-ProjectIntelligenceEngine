@@ -54,6 +54,10 @@ import {
 import { comparePlanPriority } from "./planPriority.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 import {
+  exportHttpProbe as renderHttpProbeExport,
+  httpProbeExportInput,
+} from "./execution/httpProbeExport.js";
+import {
   compareVerificationRunsResult,
   verificationComparisonInput,
 } from "./regressionResults.js";
@@ -411,6 +415,14 @@ export class PieService {
   }
   httpProbe(id: string) {
     return this.#read(async () => this.store.httpProbe(id));
+  }
+  exportHttpProbe(input: unknown) {
+    return this.#read(async () => {
+      const request = httpProbeExportInput.parse(input);
+      const record = await this.store.httpProbe(request.id);
+      const snapshot = await this.store.snapshot(record.snapshotId);
+      return renderHttpProbeExport(record, snapshot, request);
+    });
   }
   httpProbes(snapshotId: string, input: unknown = {}) {
     return this.#read(async () => this.store.httpProbes(snapshotId, input));

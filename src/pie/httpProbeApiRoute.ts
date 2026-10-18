@@ -6,6 +6,7 @@ import {
   type httpProbeSchema,
 } from "./execution/httpProbe.js";
 import type { PieService } from "./service.js";
+import { httpProbeExportInput } from "./execution/httpProbeExport.js";
 
 interface HttpProbeRouteContext {
   request: IncomingMessage;
@@ -65,6 +66,26 @@ export async function handleHttpProbeRoute(
       z.string().uuid().parse(segments[2]),
     );
     context.respond(response, 200, probe);
+    return true;
+  }
+  if (
+    segments.length === 4 &&
+    segments[1] === "http-probes" &&
+    segments[3] === "export"
+  ) {
+    const id = z.string().uuid().parse(segments[2]);
+    await context.requireHttpProbe(id);
+    context.respond(
+      response,
+      200,
+      await service.exportHttpProbe(
+        httpProbeExportInput.parse({
+          id,
+          offset: Number(url.searchParams.get("offset") ?? 0),
+          limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
+        }),
+      ),
+    );
     return true;
   }
   return false;

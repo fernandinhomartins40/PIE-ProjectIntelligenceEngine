@@ -1,3 +1,9 @@
+## Export de registros HTTP — 18/10/2026
+
+Exportação histórica de sondagens HTTP foi acrescentada por serviço compartilhado, CLI, API local autenticada e MCP. O fluxo relê e valida o registro persistido contra Evidence/snapshot, retorna JSON paginado UTF-8 com hashes e não reexecuta a requisição.
+
+Validação: `pie:build`; boundary HTTP SQLite/API com concatenação de páginas de 128 bytes e SHA-256; boundary MCP stdio com schema Ajv, paridade com CLI; `toolSchemaValidity` 15/15; `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. PostgreSQL real não foi exercitado. Próximas frentes continuam T6.1 exports restantes/CI geral, T3.1 execução de cliente ligada a processo autorizado e T4.1 semântica das asserções; não interpretar esta exportação como aprovação funcional.
+
 ## Pr?xima frente ? comprovar workflow PIE incremental e ampliar sele??o ? 17/10/2026
 
 Seletor incremental cobre apenas o conjunto principal: quando o diff muda exclusivamente boundaries existentes da allowlist, roda os testes modificados; fonte/config/dispatch/diff desconhecido rodam o conjunto completo. As demais etapas PostgreSQL/Docker/browser seguem completas em todos os eventos. 2 testes de sele??o e 22 guards de workflow passaram; parser YAML e `check:fast` tamb?m passaram. `PIE integration` #91 passou com fallback completo e #92 passou focused (`pieApi.test.ts`) ap?s commit exclusivamente de teste. A etapa seletora levou 12 s/2 s; workflow total 2m02s/1m53s em uma amostra, sem prova de economia m?dia. CI geral `39058695617` ainda estava pendente. Dois Release runs falharam em `Update release proposal`; API p?blica bloqueia os logs (403), portanto a causa ? desconhecida. Actionlint n?o est? dispon?vel localmente (`go` ausente). Pr?ximo: acompanhar CI geral, investigar Release se necess?rio com acesso autorizado, medir mais execu??es e continuar outras lacunas T6.1/T6.3 e da matriz.

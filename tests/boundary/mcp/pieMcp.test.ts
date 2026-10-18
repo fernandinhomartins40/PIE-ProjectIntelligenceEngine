@@ -397,6 +397,14 @@ async function verifyHttpProbeAdapters(
       })
     ).structuredContent,
   ).toEqual(record);
+  await verifyHttpProbeExportAdapters(
+    client,
+    catalog,
+    ajv,
+    details.script,
+    details.db,
+    record.id,
+  );
 
   const cli = await exec(process.execPath, [
     details.script,
@@ -451,6 +459,50 @@ async function verifyHttpProbeAdapters(
       ).stdout,
     ),
   ).toEqual(history.structuredContent);
+}
+
+async function verifyHttpProbeExportAdapters(
+  client: Client,
+  catalog: Awaited<ReturnType<Client["listTools"]>>["tools"],
+  ajv: Ajv2020,
+  script: string,
+  db: string,
+  id: string,
+) {
+  const exportTool = catalog.find(
+    (tool) => tool.name === "pie_http_probe_export",
+  )!;
+  const validate = ajv.compile(exportTool.outputSchema as AnySchema);
+  const page = await client.callTool({
+    name: "pie_http_probe_export",
+    arguments: { id, offset: 0, limitBytes: 1_000_000 },
+  });
+  expect(page.isError).not.toBe(true);
+  expect(
+    validate(page.structuredContent),
+    JSON.stringify(validate.errors),
+  ).toBe(true);
+  const value = page.structuredContent as {
+    recordId: string;
+    offset: number;
+    nextOffset: number | null;
+    sha256: string;
+    content: string;
+  };
+  expect(value.recordId).toBe(id);
+  expect(value.offset).toBe(0);
+  expect(value.nextOffset).toBeNull();
+  const content = value.content;
+  const cli = await exec(process.execPath, [
+    script,
+    "http-probe-export",
+    id,
+    "--db",
+    db,
+  ]);
+  expect(cli.stdout.trim()).toBe(content);
+  expect(value.sha256).toBe(createHash("sha256").update(content).digest("hex"));
+  expect(JSON.parse(content)).toMatchObject({ id });
 }
 
 async function verifySnapshotExportAdapters(
@@ -690,4 +742,4 @@ it("CLI e MCP stdio usam o mesmo histórico real e anunciam schemas válidos", a
       );
     await rm(root, { recursive: true, force: true });
   }
-}, 30_000);
+}, 60_000);

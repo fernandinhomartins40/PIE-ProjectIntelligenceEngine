@@ -3,6 +3,10 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { z } from "zod";
 import { PieError } from "./contracts.js";
 import { pageSchema } from "./graph.js";
+import {
+  httpProbeExportInput,
+  httpProbeExportOutput,
+} from "./execution/httpProbeExport.js";
 import type { PieService } from "./service.js";
 import { comparisonInput, comparisonOutput } from "./compare.js";
 import { declarationsOutput } from "./outputContracts.js";
@@ -441,6 +445,17 @@ export function createPieMcp(
       annotations: read,
     },
     ({ id }) => guarded(() => service.httpProbe(id)),
+  );
+  server.registerTool(
+    "pie_http_probe_export",
+    {
+      description:
+        "Exporta em páginas UTF-8 o registro HTTP local imutável, com snapshot, digest, Evidence e SHA-256. Revalida a observação persistida e não envia outra requisição.",
+      inputSchema: httpProbeExportInput,
+      outputSchema: withError(httpProbeExportOutput),
+      annotations: read,
+    },
+    (input) => guarded(() => service.exportHttpProbe(input)),
   );
   if (verifier)
     server.registerTool(

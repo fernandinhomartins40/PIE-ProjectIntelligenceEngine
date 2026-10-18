@@ -100,7 +100,7 @@ export async function runPie(args: string[]): Promise<void> {
       "Resultados persistidos: verification <run-id> | verification-export <run-id> | verification-diff <run-antes-id> <run-depois-id> | verifications <snapshot-id> | project-verifications <project-id> --limit <1–200> --offset <n>. Consulta/exportação e comparação não iniciam testes.",
     );
     console.log(
-      "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova e http-probes <snapshot-id> lista o histórico. Não inicia o servidor do projeto.",
+      "HTTP VERIFY: http-probe-run <grant.json> --db <banco> executa somente a requisição local explicitamente autorizada; http-probe <run-id> lê a prova; http-probe-export <run-id> exporta o registro imutável e http-probes <snapshot-id> lista o histórico. Exportação não envia requisições nem inicia o servidor do projeto.",
     );
     console.log(
       "Análises OBSERVE: functional <snapshot-id> | product-review <snapshot-id> | data-review <snapshot-id> | security-review <snapshot-id> | infrastructure-review <snapshot-id>; aceitam --limit <1–200> --offset <n>. Código estático não comprova runtime; métricas não medidas permanecem NOT_MEASURED.",
@@ -183,6 +183,7 @@ export async function runPie(args: string[]): Promise<void> {
       "security-review",
       "infrastructure-review",
       "http-probe",
+      "http-probe-export",
       "http-probes",
       "trace",
       "evidence",
@@ -575,6 +576,24 @@ export async function runPie(args: string[]): Promise<void> {
       case "http-probe":
         result = await service.httpProbe(z.string().uuid().parse(target!));
         break;
+      case "http-probe-export":
+        {
+          let offset = 0;
+          let report = "";
+          const id = z.string().uuid().parse(target!);
+          do {
+            const exported = await service.exportHttpProbe({
+              id,
+              offset,
+              limitBytes: 1_000_000,
+            });
+            report += exported.content;
+            if (exported.nextOffset === null) break;
+            offset = exported.nextOffset;
+          } while (true);
+          process.stdout.write(`${report}\n`);
+        }
+        return;
       case "http-probes":
         result = await service.httpProbes(
           z.string().uuid().parse(target!),
