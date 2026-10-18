@@ -91,7 +91,7 @@ async function verifySecurityFindings(
     engine: "security",
     state: "suspected_findings",
     findings: {
-      total: 7,
+      total: 8,
       items: [
         {
           category: "credential_like_material",
@@ -121,9 +121,10 @@ async function verifySecurityFindings(
       authorization: "unverified",
       authorizationTargets: 1,
       dynamicCodePatterns: "partial",
+      workflowPermissionPatterns: "partial",
       astFilesExamined: 4,
       astFilesSkipped: 0,
-      filesExamined: 4,
+      filesExamined: 5,
       filesSkipped: 0,
       runtime: false,
     },
@@ -168,9 +169,15 @@ async function verifySecurityFindings(
         kind: "tls_verification_disabled",
         source: { path: "dynamic.ts", line: 8 },
       }),
+      expect.objectContaining({
+        category: "workflow_privilege",
+        kind: "workflow_write_all_permissions",
+        source: { path: ".github/workflows/ci.yml", line: 3 },
+        evidenceIds: [expect.any(String)],
+      }),
     ]),
   );
-  expect(allFindings.findings.items).toHaveLength(7);
+  expect(allFindings.findings.items).toHaveLength(8);
   expect(allFindings.findings.items[0]).toMatchObject({
     condition: expect.any(String),
     impact: expect.any(String),
@@ -215,6 +222,22 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       "",
     ].join("\n"),
   );
+  await mkdir(join(repo, ".github", "workflows"), { recursive: true });
+  await writeFile(
+    join(repo, ".github", "workflows", "ci.yml"),
+    [
+      "name: CI",
+      "on: [push]",
+      "permissions: write-all",
+      "jobs:",
+      "  build:",
+      "    permissions:",
+      "      contents: write",
+      "    runs-on: ubuntu-latest",
+      "    steps: []",
+      "",
+    ].join("\n"),
+  );
   await exec("git", ["-C", repo, "add", "."]);
 
   const store = await openStore(db, repo);
@@ -253,7 +276,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(5);
+    expect(stale.findings.total).toBe(6);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
@@ -264,6 +287,21 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     expect(stale.coverage.limitations.join(" ")).toContain(
       "mudou desde o snapshot",
     );
+    await writeFile(
+      join(repo, ".github", "workflows", "ci.yml"),
+      "name: CI\non: [push]\npermissions: read-all\njobs: {}\n",
+    );
+    const staleWorkflow = await service.security({
+      snapshotId: discovered.snapshot.id,
+      limit: 20,
+    });
+    expect(staleWorkflow.findings.total).toBe(5);
+    expect(
+      staleWorkflow.findings.items.some(
+        (finding) => finding.kind === "workflow_write_all_permissions",
+      ),
+    ).toBe(false);
+    expect(staleWorkflow.coverage.filesSkipped).toBe(2);
   } finally {
     await client.close();
     await mcp.close();

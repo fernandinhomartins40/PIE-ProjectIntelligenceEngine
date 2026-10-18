@@ -322,3 +322,7 @@ Resultado passed se refere apenas à asserção status/digest de resposta comple
 ## Revisão estática de infraestrutura
 
 `infrastructure-review <snapshot-id> --limit 50 --offset 0`, `POST /v1/infrastructure-review` e MCP `pie_infrastructure_review` consultam serviços/dependências Compose e diretivas Nginx que já foram parseados com Evidence. O painel mostra a origem e permite abrir cada Evidence. A análise informa CPU/RAM/disco/I/O/rede/p95/p99/reinícios como `NOT_MEASURED`; não executa Docker, carga ou comandos do projeto. O plano pode propor validações para os fatos encontrados, mas permanece `unverified`.
+
+## Revisão de segurança OBSERVE
+
+`security-review <snapshot-id> --limit 50 --offset 0`, POST `/v1/security-review` e MCP `pie_security_review` compartilham o mesmo scanner. Além de formatos parciais de credenciais, AST JS/TS e TLS literal, a descoberta produz Evidence para `permissions: write-all` literal no topo de `.github/workflows/*.yml|yaml`. O scanner não reinterpreta YAML e só reporta se o arquivo atual ainda bate com o hash da Evidence. `read-all`, permissões granulares de job ou ausência de `permissions` não são sinalizados por essa regra. A suspeita não prova workflow ativo, trigger, emissão do GITHUB_TOKEN ou permissões efetivas; use como candidato à triagem, não como pentest ou aprovação de segurança.

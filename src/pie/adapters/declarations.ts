@@ -160,6 +160,44 @@ function structured(path: string, source: string): AdapterRead {
   };
 }
 
+function githubActionsWorkflow(source: string): AdapterRead {
+  const lineCounter = new LineCounter();
+  const document = parseDocument(source, { lineCounter, uniqueKeys: true });
+  if (document.errors.length) throw new AdapterParseFailure("invalid_syntax");
+  const parsed = object(document.toJS({ maxAliasCount: 50 }));
+  if (!parsed) throw new AdapterParseFailure("invalid_structure");
+  const lineAt = (segments: string[]) => {
+    const parent = document.getIn(segments.slice(0, -1), true);
+    if (!isMap(parent)) return 1;
+    const key = parent.items.find(
+      (pair) => isScalar(pair.key) && pair.key.value === segments.at(-1),
+    )?.key;
+    return isScalar(key) && key.range
+      ? lineCounter.linePos(key.range[0]).line
+      : 1;
+  };
+  const declarations: Declaration[] = [];
+  const addWriteAll = () => {
+    const segments = ["permissions"];
+    const node = document.getIn(segments, true);
+    if (!isScalar(node) || node.value !== "write-all") return;
+    declarations.push({
+      adapter: "github-actions",
+      kind: "config_directive",
+      name: "workflow.permissions.write-all",
+      parent: null,
+      line: lineAt(segments),
+    });
+  };
+  addWriteAll();
+  return {
+    declarations,
+    limitations: [
+      "Workflow GitHub Actions: somente permissions: write-all literal no nível do workflow é declarado; ausência de permissions, permissões de job/granulares, eventos, expressões e execução efetiva não são avaliados.",
+    ],
+  };
+}
+
 /** Lexer recognizes declarations while ignoring quoted literals and comments. */
 function prismaTokens(source: string) {
   const tokens: Array<{ value: string; line: number; literal?: boolean }> = [];
@@ -451,7 +489,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v5", path, sha256(source), limit],
+    ["pie-declarations-v6", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }
@@ -481,6 +519,8 @@ function readDeclarationsUncached(
     return readNginx(source, limit);
   if (/(?:^|\/)routes\/.+\.php$/i.test(path))
     parsed = readLaravelDeclarations(path, source, limit);
+  else if (/(?:^|\/)\.github\/workflows\/[^/]+\.ya?ml$/i.test(path))
+    parsed = githubActionsWorkflow(source);
   else if (/(?:^|\/)(package|composer)\.json$/.test(path))
     parsed = manifest(path, source);
   else if (

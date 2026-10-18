@@ -24,6 +24,7 @@ export const adapterFactSchema = z.strictObject({
     "express-ast",
     "laravel-php",
     "nginx-config",
+    "github-actions",
   ]),
   kind: z.enum([
     "dependency",

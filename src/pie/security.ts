@@ -25,6 +25,7 @@ const secretKind = z.enum([
   "global_eval",
   "function_constructor",
   "tls_verification_disabled",
+  "workflow_write_all_permissions",
 ]);
 
 const findingSchema = z.strictObject({
@@ -33,6 +34,7 @@ const findingSchema = z.strictObject({
     "credential_like_material",
     "dynamic_code_evaluation",
     "insecure_tls_configuration",
+    "workflow_privilege",
   ]),
   state: z.literal("suspected"),
   severity: z.enum(["high", "critical"]),
@@ -81,6 +83,7 @@ export const securityOutput = z.strictObject({
     discovery: z.enum(["complete", "partial"]),
     credentialPatterns: z.literal("partial"),
     dynamicCodePatterns: z.literal("partial"),
+    workflowPermissionPatterns: z.literal("partial"),
     astFilesExamined: z.number().int().nonnegative(),
     astFilesSkipped: z.number().int().nonnegative(),
     authorization: z.literal("unverified"),
@@ -487,6 +490,7 @@ type SnapshotScan = {
   findingsTruncated: boolean;
   astFilesExamined: number;
   astFilesSkipped: number;
+  currentFiles: ReadonlySet<string>;
 };
 
 async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
@@ -506,6 +510,7 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
   let astFilesExamined = 0;
   let astFilesSkipped = 0;
   let resourceLimitReported = false;
+  const currentFiles = new Set<string>();
   for (const [path, evidence] of byPath) {
     if (findingsTruncated) {
       filesSkipped += 1;
@@ -540,6 +545,7 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
       continue;
     }
     findings.push(...result.findings);
+    currentFiles.add(path);
     filesExamined += 1;
     bytesExamined += result.bytes;
     astFilesExamined += result.astExamined;
@@ -547,6 +553,17 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
     findingsTruncated ||= result.truncated;
     limitations.push(...result.limitations);
   }
+  const workflowPermissions = workflowPermissionFindings(
+    snapshot,
+    currentFiles,
+    MAX_FINDINGS - findings.length,
+  );
+  findings.push(...workflowPermissions.findings);
+  findingsTruncated ||= workflowPermissions.truncated;
+  if (workflowPermissions.truncated)
+    limitations.push(
+      "Limite de findings atingido; configurações de permissão de workflows restantes não foram analisadas.",
+    );
   return {
     findings,
     limitations,
@@ -556,7 +573,68 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
     findingsTruncated,
     astFilesExamined,
     astFilesSkipped,
+    currentFiles,
   };
+}
+
+function workflowPermissionFindings(
+  snapshot: Snapshot,
+  currentFiles: ReadonlySet<string>,
+  remaining: number,
+) {
+  const evidenceById = new Map(
+    snapshot.evidence.map((item) => [item.id, item]),
+  );
+  const facts = snapshot.declarations.filter(
+    (fact) =>
+      fact.adapter === "github-actions" &&
+      fact.kind === "config_directive" &&
+      fact.name === "workflow.permissions.write-all" &&
+      currentFiles.has(fact.source.path),
+  );
+  const findings = facts.slice(0, remaining).flatMap((fact) => {
+    const evidence = evidenceById.get(fact.evidenceId);
+    if (!evidence) return [];
+    return [
+      findingSchema.parse({
+        id: `security:workflow-permissions:${identity(
+          fact.source.path,
+          fact.source.line ?? 1,
+          `${fact.name}:${fact.parent ?? "workflow"}`,
+          evidence.source.sha256,
+        )}`,
+        category: "workflow_privilege",
+        state: "suspected",
+        severity: "high",
+        kind: "workflow_write_all_permissions",
+        condition: "O workflow declara permissions: write-all.",
+        impact:
+          "Um token GITHUB_TOKEN concedido a esse escopo pode receber permissões de escrita amplas, aumentando o impacto de código de workflow comprometido ou acionado por conteúdo não confiável.",
+        probability: "unassessed",
+        source: { path: fact.source.path, line: fact.source.line },
+        evidenceIds: [fact.evidenceId],
+        observation:
+          "O parser YAML observou a declaração literal write-all; nenhum workflow ou token foi executado.",
+        uncertainty: [
+          "A análise não determina se o workflow é ativo, quais eventos o acionam, se o token é disponibilizado ou quais controles adicionais limitam seu uso.",
+          "Somente a forma literal write-all é detectada; permissões granulares, expressões e políticas fora do repositório não são avaliadas.",
+        ],
+        reproduction: [
+          "Revisar a permissão na linha indicada e conferir os eventos e jobs do mesmo arquivo sem executar o workflow.",
+          "Em uma cópia de teste do repositório, confirmar por inspeção de configuração qual conjunto mínimo de permissões permite a tarefa pretendida.",
+        ],
+        remediation:
+          "Remover write-all e declarar apenas permissões mínimas no escopo que precisa delas; usar permissions: {} quando o workflow não precisa de token.",
+        regression: [
+          "Adicionar verificação de configuração que rejeite write-all e permita somente a lista mínima aprovada por workflow/job.",
+          "Validar o conjunto efetivo de permissões em execução de teste autorizada antes de concluir a correção.",
+        ],
+        verificationStatus: "not_run",
+        owner: null,
+      }),
+    ];
+  });
+  return { findings, truncated: facts.length > findings.length };
 }
 
 function authorizationReviewPage(
@@ -607,6 +685,7 @@ function securityReport(
       discovery: snapshot.coverage.status,
       credentialPatterns: "partial",
       dynamicCodePatterns: "partial",
+      workflowPermissionPatterns: "partial",
       astFilesExamined: scan.astFilesExamined,
       astFilesSkipped: scan.astFilesSkipped,
       authorization: "unverified",
@@ -622,6 +701,7 @@ function securityReport(
         "Nenhum valor detectado é incluído na resposta; Findings são suspeitas estáticas, não validação de credenciais nem pentest.",
         "Rotas declaradas são inventário de escopo; não determinam se existe ou falta autorização e permanecem unverified sem testes negativos de runtime.",
         "AST JavaScript/TypeScript cobre somente chamadas diretas globais eval/Function; não realiza análise de fluxo, alcançabilidade ou outros sinks.",
+        "Permissões GitHub Actions: somente write-all literal em arquivo atual que passou pelo hash da Evidence; configuração efetiva, eventos e permissões granulares permanecem fora da análise.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },
