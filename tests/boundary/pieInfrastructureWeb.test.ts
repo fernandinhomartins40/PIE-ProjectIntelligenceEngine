@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { chromium } from "playwright-core";
+import { chromium, type Locator } from "playwright-core";
 import { expect, it } from "vitest";
 import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
@@ -17,6 +17,16 @@ const executablePath =
     ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
     : "/usr/bin/google-chrome");
 
+async function expectComposeContainerFindings(security: Locator) {
+  const content = await security.innerText();
+  expect(content).toContain("compose_host_network_mode");
+  expect(content).toContain("network_mode: host");
+  expect(content).toContain("compose_privileged_container");
+  expect(content).toContain("privileged: true");
+  expect(content).toContain("compose_dangerous_capability");
+  expect(content).toContain("cap_add: SYS_ADMIN");
+}
+
 it.skipIf(!existsSync(executablePath))(
   "painel mostra configurações Compose com Evidence sem reter comando de healthcheck",
   async () => {
@@ -26,7 +36,7 @@ it.skipIf(!existsSync(executablePath))(
     await exec("git", ["init", repo]);
     await writeFile(
       join(repo, "compose.yaml"),
-      'include:\n  - ./shared/base.compose.yaml\nservices:\n  api:\n    image: node:24-alpine\n    network_mode: host\n    privileged: true\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    secrets:\n      - api_key\n    configs:\n      - app_config\n    restart: unless-stopped\n    profiles: [production]\n    extends:\n      file: ./shared/services.yaml\n      service: base-api\n    depends_on:\n      database:\n        condition: service_healthy\n        restart: true\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\nvolumes:\n  data:\n    external: true\nsecrets:\n  api_key:\n    file: ./secrets/api_key.txt\nconfigs:\n  app_config:\n    file: ./config/app.yml\n',
+      'include:\n  - ./shared/base.compose.yaml\nservices:\n  api:\n    image: node:24-alpine\n    network_mode: host\n    privileged: true\n    cap_add: [SYS_ADMIN]\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    secrets:\n      - api_key\n    configs:\n      - app_config\n    restart: unless-stopped\n    profiles: [production]\n    extends:\n      file: ./shared/services.yaml\n      service: base-api\n    depends_on:\n      database:\n        condition: service_healthy\n        restart: true\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\nvolumes:\n  data:\n    external: true\nsecrets:\n  api_key:\n    file: ./secrets/api_key.txt\nconfigs:\n  app_config:\n    file: ./config/app.yml\n',
     );
     await mkdir(join(repo, "app"));
     await writeFile(
@@ -63,12 +73,7 @@ it.skipIf(!existsSync(executablePath))(
       await security
         .getByRole("heading", { name: "Findings de seguran\u00e7a" })
         .waitFor();
-      expect(await security.innerText()).toContain("compose_host_network_mode");
-      expect(await security.innerText()).toContain("network_mode: host");
-      expect(await security.innerText()).toContain(
-        "compose_privileged_container",
-      );
-      expect(await security.innerText()).toContain("privileged: true");
+      await expectComposeContainerFindings(security);
       await security
         .getByRole("button", { name: "Consultar Evidence" })
         .first()
@@ -93,6 +98,9 @@ it.skipIf(!existsSync(executablePath))(
       await serviceCard
         .getByRole("list", { name: "Configurações Compose declaradas" })
         .getByText("Montagem de volume declarada", { exact: false })
+        .waitFor();
+      await serviceCard
+        .getByText("Capability adicionada", { exact: false })
         .waitFor();
       await serviceCard
         .getByText("app/Dockerfile.api", { exact: true })

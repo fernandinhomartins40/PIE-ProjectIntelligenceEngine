@@ -654,12 +654,14 @@ Adapter preserva include path/project_directory e extends service/file com Evide
 
 Adapter emite modo de rede, anexos do serviço com aliases/endereço literal selecionado, e definições top-level restritas a nome/driver/external/internal/attachable/IPv6. Valores estruturais retidos não representam conectividade efetiva; IPAM e opções arbitrárias são omitidos. `npm.cmd run pie:build` passou; adapter/infrastructure/MCP/Chrome focused: 23/23. Include/extends continuam sem expansão; rede runtime e Docker/Compose real não foram verificados. `check:fast`, `docs:check`, `format:check` e `pie:web:typecheck` passaram; ap?s o build do painel, Chrome passou 1/1. T2.3/T4.4 permanecem parciais.
 
-## Host networking em Compose — T4.3 — 18/10/2026
+## Seguranca de containers Compose - T4.3 - 18/10/2026
 
-`security-review` usa fatos Compose existentes e, quando o arquivo ainda corresponde a Evidence, emite findings `compose_host_network_mode` para `network_mode: host` e `compose_privileged_container` para `privileged: true`. Categoria `container_configuration`, severidade alta, probabilidade `unassessed`; não prova ativação ou exposição. Contrato schemaVersion 5 anuncia cobertura parcial. `pieSecurityReview` passou 2/2 incluindo paridade CLI/API/MCP/Ajv e omissão dos findings quando o hash do arquivo muda. Docker/runtime e permissões efetivas não foram verificados; T4.3 parcial.
+`security-review` usa fatos Compose existentes e, quando o arquivo ainda corresponde a Evidence, emite findings para `network_mode: host`, `privileged: true` e cinco capabilities de alto impacto em `cap_add`. Categoria `container_configuration`, severidade alta, probabilidade `unassessed`; não prova ativação ou exposição. Contrato schemaVersion 6 anuncia cobertura parcial. Docker/runtime e permissões efetivas não foram verificados; T4.3 parcial.
 
 ### Painel Security Review
 
 O painel pt-BR consulta o schema compartilhado, marca findings como suspeitos/nao verificados, separa superficies de autorizacao unverified, mostra incertezas e links para Evidence. Chrome percorreu o finding Compose network_mode: host, abriu sua Evidence e validou viewports 360/1440; a boundary detectou e levou a correcao de quebra responsiva em titulo longo do plano de triagem.
 
 O adapter também registra `privileged` booleano declarado como `privileged_mode`, sem resolver configuração efetiva. O finding `compose_privileged_container` aparece no painel junto à Evidence atual. Validação desta extensão: `pie:build`, boundaries de adapter/infra/security, `pie:web:typecheck`, build web e Chrome 1/1; Docker/Compose runtime continua não executado.
+
+Compose security schemaVersion 6 tambem registra `capability_add`/`capability_drop` e detecta somente SYS_ADMIN, SYS_MODULE, SYS_RAWIO, SYS_PTRACE e NET_ADMIN. Adapter/infra/security 23/23; Chrome 1/1. Docker/runtime nao validado; T4.3 continua parcial.

@@ -71,6 +71,8 @@ const componentSchema = z.strictObject({
         "extends_reference",
         "network_mode",
         "privileged_mode",
+        "capability_add",
+        "capability_drop",
         "network_attachment",
         "network_definition",
       ]),

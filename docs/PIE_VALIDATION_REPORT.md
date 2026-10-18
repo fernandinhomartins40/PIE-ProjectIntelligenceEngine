@@ -889,4 +889,9 @@ Boundary adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1. Profile
 - Chrome real percorreu finding Compose network_mode: host e abriu Evidence persistida. Viewports 360/1440 validam ausencia de overflow horizontal; a boundary revelou titulo longo deslocando badge de triagem, corrigido com quebra de linha/min-width flex.
 
 - O adapter Compose registra `privileged: true` como `privileged_mode`; `security-review` schemaVersion 5 emite `compose_privileged_container` com Evidence atual e omite o finding quando a origem fica stale. Boundaries cobrem adapter, inventário de infraestrutura, paridade CLI/API/MCP/Ajv e Chrome 1/1. A cobertura é estática e parcial; Docker/Compose runtime não foi executado.
+- Continuação: `cap_add`/`cap_drop` literais agora são fatos com Evidence; schemaVersion 6 detecta cinco capabilities selecionadas de alto impacto sem inferir permissões efetivas. `pie:build`, boundaries de adapter/infra/security e gates gerais serão registrados após a validação desta entrega; nenhuma runtime Compose foi executada.
 - npm.cmd run pie:web:typecheck, npm.cmd run pie:web:build e npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts passaram. Seguranca/runtime do alvo nao foram verificados.
+
+## Compose capabilities declaradas - 18/10/2026
+
+cap_add/cap_drop literais agora sao fatos com Evidence; security-review schemaVersion 6 detecta cinco capabilities selecionadas sem inferir permissoes efetivas. pie:build; boundaries adapter/infra/security 23/23; pie:web:typecheck; boundary Chrome 1/1. `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram; completion ledger permanece `complete=false`. Docker/Compose runtime nao foi executado.

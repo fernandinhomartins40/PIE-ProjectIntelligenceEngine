@@ -1508,6 +1508,8 @@ it("Compose records bounded network declarations", () => {
       "  api:",
       "    network_mode: host",
       "    privileged: true",
+      "    cap_add: [SYS_ADMIN, CAP_NET_ADMIN]",
+      "    cap_drop: [ALL]",
       "    networks:",
       "      backend:",
       "        aliases: [gateway]",
@@ -1532,17 +1534,35 @@ it("Compose records bounded network declarations", () => {
       { key: "network_mode", value: "host", parent: "api", line: 3 },
       { key: "privileged_mode", value: "true", parent: "api", line: 4 },
       {
+        key: "capability_add",
+        value: "SYS_ADMIN",
+        parent: "api",
+        line: 5,
+      },
+      {
+        key: "capability_add",
+        value: "CAP_NET_ADMIN",
+        parent: "api",
+        line: 5,
+      },
+      {
+        key: "capability_drop",
+        value: "ALL",
+        parent: "api",
+        line: 6,
+      },
+      {
         key: "network_attachment",
         value:
           '{"network":"backend","aliases":["gateway"],"ipv4_address":"10.0.0.4"}',
         parent: "api",
-        line: 6,
+        line: 8,
       },
       {
         key: "network_definition",
         value: '{"driver":"bridge","internal":true}',
         parent: "backend",
-        line: 10,
+        line: 12,
       },
     ]),
   );

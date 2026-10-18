@@ -40,6 +40,7 @@ const secretKind = z.enum([
   "unpinned_github_reference",
   "compose_host_network_mode",
   "compose_privileged_container",
+  "compose_dangerous_capability",
 ]);
 
 const findingSchema = z.strictObject({
@@ -79,7 +80,7 @@ const authorizationSurfaceSchema = z.strictObject({
 });
 
 export const securityOutput = z.strictObject({
-  schemaVersion: z.literal(5),
+  schemaVersion: z.literal(6),
   engine: z.literal("security"),
   snapshotId: z.string().uuid(),
   state: z.enum(["suspected_findings", "no_patterns_observed", "incomplete"]),
@@ -855,7 +856,7 @@ function composeContainerFindings(
       key: "network_mode",
       value: "host",
       kind: "compose_host_network_mode",
-      condition: (service: string | null) =>
+      condition: (service: string | null, _declared: string) =>
         `O serviço Compose ${JSON.stringify(service)} declara network_mode: host.`,
       impact:
         "Se aplicada, a configuração pode compartilhar a pilha de rede do host e reduzir o isolamento entre o container e outros serviços locais.",
@@ -870,7 +871,7 @@ function composeContainerFindings(
       key: "privileged_mode",
       value: "true",
       kind: "compose_privileged_container",
-      condition: (service: string | null) =>
+      condition: (service: string | null, _declared: string) =>
         `O serviço Compose ${JSON.stringify(service)} declara privileged: true.`,
       impact:
         "Se aplicada, a configuração pode conceder ao container acesso ampliado a recursos e capacidades do host, reduzindo o isolamento esperado.",
@@ -881,6 +882,48 @@ function composeContainerFindings(
       remediation:
         "Remover privileged: true e conceder somente dispositivos/capacidades estritamente necessários para o requisito documentado.",
     },
+    ...[
+      {
+        capability: "SYS_ADMIN",
+        impact:
+          "Se aplicada, SYS_ADMIN concede um conjunto amplo de operações administrativas do kernel e pode enfraquecer significativamente o isolamento do container.",
+      },
+      {
+        capability: "SYS_MODULE",
+        impact:
+          "Se aplicada sem isolamento adicional, SYS_MODULE pode permitir operações com módulos do kernel do host.",
+      },
+      {
+        capability: "SYS_RAWIO",
+        impact:
+          "Se aplicada, SYS_RAWIO pode permitir operações de I/O de baixo nível sobre recursos do sistema.",
+      },
+      {
+        capability: "SYS_PTRACE",
+        impact:
+          "Se aplicada, SYS_PTRACE pode ampliar a inspeção e o controle de processos além do escopo esperado do serviço.",
+      },
+      {
+        capability: "NET_ADMIN",
+        impact:
+          "Se aplicada, NET_ADMIN permite operações administrativas de rede que podem alterar interfaces e rotas disponíveis ao container.",
+      },
+    ].flatMap(({ capability, impact }) =>
+      [capability, `CAP_${capability}`].map((value) => ({
+        key: "capability_add",
+        value,
+        kind: "compose_dangerous_capability",
+        condition: (service: string | null, declared: string) =>
+          `O serviço Compose ${JSON.stringify(service)} declara cap_add: ${JSON.stringify(declared)}.`,
+        impact,
+        uncertainty: [
+          "A análise não resolve Compose include/extends, interpolação, overrides por arquivo/perfil ou configuração efetiva.",
+          "O finding registra somente a capability declarada; não confirma que o container seja iniciado nem quais controles de runtime se aplicam.",
+        ],
+        remediation:
+          "Remover a capability quando desnecessária; caso contrário, documentar o requisito e conceder o menor conjunto possível.",
+      })),
+    ),
   ] as const;
   const evidenceById = new Map(
     snapshot.evidence.map((evidence) => [evidence.id, evidence]),
@@ -916,19 +959,19 @@ function composeContainerFindings(
         state: "suspected",
         severity: "high",
         kind,
-        condition: rule.condition(fact.parent),
+        condition: rule.condition(fact.parent, setting.value),
         impact: rule.impact,
         probability: "unassessed",
         source: { path: fact.source.path, line: fact.source.line },
         evidenceIds: [fact.evidenceId],
-        observation: `O snapshot contém a declaração Compose ${rule.key}: ${rule.value} e a Evidence do arquivo permanece atual; nenhum container foi iniciado ou inspecionado.`,
+        observation: `O snapshot contém a declaração Compose ${rule.key}: ${JSON.stringify(setting.value)} e a Evidence do arquivo permanece atual; nenhum container foi iniciado ou inspecionado.`,
         uncertainty: [...rule.uncertainty],
         reproduction: [
           "Revisar o serviço na linha indicada e confirmar em configuração de implantação autorizada se esse modo é necessário.",
         ],
         remediation: rule.remediation,
         regression: [
-          `Adicionar uma verificação de configuração para detectar ${rule.key}: ${rule.value} fora dos serviços explicitamente aprovados.`,
+          `Adicionar uma verificação de configuração para detectar ${rule.key}: ${JSON.stringify(setting.value)} fora dos serviços explicitamente aprovados.`,
         ],
         verificationStatus: "not_run",
         owner: null,
@@ -972,7 +1015,7 @@ function securityReport(
 ) {
   const authorization = authorizationReviewPage(snapshot, input);
   return securityOutput.parse({
-    schemaVersion: 5,
+    schemaVersion: 6,
     engine: "security",
     snapshotId: snapshot.id,
     state: reportState(snapshot, scan),
@@ -1005,7 +1048,7 @@ function securityReport(
         "AST JavaScript/TypeScript cobre somente chamadas diretas globais eval/Function; não realiza análise de fluxo, alcançabilidade ou outros sinks.",
         "Permissões GitHub Actions: somente write-all literal em arquivo atual que passou pelo hash da Evidence; configuração efetiva, eventos e permissões granulares permanecem fora da análise.",
         "Supply chain: referências Git de package.json são comparadas apenas ao package-lock npm v2/v3 atual com spec raiz idêntica; actions GitHub remotas só geram suspeita sem SHA literal. Outros lockfiles, aliases, workspaces, Docker, expressões, conteúdo remoto e CVEs não são analisados.",
-        "Container: detecta somente network_mode: host literal em Compose com Evidence atual; includes/extends, overrides, outros modos privilegiados e estado efetivo nao sao avaliados.",
+        "Container: detecta network_mode: host, privileged: true e cap_add literal para SYS_ADMIN, SYS_MODULE, SYS_RAWIO, SYS_PTRACE ou NET_ADMIN em Compose com Evidence atual; includes/extends, overrides, capabilities restantes e estado efetivo nao sao avaliados.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },

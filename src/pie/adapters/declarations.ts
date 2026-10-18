@@ -387,6 +387,8 @@ function structured(path: string, source: string): AdapterRead {
           | "extends_reference"
           | "network_mode"
           | "privileged_mode"
+          | "capability_add"
+          | "capability_drop"
           | "network_attachment"
           | "network_definition",
         value: string,
@@ -417,6 +419,22 @@ function structured(path: string, source: string): AdapterRead {
           name,
           "privileged",
         ]);
+      for (const [sourceKey, factKey] of [
+        ["cap_add", "capability_add"],
+        ["cap_drop", "capability_drop"],
+      ] as const) {
+        const capabilities = service[sourceKey];
+        if (Array.isArray(capabilities))
+          capabilities.forEach((capability, index) => {
+            if (typeof capability === "string")
+              setting(factKey, capability, [
+                "services",
+                name,
+                sourceKey,
+                String(index),
+              ]);
+          });
+      }
       const serviceNetworks = object(service.networks);
       if (Array.isArray(service.networks))
         service.networks.forEach((network, index) => {
@@ -785,7 +803,7 @@ function structured(path: string, source: string): AdapterRead {
     return {
       declarations,
       limitations: [
-        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles, depends_on condition/restart/required, referencias include/extends, redes e privileged declarados. Includes/extends nao sao expandidos nem merged; interpolacao, build.args, opcoes arbitrarias de rede e comportamento de container nao sao resolvidos. Profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
+        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles, depends_on condition/restart/required, referencias include/extends, redes, privileged e cap_add/cap_drop declarados. Includes/extends nao sao expandidos nem merged; interpolacao, build.args, opcoes arbitrarias de rede e comportamento de container nao sao resolvidos. Profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
       ],
     };
   }

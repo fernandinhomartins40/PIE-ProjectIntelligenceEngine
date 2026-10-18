@@ -65,8 +65,10 @@ function settingLabel(key: SettingKey): string {
       return "Modo de rede declarado";
     case "privileged_mode":
       return "Modo privilegiado declarado";
-    case "privileged_mode":
-      return "Modo privilegiado declarado";
+    case "capability_add":
+      return "Capability adicionada";
+    case "capability_drop":
+      return "Capability removida";
     case "network_attachment":
       return "Rede declarada no servi??o";
     case "network_definition":
