@@ -55,6 +55,12 @@ function settingLabel(key: SettingKey): string {
       return "Perfil Compose declarado";
     case "depends_on_options":
       return "Opções de dependência declaradas";
+    case "include_path":
+      return "Arquivo Compose incluído";
+    case "include_project_directory":
+      return "Diretório de projeto do include";
+    case "extends_reference":
+      return "Serviço Compose estendido";
   }
 }
 
@@ -124,7 +130,9 @@ export function InfrastructureReview({
                     ? `Diretiva Nginx ${component.name}`
                     : component.kind === "compose_volume"
                       ? `Volume Compose ${component.name}`
-                      : `Recurso Compose ${component.name}`
+                      : component.kind === "compose_resource"
+                        ? `Recurso Compose ${component.name}`
+                        : "Configuração Compose incluída"
               }
               className="card"
               key={component.id}
@@ -136,7 +144,9 @@ export function InfrastructureReview({
                     ? "Diretiva Nginx declarada"
                     : component.kind === "compose_volume"
                       ? `Volume Compose ${component.name}`
-                      : `Recurso Compose ${component.name}`}
+                      : component.kind === "compose_resource"
+                        ? `Recurso Compose ${component.name}`
+                        : "Configuração Compose incluída"}
               </h3>
               <p>
                 {component.kind === "nginx_directive" ? "Nginx" : "Compose"}:{" "}

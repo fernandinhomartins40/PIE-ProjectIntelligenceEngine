@@ -645,3 +645,7 @@ O adapter registra referencias de secrets/configs curtas/longas por servico e de
 # Continuidade T2.3/T4.4 - profiles e depends_on Compose
 
 Adapter adiciona profiles e opcoes conhecidas `condition`, `restart` e `required` de depends_on longo, sem inferir ordem/saude/runtime. Adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1; nenhum estado operacional e inferido.
+
+# Continuidade T2.3/T4.4 - referencias include/extends Compose
+
+Adapter preserva include path/project_directory e extends service/file com Evidence; o servico e o painel apresentam referencias. Os arquivos indicados nao sao abertos e nenhuma configuracao e merged. Boundary adapter/infra: 20/20; E2E Chrome: 1/1. Include/extends efetivos, interpolacao e runtime seguem nao verificados.

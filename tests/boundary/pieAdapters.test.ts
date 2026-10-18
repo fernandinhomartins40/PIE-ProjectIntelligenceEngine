@@ -761,6 +761,63 @@ it("Compose preserva profiles e opções literais de depends_on", () => {
   );
 });
 
+it("Compose preserva referências include e extends sem expandir arquivos", () => {
+  const parsed = readDeclarations(
+    "compose.yaml",
+    [
+      "include:",
+      "  - path: ./base/compose.yaml",
+      "    project_directory: ./base",
+      "  - ./monitoring.yaml",
+      "services:",
+      "  api:",
+      "    extends:",
+      "      file: ./common/services.yaml",
+      "      service: base-api",
+    ].join("\n"),
+    20,
+  )!;
+  const settings = parsed.declarations.flatMap((fact) => {
+    const setting = parseComposeServiceSettingName(fact.name);
+    return setting
+      ? [{ ...setting, parent: fact.parent, line: fact.line }]
+      : [];
+  });
+  expect(settings).toEqual(
+    expect.arrayContaining([
+      {
+        key: "include_path",
+        value: "./base/compose.yaml",
+        parent: null,
+        line: 2,
+      },
+      {
+        key: "include_project_directory",
+        value: "./base",
+        parent: null,
+        line: 3,
+      },
+      {
+        key: "include_path",
+        value: "./monitoring.yaml",
+        parent: null,
+        line: 4,
+      },
+      {
+        key: "extends_reference",
+        value: '{"service":"base-api","file":"./common/services.yaml"}',
+        parent: "api",
+        line: 7,
+      },
+    ]),
+  );
+  expect(
+    parsed.declarations
+      .filter((fact) => fact.adapter === "compose" && fact.kind === "service")
+      .map((fact) => fact.name),
+  ).toEqual(["api"]);
+});
+
 it("Dockerfile registra instruções estáticas sem reter valores de ARG/ENV ou comandos", () => {
   const parsed = readDeclarations(
     "app/Dockerfile.api",

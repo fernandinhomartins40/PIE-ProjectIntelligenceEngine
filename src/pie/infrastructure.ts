@@ -25,6 +25,7 @@ const componentSchema = z.strictObject({
     "compose_service",
     "compose_volume",
     "compose_resource",
+    "compose_configuration",
     "nginx_directive",
   ]),
   name: z.string().min(1).max(1000),
@@ -65,6 +66,9 @@ const componentSchema = z.strictObject({
         "config_definition",
         "profile",
         "depends_on_options",
+        "include_path",
+        "include_project_directory",
+        "extends_reference",
       ]),
       value: z.string(),
       evidenceId: z.string().uuid(),
@@ -190,6 +194,12 @@ function inventoryFacts(snapshot: Snapshot) {
       setting.key === "volume_definition" ||
       setting.key === "secret_definition" ||
       setting.key === "config_definition",
+  );
+  const rootSettings = settings.filter(
+    ({ fact, setting }) =>
+      fact.parent === null &&
+      (setting.key === "include_path" ||
+        setting.key === "include_project_directory"),
   );
   const composeFiles = snapshot.nodes.filter((node) =>
     /(?:^|\/)(?:docker-)?compose[^/]*\.ya?ml$/i.test(node.path),
@@ -327,6 +337,20 @@ function inventoryFacts(snapshot: Snapshot) {
           : ("compose_resource" as const),
       name:
         fact.parent?.replace(/^(?:volumes|secrets|configs):/, "") ?? "resource",
+      parent: null,
+      path: fact.source.path,
+      line: fact.source.line,
+      evidenceId: fact.evidenceId,
+      ...evidenceDetails(fact.evidenceId),
+      dependencies: [],
+      settings: [{ ...setting, evidenceId: fact.evidenceId }],
+      builds: [],
+      state: "unverified" as const,
+    })),
+    ...rootSettings.map(({ fact, setting }) => ({
+      id: fact.id,
+      kind: "compose_configuration" as const,
+      name: "include",
       parent: null,
       path: fact.source.path,
       line: fact.source.line,

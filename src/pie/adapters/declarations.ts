@@ -317,6 +317,34 @@ function structured(path: string, source: string): AdapterRead {
   if (isCompose) {
     const services = object(parsed.services);
     if (!services) throw new AdapterParseFailure("invalid_structure");
+    const rootSetting = (
+      key: "include_path" | "include_project_directory",
+      value: string,
+      segments: Array<string | number>,
+    ) =>
+      declarations.push({
+        adapter: "compose",
+        kind: "config_directive",
+        name: composeServiceSettingName({ key, value }),
+        parent: null,
+        line: lineAt(segments.map(String)),
+      });
+    if (Array.isArray(parsed.include))
+      parsed.include.forEach((include, index) => {
+        if (typeof include === "string") {
+          rootSetting("include_path", include, ["include", index]);
+          return;
+        }
+        const config = object(include);
+        if (typeof config?.path === "string")
+          rootSetting("include_path", config.path, ["include", index, "path"]);
+        if (typeof config?.project_directory === "string")
+          rootSetting("include_project_directory", config.project_directory, [
+            "include",
+            index,
+            "project_directory",
+          ]);
+      });
     for (const [name, raw] of Object.entries(services)) {
       const service = object(raw);
       if (!service) continue;
@@ -353,7 +381,10 @@ function structured(path: string, source: string): AdapterRead {
           | "secret_definition"
           | "config_definition"
           | "profile"
-          | "depends_on_options",
+          | "depends_on_options"
+          | "include_path"
+          | "include_project_directory"
+          | "extends_reference",
         value: string,
         segments: string[],
         redactions: string[] = [],
@@ -370,6 +401,29 @@ function structured(path: string, source: string): AdapterRead {
         setting("image", service.image, ["services", name, "image"]);
       if (typeof service.restart === "string")
         setting("restart", service.restart, ["services", name, "restart"]);
+      if (typeof service.extends === "string")
+        setting(
+          "extends_reference",
+          JSON.stringify({ service: service.extends }),
+          ["services", name, "extends"],
+        );
+      else if (object(service.extends)) {
+        const extendsConfig = object(service.extends)!;
+        const reference = {
+          ...(typeof extendsConfig.service === "string"
+            ? { service: extendsConfig.service }
+            : {}),
+          ...(typeof extendsConfig.file === "string"
+            ? { file: extendsConfig.file }
+            : {}),
+        };
+        if (Object.keys(reference).length)
+          setting("extends_reference", JSON.stringify(reference), [
+            "services",
+            name,
+            "extends",
+          ]);
+      }
       if (Array.isArray(service.profiles))
         service.profiles.forEach((profile, index) => {
           if (typeof profile === "string")
@@ -646,7 +700,7 @@ function structured(path: string, source: string): AdapterRead {
     return {
       declarations,
       limitations: [
-        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles e depends_on condition/restart/required. Include, extends, interpolacao, build.args e comportamento de container nao sao resolvidos; profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
+        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles, depends_on condition/restart/required e referencias include/extends. Includes/extends nao sao expandidos nem merged; interpolacao, build.args e comportamento de container nao sao resolvidos. Profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
       ],
     };
   }

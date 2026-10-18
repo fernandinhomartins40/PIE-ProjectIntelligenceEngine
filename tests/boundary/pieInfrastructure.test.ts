@@ -108,6 +108,24 @@ function expectComposeRuntimeSettings(
   );
   expect(api?.settings).toContainEqual(
     expect.objectContaining({
+      key: "extends_reference",
+      value: '{"service":"base-api","file":"./shared/services.yaml"}',
+    }),
+  );
+  expect(result.components.items).toContainEqual(
+    expect.objectContaining({
+      kind: "compose_configuration",
+      name: "include",
+      settings: [
+        expect.objectContaining({
+          key: "include_path",
+          value: "./shared/base.compose.yaml",
+        }),
+      ],
+    }),
+  );
+  expect(api?.settings).toContainEqual(
+    expect.objectContaining({
       key: "environment_key",
       value: "API_KEY",
       evidenceId: expect.any(String),
@@ -184,7 +202,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
   await mkdir(repository);
   await writeFile(
     join(repository, "compose.yaml"),
-    'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n      args:\n        TOKEN: NEVER_RETAIN\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    secrets:\n      - api_key\n    configs:\n      - app_config\n    restart: unless-stopped\n    profiles: [production]\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      database:\n        condition: service_healthy\n        restart: true\n        required: false\n  database:\n    image: postgres\nvolumes:\n  data:\n    external: true\nsecrets:\n  api_key:\n    file: ./secrets/api_key.txt\nconfigs:\n  app_config:\n    file: ./config/app.yml\n',
+    'include:\n  - ./shared/base.compose.yaml\nservices:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n      args:\n        TOKEN: NEVER_RETAIN\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    secrets:\n      - api_key\n    configs:\n      - app_config\n    restart: unless-stopped\n    profiles: [production]\n    extends:\n      file: ./shared/services.yaml\n      service: base-api\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      database:\n        condition: service_healthy\n        restart: true\n        required: false\n  database:\n    image: postgres\nvolumes:\n  data:\n    external: true\nsecrets:\n  api_key:\n    file: ./secrets/api_key.txt\nconfigs:\n  app_config:\n    file: ./config/app.yml\n',
   );
   await writeDockerComposeFixture(repository);
   await writeFile(

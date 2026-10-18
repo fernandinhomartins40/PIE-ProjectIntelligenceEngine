@@ -78,6 +78,9 @@ export const composeServiceSettingSchema = z.strictObject({
     "config_definition",
     "profile",
     "depends_on_options",
+    "include_path",
+    "include_project_directory",
+    "extends_reference",
   ]),
   value: z.string().max(900),
 });
