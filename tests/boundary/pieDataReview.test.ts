@@ -145,6 +145,16 @@ it("nao assume enforcement de constraints em foreign tables", () => {
   expect(parsed.declarations).toEqual([]);
 });
 
+it("nao reduz ALTER TABLE com multiplos subcomandos separados por virgula", () => {
+  const parsed = readSqlMigration(
+    'ALTER TABLE "User" ADD CONSTRAINT "User_key" UNIQUE ("id"), DROP CONSTRAINT "User_old_key";',
+  );
+  expect(parsed.limitations).toEqual(
+    expect.arrayContaining([expect.stringContaining("linha 1")]),
+  );
+  expect(parsed.declarations).toEqual([]);
+});
+
 async function collectDataReviewExport(
   service: PieService,
   snapshotId: string,
@@ -1195,6 +1205,46 @@ it("mantem foreign table inconclusiva no Data Review", async () => {
   await writeFile(
     join(migration, "migration.sql"),
     'CREATE FOREIGN TABLE "User" ("id" INTEGER NOT NULL) SERVER remote;\n',
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("mantem ALTER TABLE composto inconclusivo no Data Review", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-alter-actions-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_alter_actions");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id Int @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    [
+      'CREATE TABLE "User" ("id" INTEGER);',
+      'ALTER TABLE "User" ADD CONSTRAINT "User_key" UNIQUE ("id"), DROP CONSTRAINT "User_old_key";',
+    ].join("\n"),
   );
   await exec("git", ["-C", repo, "add", "."]);
   const store = await openStore(join(root, "pie.sqlite"), repo);

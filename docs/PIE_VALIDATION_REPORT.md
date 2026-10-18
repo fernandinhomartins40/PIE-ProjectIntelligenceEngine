@@ -928,3 +928,8 @@ Validacao geral apos adicionar SELECT INTO: `npm.cmd run pie:build`, `npm.cmd ru
 
 `CREATE/ALTER FOREIGN TABLE` e fail-closed: nao declara constraint remota efetiva nem confunde a relation com tabela local validada. Boundary de parser e Data Review Git/SQLite; focused Data Review/adapters 37/37. O enforcement remoto depende do foreign server/FDW e nao foi verificado. PostgreSQL runtime nao executado.
 Validacao geral apos foreign tables: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; Data Review/adapters focused 37/37.
+
+## ALTER TABLE composto — T4.5 — 18/10/2026
+
+Subcomandos separados por virgula de nivel superior sao tratados como conjunto nao suportado; nenhum fact parcial e retido. A boundary valida ADD UNIQUE mais DROP CONSTRAINT sem alinhamento e mantem listas compostas entre parenteses. Focused Data Review/adapters: 39/39. PostgreSQL runtime nao executado.
+Validacao geral apos ALTER TABLE composto: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; Data Review/adapters focused 39/39.

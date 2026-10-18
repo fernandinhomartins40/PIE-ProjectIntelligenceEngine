@@ -690,3 +690,6 @@ Gates gerais SELECT INTO passaram: pie:build, check:fast, docs:check (ledger com
 
 T4.5: `CREATE/ALTER FOREIGN TABLE` agora deixam inventory incompleto; constraints declaradas nao provam enforcement do FDW remoto. Boundaries passaram 37/37. Gates gerais apos esta extensao ainda devem ser reexecutados. Fonte oficial: https://www.postgresql.org/docs/current/sql-createforeigntable.html .
 Revalidacao final foreign tables: focused 37/37; pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check passaram. Enforcement remoto/FDW e PostgreSQL runtime nao foram verificados.
+
+T4.5: ALTER TABLE com varias actions em uma instrucao nao produz facts parciais. Virgulas internas de colunas permanecem suportadas. Boundaries passaram 39/39; gates gerais apos esta mudanca ainda precisam ser executados. PostgreSQL runtime indisponivel. Referencia: https://www.postgresql.org/docs/current/sql-altertable.html .
+Gates gerais ALTER TABLE composto passaram: pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check. Focused Data Review/adapters: 39/39. PostgreSQL runtime nao executado.

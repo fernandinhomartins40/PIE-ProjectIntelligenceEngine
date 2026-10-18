@@ -215,6 +215,17 @@ function hasTopLevelSelectInto(tokens: Token[]) {
   return false;
 }
 
+function hasTopLevelComma(tokens: Token[], start: number) {
+  let depth = 0;
+  for (let index = start; index < tokens.length; index++) {
+    const token = tokens[index]!;
+    if (keyword(token, "(") || keyword(token, "[")) depth++;
+    else if (keyword(token, ")") || keyword(token, "]")) depth--;
+    else if (depth === 0 && keyword(token, ",")) return true;
+  }
+  return false;
+}
+
 function identifierList(tokens: Token[], start: number): string[] | null {
   if (!keyword(tokens[start], "(")) return null;
   const values: string[] = [];
@@ -411,6 +422,10 @@ export function readSqlMigration(source: string): AdapterRead {
       }
       table = target.name;
       index = target.next;
+      if (hasTopLevelComma(statement, index)) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       let understood = false;
       if (keyword(statement[index], "add")) {
         index++;
