@@ -533,3 +533,7 @@ Continuidade T1.1/T3.1: `planRetestsResult` tipa input invalido, snapshot invali
 `reviewDataResult` adiciona tags para input, snapshot e identidade divergentes; somente falhas esperadas são convertidas e erros internos continuam propagando. `PieService` converte as tags para erros do domínio e mantém os contratos CLI/API/MCP. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts` passou: 2 arquivos, 3 testes. Build PIE, `check:fast`, `format:check` e `docs:check` também passaram. T1.1 segue parcial; não declarar uniformidade global.
 
 Continuation T1.1/T1.2: VERIFY export uses `exportVerificationResult`; invalid input, invalid historical run, and mismatched ID are distinct. `pieRunPersistence` SQLite/adapters passed; PostgreSQL skipped without `PIE_TEST_DATABASE_URL`. Focused test, `pie:build`, `check:fast`, `docs:check`, `format:check`, and `git diff --check` passed.
+
+## Continuidade — doctor do PostgreSQL — 18/10/2026
+
+Doctor e `openPersistence` passaram a exigir a presença das 11 tabelas do schema Prisma por consulta somente leitura a `information_schema`. Teste focado `pieDoctor` passou 3/3; `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram. Sem PostgreSQL de teste nem Docker local, a integração real segue pendente; a sondagem não confirma colunas, índices ou migrations aplicadas. Próxima frente: continuar critérios pendentes de setup/Compose, workers ou motores conforme o plano mestre, sem marcar T6.2 concluída.

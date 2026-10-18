@@ -1,4 +1,5 @@
-import { access, mkdtemp, rm, stat } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -43,4 +44,28 @@ it("doctor não expõe a URL nem credenciais do PostgreSQL", async () => {
   expect(JSON.stringify(result)).not.toContain("doctor-user");
   expect(result.checks.sqlite.status).toBe("not_configured");
   expect(result.checks.postgresql.status).toBe("unavailable");
+});
+
+it("doctor exige que a lista estrutural do PostgreSQL acompanhe todos os models Prisma", async () => {
+  const sourcePath = fileURLToPath(
+    new URL("../../src/pie/postgresStore.ts", import.meta.url),
+  );
+  const schemaPath = fileURLToPath(
+    new URL("../../prisma/schema.prisma", import.meta.url),
+  );
+  const [implementation, schema] = await Promise.all([
+    readFile(sourcePath, "utf8"),
+    readFile(schemaPath, "utf8"),
+  ]);
+  const inspected = implementation.match(
+    /async inspectSchema\(\): Promise<\{ missingTables: string\[\] \}> \{([\s\S]*?)\n  \}/u,
+  )?.[1];
+  expect(inspected).toBeDefined();
+  const tables = [...schema.matchAll(/@@map\("(pie_[a-z_]+)"\)/gu)].map(
+    (match) => match[1]!,
+  );
+  expect(tables.length).toBeGreaterThan(0);
+  for (const table of tables) expect(inspected).toContain(`"${table}"`);
+  expect(inspected).toContain("information_schema.tables");
+  expect(inspected).not.toMatch(/CREATE|ALTER|DROP|migrate/u);
 });

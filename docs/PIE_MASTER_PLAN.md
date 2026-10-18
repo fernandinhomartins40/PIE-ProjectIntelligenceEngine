@@ -522,3 +522,9 @@ T4.3 adiciona fato produzido pelo parser YAML de `.github/workflows/*.yml|yaml` 
 ## Typed Result for VERIFY export - 18/10/2026
 
 `exportVerificationResult` diferencia input invalido, run inconsistente e divergencia de identidade antes da exportacao paginada; a validacao final do artefato permanece fora de catch. `PieService` direciona CLI/API/MCP pelo Result. `pieRunPersistence` verificou SQLite real e paridade bytes/digest dos adapters; PostgreSQL foi skip por ausencia de `PIE_TEST_DATABASE_URL`. `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1/T1.2/T6.1 permanecem parciais.
+
+## Doctor PostgreSQL: inventário estrutural somente leitura — 18/10/2026
+
+O doctor agora consulta `information_schema.tables` e exige a presença das 11 tabelas mapeadas pelo `prisma/schema.prisma`; conectado com tabelas ausentes, retorna `incomplete`, sem executar migrations. `PostgresPieStore.connect()` verifica somente conectividade e `openPersistence()` impede operar sobre schema sem as tabelas esperadas. A consulta não valida colunas, índices, triggers, histórico `_prisma_migrations` nem comportamento de workers.
+
+Validação executada: `npm.cmd run test:focused -- tests/boundary/pieDoctor.test.ts` passou (3/3); `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram. O teste compara a lista requerida com todos os `@@map` do schema atual; redaction e SQLite read-only continuam cobertos. PostgreSQL real não foi executado: `PIE_TEST_DATABASE_URL` ausente e Docker indisponível. T6.2 continua parcial.

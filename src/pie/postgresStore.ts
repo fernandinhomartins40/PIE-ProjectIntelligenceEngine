@@ -68,7 +68,31 @@ export class PostgresPieStore implements PiePersistence {
 
   async connect(): Promise<void> {
     await this.#client.$connect();
-    await this.#client.$queryRaw`SELECT 1 FROM pie_projects LIMIT 1`;
+  }
+  async inspectSchema(): Promise<{ missingTables: string[] }> {
+    const expectedTables = [
+      "pie_projects",
+      "pie_snapshots",
+      "pie_evidence",
+      "pie_verification_runs",
+      "pie_functional_records",
+      "pie_http_probes",
+      "pie_plan_contestations",
+      "pie_plan_triage_events",
+      "pie_graph_nodes",
+      "pie_graph_edges",
+      "pie_jobs",
+    ];
+    const rows = await this.#client.$queryRaw<Array<{ table_name: string }>>`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = current_schema()
+        AND table_type = 'BASE TABLE'
+    `;
+    const present = new Set(rows.map((row) => row.table_name));
+    return {
+      missingTables: expectedTables.filter((table) => !present.has(table)),
+    };
   }
   async close(): Promise<void> {
     await this.#client.$disconnect();

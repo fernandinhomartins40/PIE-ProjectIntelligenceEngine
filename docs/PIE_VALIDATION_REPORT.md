@@ -753,3 +753,9 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 
 - `npm.cmd run test:focused -- tests/boundary/pieRunPersistence.test.ts`: SQLite/boundary passed; 1 test passed and PostgreSQL was skipped because `PIE_TEST_DATABASE_URL` was unset. CLI/API/MCP checked paginated bytes/digest; expected failure tags were exercised.
 - `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
+
+## Sondagem estrutural PostgreSQL no doctor — 18/10/2026
+
+- `doctor` usa `information_schema.tables`, verifica as 11 tabelas mapeadas pelo Prisma e reporta `incomplete` quando faltam tabelas; não executa migrations. `openPersistence` também recusa schema estruturalmente incompleto, com falha explícita, sem fallback para SQLite.
+- `npm.cmd run test:focused -- tests/boundary/pieDoctor.test.ts`: 3/3 passaram. Teste de contrato compara tabela requerida com `@@map` reais; os testes existentes cobrem SQLite read-only e redaction de credenciais. `PIE_TEST_DATABASE_URL` ausente e Docker indisponível, portanto PostgreSQL real não foi verificado nesta entrega. Colunas, índices, triggers e histórico de migrations permanecem fora do alcance da sondagem.
+- `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.

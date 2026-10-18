@@ -156,10 +156,16 @@ async function postgresCheck(connection: string | undefined): Promise<Check> {
   try {
     store = new PostgresPieStore(connection);
     await store.connect();
+    const { missingTables } = await store.inspectSchema();
+    if (missingTables.length > 0)
+      return {
+        status: "incomplete",
+        detail: `PostgreSQL acessível; schema PIE incompleto, faltam ${missingTables.length} tabela(s). Nenhuma migration foi executada.`,
+      };
     return {
       status: "available",
       detail:
-        "PostgreSQL respondeu e pie_projects foi encontrada; outras tabelas/migrações não foram verificadas.",
+        "PostgreSQL acessível e todas as tabelas do schema PIE estão presentes. Nenhuma migration foi executada; colunas e índices não foram validados.",
     };
   } catch {
     return {
@@ -209,7 +215,7 @@ export async function inspectPieEnvironment(databasePath: string) {
     notes: [
       "O estado geral cobre runtime, Git e backend de persistência selecionado; SQLite ausente pode ser inicializado pela operação normal.",
       "As verificações são somente leitura; nenhuma migração, instalação, pull de imagem ou criação de banco foi realizada.",
-      "PostgreSQL disponível significa apenas conexão e tabela pie_projects; não valida todas as migrations nem o comportamento dos workers.",
+      "PostgreSQL disponível confirma conexão e presença das tabelas do schema; não valida colunas, índices, histórico de migrations nem comportamento dos workers.",
       "Docker disponível significa daemon acessível; imagens autorizadas e limites de execução não foram verificados.",
     ],
   };

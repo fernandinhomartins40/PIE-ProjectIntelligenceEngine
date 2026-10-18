@@ -36,6 +36,12 @@ export async function openPersistence(
   const store = new PostgresPieStore(connection);
   try {
     await store.connect();
+    const { missingTables } = await store.inspectSchema();
+    if (missingTables.length > 0)
+      throw new PieError(
+        "IO_ERROR",
+        `PostgreSQL conectado, mas faltam ${missingTables.length} tabela(s) do schema PIE; migrations devem ser aplicadas explicitamente.`,
+      );
     return store;
   } catch {
     await store.close();
