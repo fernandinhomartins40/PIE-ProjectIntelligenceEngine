@@ -109,6 +109,9 @@ export async function runPie(args: string[]): Promise<void> {
       "Plano: plan <snapshot-id>; plan-export <snapshot-id> --format json|md|html; plan-item-history-export <snapshot-id> <digest> <item-id> --format json|md|html; plan-contest <request.json>; plan-triage <request.json>; plan-triage-history <snapshot-id> <digest> <item-id>. completed não significa verificado.",
     );
     console.log(
+      "Handoff: fix-handoff <snapshot-id> <digest> <item-id> --format json|md|html. Contexto não confiável; revisão humana necessária; sem patch/execução.",
+    );
+    console.log(
       "Candidatos a reteste: retest-plan <antes-id> <depois-id> --mode affected|full --limit <1–200> --offset <n>. Plano não autoriza execução nem comprova cobertura.",
     );
     console.log(
@@ -190,6 +193,7 @@ export async function runPie(args: string[]): Promise<void> {
       "plan",
       "plan-export",
       "plan-item-history-export",
+      "fix-handoff",
       "plan-contest",
       "plan-triage",
       "plan-triage-history",
@@ -436,6 +440,28 @@ export async function runPie(args: string[]): Promise<void> {
           let report = "";
           do {
             const exported = await service.exportPlanItemHistory({
+              snapshotId: z.string().uuid().parse(target!),
+              planDigest: parsed.positionals[2],
+              itemId: parsed.positionals[3],
+              format: z
+                .enum(["json", "md", "html"])
+                .parse(parsed.values.format ?? "json"),
+              offset,
+              limitBytes: 1_000_000,
+            });
+            report += exported.content;
+            if (exported.nextOffset === null) break;
+            offset = exported.nextOffset;
+          } while (true);
+          process.stdout.write(`${report}\n`);
+        }
+        return;
+      case "fix-handoff":
+        {
+          let offset = 0;
+          let report = "";
+          do {
+            const exported = await service.fixHandoff({
               snapshotId: z.string().uuid().parse(target!),
               planDigest: parsed.positionals[2],
               itemId: parsed.positionals[3],

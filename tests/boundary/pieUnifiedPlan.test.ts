@@ -355,6 +355,129 @@ async function verifyPlanExportWorkflows(input: {
 }) {
   await verifyPlanExportAdapters(input);
   await verifyPlanItemHistoryExportAdapters(input);
+  const item = input.expected.items.items.find(
+    (candidate) => candidate.id === input.itemId,
+  )!;
+  const handoff = await input.service.fixHandoff({
+    snapshotId: input.snapshotId,
+    planDigest: input.planDigest,
+    itemId: input.itemId,
+    format: "json",
+    offset: 0,
+    limitBytes: 211,
+  });
+  const pages = [handoff.content];
+  for (let offset = handoff.nextOffset; offset !== null;) {
+    const next = await input.service.fixHandoff({
+      snapshotId: input.snapshotId,
+      planDigest: input.planDigest,
+      itemId: input.itemId,
+      format: "json",
+      offset,
+      limitBytes: 211,
+    });
+    expect(next.sha256).toBe(handoff.sha256);
+    pages.push(next.content);
+    offset = next.nextOffset;
+  }
+  const packageData = JSON.parse(pages.join("")) as {
+    kind: string;
+    handoffDigest: string;
+    executionAuthorized: boolean;
+    patchApplied: boolean;
+    validationCommands: string[];
+    files: Array<{ path: string }>;
+    evidence: Array<{ id: string; sha256: string }>;
+    trustBoundary: string;
+    approval: { humanReviewRequired: boolean; applyChanges: boolean };
+  };
+  expect(packageData).toMatchObject({
+    kind: "pie_fix_handoff",
+    executionAuthorized: false,
+    patchApplied: false,
+    validationCommands: [],
+    approval: { humanReviewRequired: true, applyChanges: false },
+  });
+  expect(packageData.handoffDigest).toMatch(/^[a-f0-9]{64}$/);
+  expect(packageData.files.length).toBeGreaterThan(0);
+  expect(packageData.evidence.map((entry) => entry.id)).toEqual(
+    expect.arrayContaining(item.evidenceIds),
+  );
+  expect(
+    packageData.evidence.every((entry) => /^[a-f0-9]{64}$/.test(entry.sha256)),
+  ).toBe(true);
+  expect(packageData.trustBoundary).toContain("não instruções privilegiadas");
+  expect(JSON.stringify(packageData)).not.toContain(
+    "ghp_123456789012345678901234567890123456",
+  );
+  const apiHandoff = await fetch(
+    `${input.apiUrl}/v1/plan/fix-handoff?snapshotId=${input.snapshotId}&planDigest=${input.planDigest}&itemId=${encodeURIComponent(input.itemId)}&format=json&limitBytes=211`,
+    { headers: { Authorization: `Bearer ${input.token}` } },
+  );
+  expect(apiHandoff.status).toBe(200);
+  expect(await apiHandoff.json()).toEqual(handoff);
+  const deniedHandoff = await fetch(
+    `${input.apiUrl}/v1/plan/fix-handoff?snapshotId=${input.snapshotId}&planDigest=${input.planDigest}&itemId=${encodeURIComponent(input.itemId)}`,
+  );
+  expect(deniedHandoff.status).toBe(401);
+  const mcp = createPieMcp(input.service, input.root);
+  const client = new Client({ name: "pie-fix-handoff-test", version: "1" });
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
+  await Promise.all([
+    client.connect(clientTransport),
+    mcp.connect(serverTransport),
+  ]);
+  try {
+    const tool = (await client.listTools()).tools.find(
+      (candidate) => candidate.name === "pie_fix_handoff",
+    );
+    expect(tool).toBeDefined();
+    const ajv = new Ajv2020({ strict: false, validateFormats: false });
+    expect(ajv.validateSchema(tool!.inputSchema)).toBe(true);
+    expect(ajv.validateSchema(tool!.outputSchema as AnySchema)).toBe(true);
+    const result = await client.callTool({
+      name: "pie_fix_handoff",
+      arguments: {
+        snapshotId: input.snapshotId,
+        planDigest: input.planDigest,
+        itemId: input.itemId,
+        format: "json",
+        limitBytes: 211,
+      },
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toEqual(handoff);
+  } finally {
+    await client.close();
+    await mcp.close();
+  }
+  const output = vi
+    .spyOn(process.stdout, "write")
+    .mockImplementation(() => true);
+  try {
+    await runPie([
+      "fix-handoff",
+      input.snapshotId,
+      input.planDigest,
+      input.itemId,
+      "--db",
+      input.database,
+    ]);
+    const cliPackage = JSON.parse(
+      String(output.mock.calls.map((call) => call[0]).join("")),
+    ) as typeof packageData;
+    expect(cliPackage.handoffDigest).toBe(packageData.handoffDigest);
+  } finally {
+    output.mockRestore();
+  }
+  await expect(
+    input.service.fixHandoff({
+      snapshotId: input.snapshotId,
+      planDigest: "0".repeat(64),
+      itemId: input.itemId,
+    }),
+  ).rejects.toMatchObject({ code: "INVALID_INPUT" });
 }
 
 async function verifyContestAdapters(input: {

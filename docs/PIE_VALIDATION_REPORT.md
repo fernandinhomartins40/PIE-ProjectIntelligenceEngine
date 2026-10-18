@@ -700,3 +700,10 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - `npm.cmd exec -- vitest run --project boundary tests/boundary/pieInfrastructure.test.ts tests/boundary/pieUnifiedPlan.test.ts tests/boundary/pieProductWeb.test.ts`: 4/4 passaram. Git/SQLite reais validam Compose/Nginx, Evidence e dependências, paginação, plano, API autenticada, CLI/MCP e schemas Ajv; Chrome real valida estado `NOT_MEASURED`, inventário vazio sem alegar ausência e o fluxo responsivo existente em 360/1440 px.
 - `npm.cmd run mcp-catalog:generate`, `npm.cmd run mcp-catalog:check`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check`: passaram.
 - PostgreSQL/VPS/Docker do projeto-alvo não foram acessados nem medidos. CPU, memória, disco, I/O, rede, p95/p99 e reinícios permanecem `NOT_MEASURED`; T4.4 continua parcial.
+
+## Pacote de handoff para agentes — 17/10/2026
+
+- `npm.cmd run pie:build` e `npm.cmd run check:fast`: passaram após incluir `fix-handoff` no PieService, CLI, API autenticada e MCP. O catálogo MCP foi gerado e validado com `mcp-catalog:generate`/`mcp-catalog:check`.
+- `npm.cmd run test:focused -- tests/boundary/pieUnifiedPlan.test.ts`: 2/2 passaram. A boundary usa Git/SQLite reais e testa página UTF-8/hash, Evidence primária e de relações, redaction/hash, ausência de canário secreto, recusa de digest errado, autenticação API, paridade CLI/MCP e schemas MCP Ajv.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check`, `npm.cmd run mcp-catalog:generate`, `npm.cmd run mcp-catalog:check` e `git diff --check`: passaram. A boundary focada foi repetida depois do formatador (2/2).
+- O pacote não infere comandos, não executa alvos, não aplica patch e não cria branch; o ciclo completo com Codex/Claude, aprovação sensível, correção isolada e reteste permanece não implementado. PostgreSQL não foi necessário/consultado nesta fatia.

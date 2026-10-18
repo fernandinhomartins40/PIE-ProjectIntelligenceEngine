@@ -28,6 +28,7 @@ import { planExportInput } from "./planExport.js";
 import { planItemHistoryExportInput } from "./planItemHistoryExport.js";
 import { planContestationInput } from "./planContestation.js";
 import { planTriageInput } from "./planTriage.js";
+import { fixHandoffInput } from "./fixHandoff.js";
 
 function authenticate(request: IncomingMessage, token: string): boolean {
   const provided = Buffer.from(request.headers.authorization ?? "");
@@ -425,6 +426,19 @@ export async function startPieApi(
         });
         await requireSnapshot(input.snapshotId);
         respond(response, 200, await service.exportPlanItemHistory(input));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/plan/fix-handoff") {
+        const input = fixHandoffInput.parse({
+          snapshotId: url.searchParams.get("snapshotId"),
+          planDigest: url.searchParams.get("planDigest"),
+          itemId: url.searchParams.get("itemId"),
+          format: url.searchParams.get("format") ?? "json",
+          offset: Number(url.searchParams.get("offset") ?? 0),
+          limitBytes: Number(url.searchParams.get("limitBytes") ?? 65_536),
+        });
+        await requireSnapshot(input.snapshotId);
+        respond(response, 200, await service.fixHandoff(input));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/plan/contest") {

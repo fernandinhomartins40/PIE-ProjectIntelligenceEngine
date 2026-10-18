@@ -61,6 +61,11 @@ import {
   renderPlanItemHistoryExport,
 } from "./planItemHistoryExport.js";
 import { infrastructureInput, reviewInfrastructure } from "./infrastructure.js";
+import {
+  buildFixHandoff,
+  fixHandoffInput,
+  renderFixHandoff,
+} from "./fixHandoff.js";
 
 function functionalValue(result: ReturnType<typeof assessFunctionalResult>) {
   if (result.ok) return result.value;
@@ -465,6 +470,43 @@ export class PieService {
   }
   exportPlan(input: unknown) {
     return renderPlanExport(this, input);
+  }
+  fixHandoff(input: unknown) {
+    return this.#read(async () => {
+      const request = fixHandoffInput.parse(input);
+      const snapshot = await this.store.snapshot(request.snapshotId);
+      const { output: plan, allItems } = await generateUnifiedPlanData(
+        snapshot,
+        { snapshotId: snapshot.id, limit: 200, offset: 0 },
+      );
+      if (plan.planDigest !== request.planDigest)
+        throw new PieError(
+          "INVALID_INPUT",
+          "Digest do plano diverge do snapshot.",
+        );
+      const baseItem = allItems.find((item) => item.id === request.itemId);
+      if (!baseItem)
+        throw new PieError(
+          "NOT_FOUND",
+          "Item não pertence ao plano informado.",
+        );
+      const events = await this.store.latestPlanTriageEvents(
+        snapshot.id,
+        plan.planDigest,
+        [baseItem.id],
+      );
+      if (events[0])
+        validatePriorityEvidence(
+          new Set(snapshot.evidence.map((entry) => entry.id)),
+          events[0],
+        );
+      const item = applyLatestPlanTriage(baseItem, events[0]);
+      return renderFixHandoff(
+        snapshot,
+        buildFixHandoff(snapshot, plan.planDigest, item),
+        request,
+      );
+    });
   }
   exportPlanItemHistory(input: unknown) {
     return this.#read(async () => {

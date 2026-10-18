@@ -317,6 +317,8 @@ Resultado passed se refere apenas à asserção status/digest de resposta comple
 
 `plan-item-history-export <snapshot-id> <plan-digest> <item-id> --format json|md|html` exporta a cadeia de triagem e as contestações do item, revalidando revisão, hashes e Evidence. A API usa `GET /v1/plan/item-history/export` com `snapshotId`, `planDigest` e `itemId`; MCP `pie_plan_item_history_export`. Também pagina o artefato completo por bytes UTF-8 e mantém os digests de snapshot/árvore/plano.
 
+`fix-handoff <snapshot-id> <plan-digest> <item-id> --format json|md|html` gera pacote de contexto a partir de um item existente do plano. Inclui arquivos/relações registrados, Evidence com hash, origem, redaction, limitações, critérios de aceite e incertezas. A API autenticada usa `GET /v1/plan/fix-handoff`; o MCP fornece `pie_fix_handoff`. O texto do projeto é dado não confiável, nenhum comando é inferido nem executado, e o pacote não aplica patch ou cria branch. Exige revisão humana; geração de patch isolado e reteste seguem fora desta fatia.
+
 ## Revisão estática de infraestrutura
 
 `infrastructure-review <snapshot-id> --limit 50 --offset 0`, `POST /v1/infrastructure-review` e MCP `pie_infrastructure_review` consultam serviços/dependências Compose e diretivas Nginx que já foram parseados com Evidence. O painel mostra a origem e permite abrir cada Evidence. A análise informa CPU/RAM/disco/I/O/rede/p95/p99/reinícios como `NOT_MEASURED`; não executa Docker, carga ou comandos do projeto. O plano pode propor validações para os fatos encontrados, mas permanece `unverified`.
