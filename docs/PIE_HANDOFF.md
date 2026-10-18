@@ -603,3 +603,7 @@ O catalogo esperado agora associa cada nome ao SHA-256 do `migration.sql`; a son
 ## Migration PostgreSQL falhando na CI - T1.2 - 18/10/2026
 
 As migrations 202610170002 e 202610170003 começavam com BOM UTF-8; removido o BOM, recalculados os SHA-256 e adicionada regressão que rejeita BOM em qualquer migration. CI `39103950984` concluiu o job PostgreSQL com sucesso, incluindo `prisma migrate deploy` e `pieRunPersistence`. A regra de whitespace PostgreSQL em `scan.l` corrobora a causa; o log textual da falha anterior não estava acessível. Banco previamente marcado como aplicado com os bytes antigos pode acusar checksum drift; não há reparo automático nem escrita de dados.
+
+## Cobertura Nginx estática ampliada — 18/10/2026
+
+O parser Nginx adicionou `root`, `alias`, limites de corpo, workers/keepalive, gzip, protocolos e caminhos de certificado TLS, logs e zonas de limitação. `pieAdapters` + `pieInfrastructure`: 13/13 passaram; `check:fast` e `format:check` passaram. Evidence conserva argumentos e linha, mas não são lidos certificados/logs nem testada a configuração efetiva. Dockerfile, atributos Compose adicionais, serviços ativos e métricas continuam pendentes; sem Nginx instalado ou VPS para medição.

@@ -37,6 +37,20 @@ function expectInfrastructureInputFailures(
   });
 }
 
+function expectInfrastructureNginxFacts(
+  result: Awaited<ReturnType<PieService["infrastructure"]>>,
+) {
+  const names = result.components.items
+    .filter((item) => item.kind === "nginx_directive")
+    .map((item) => item.name);
+  expect(names).toEqual(
+    expect.arrayContaining([
+      '["client_max_body_size","10m"]',
+      '["ssl_certificate","/etc/nginx/cert.pem"]',
+    ]),
+  );
+}
+
 it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "pie-infrastructure-"));
   const repository = join(temporary, "repo");
@@ -47,7 +61,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
   );
   await writeFile(
     join(repository, "nginx.conf"),
-    "events {}\nhttp { server { listen 8080; location /api { proxy_pass http://api:3000; } } }\n",
+    "events { worker_connections 1024; }\nhttp { server { listen 8080; client_max_body_size 10m; ssl_certificate /etc/nginx/cert.pem; location /api { proxy_pass http://api:3000; } } }\n",
   );
   await exec("git", ["init", repository]);
   await exec("git", ["-C", repository, "add", "."]);
@@ -98,6 +112,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
         expect.objectContaining({ kind: "nginx_directive" }),
       ]),
     );
+    expectInfrastructureNginxFacts(result);
     expect(result.coverage.sourceFacts).toBeGreaterThan(
       result.components.total,
     );

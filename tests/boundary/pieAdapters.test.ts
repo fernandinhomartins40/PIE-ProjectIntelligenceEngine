@@ -467,6 +467,42 @@ it("Nginx mantém limites de tokens, aspas, comentários, variáveis e blocos", 
   );
 });
 
+it("Nginx preserva fatos estáticos adicionais de recursos, TLS e logs", () => {
+  const source = [
+    "worker_processes auto;",
+    "events { worker_connections 1024; }",
+    "http {",
+    "  client_max_body_size 8m;",
+    "  keepalive_timeout 30s;",
+    "  server {",
+    "    root /srv/www;",
+    "    ssl_protocols TLSv1.2 TLSv1.3;",
+    "    ssl_certificate /etc/nginx/cert.pem;",
+    "    ssl_certificate_key /etc/nginx/key.pem;",
+    "    access_log /var/log/nginx/access.log;",
+    "    error_log /var/log/nginx/error.log;",
+    "  }",
+    "}",
+  ].join("\n");
+  const parsed = readDeclarations("nginx.conf", source, 50)!;
+  const directives = parsed.declarations.map((item) => JSON.parse(item.name));
+  expect(directives).toEqual([
+    ["worker_processes", "auto"],
+    ["worker_connections", "1024"],
+    ["client_max_body_size", "8m"],
+    ["keepalive_timeout", "30s"],
+    ["root", "/srv/www"],
+    ["ssl_protocols", "TLSv1.2", "TLSv1.3"],
+    ["ssl_certificate", "/etc/nginx/cert.pem"],
+    ["ssl_certificate_key", "/etc/nginx/key.pem"],
+    ["access_log", "/var/log/nginx/access.log"],
+    ["error_log", "/var/log/nginx/error.log"],
+  ]);
+  expect(parsed.declarations.map((item) => item.line)).toEqual([
+    1, 2, 4, 5, 7, 8, 9, 10, 11, 12,
+  ]);
+});
+
 it("Nginx integra inventário Git, evidência e trace sem ler include externo", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-nginx-"));
   const external = await mkdtemp(join(tmpdir(), "pie-nginx-history-"));
