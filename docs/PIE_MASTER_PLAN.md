@@ -12,6 +12,10 @@ Runs VERIFY persistidos v1/v2 agora s?o exportados sem reexecu??o via `verificat
 
 # PIE — Plano mestre de implementação integral
 
+## Integridade de runtime locations versus bindings VERIFY — 18/10/2026
+
+`validateVerificationRun` agora revalida cada `runtimeLocations` persistida contra `testBindings` do grant e a origem exata (path/linha) das declarações do snapshot. Locais são recusados se não houver binding v2, se houver vários arquivos de teste (instrumentação focal não foi habilitada), se path/linha divergir ou se a entrada estiver duplicada. Isso preserva a distinção: linha executada é observação de runtime, não prova de que o teste verificou o comportamento nem aresta `covers`. `pieRegressionResults`, `pieRunPersistence` e `pieExecutionAdmission`: 8 passaram, 2 skips previstos para PostgreSQL/Docker/plataforma; Git/SQLite reais. `check:fast` e `format:check` passaram. T4.1 avança na integridade de proveniência do resultado, mas vínculo semântico teste→capacidade, jornadas e cobertura completa permanecem parciais.
+
 ## Integração seletiva REA: ownership de fixtures — 18/10/2026
 
 Após fetch, `upstream/main` avançou de `c12d9eda8` para `23f984b1a`; o delta passou a 104 commits upstream-only e 219 commits locais-only. A correção upstream `093ce695f` foi integrada diretamente em `main` como cherry-pick `068815b30`: fábricas compartilhadas agora prefixam temporários com ownership reconhecível, e o hygiene verifier reutiliza o mesmo predicado. Boundary valida limpeza de arquivo/diretório, cache/symlink, falha do produtor e preservação de evidência externa. `npm.cmd exec --yes --package=node@24.18.0 -- npm.cmd run test:focused -- tests/boundary/filesystem/testTempHygiene.test.ts`: 7/7; `npm.cmd run verify:test-discovery`: 1.583 testes descobertos uma vez cada; `npm.cmd run check:fast` passou. A primeira execução sob Node global 22 falhou porque Node 22 não carrega diretamente o helper `.ts`; repetição com Node 24.18 fixado passou e corresponde a `.nvmrc`. Integração é seletiva, não sincronização geral; os 104 commits restantes, quatro conflitos de lifecycle, dependências/notices e testes upstream ainda exigem análise própria.

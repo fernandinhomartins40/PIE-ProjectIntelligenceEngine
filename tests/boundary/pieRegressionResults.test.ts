@@ -78,6 +78,7 @@ async function persistRun(
   outcomes: Array<{ name: string; outcome: "passed" | "failed" }>,
   runImage = image,
   declarationId?: string,
+  runtimeLocations: Array<{ sourcePath: string; line: number }> = [],
 ) {
   const id = randomUUID();
   const authorization = nodeTestGrantSchema.parse({
@@ -134,7 +135,7 @@ async function persistRun(
     createdAt,
     completedAt,
     result: {
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
       state: failed ? ("failed" as const) : ("passed" as const),
       counts,
       cases: outcomes.map((item) => ({
@@ -154,6 +155,11 @@ async function persistRun(
         reportComplete: true,
         processCompleted: true,
         truncated: false,
+        limitations: [],
+      },
+      runtimeLocations: {
+        reportComplete: true,
+        locations: runtimeLocations,
         limitations: [],
       },
     },
@@ -337,6 +343,101 @@ function expectInvalidStoredBinding(run: VerificationRun, snapshot: Snapshot) {
   );
 }
 
+function forgeRuntimeLocations(
+  run: VerificationRun,
+  snapshot: Snapshot,
+  locations: Array<{ sourcePath: string; line: number }>,
+  addTestFile = false,
+) {
+  if (run.schemaVersion !== 2 || run.result.schemaVersion !== 2)
+    throw new Error("Versioned runtime result fixture required");
+  const { evidence: _proof, ...payload } = run;
+  const authorization = addTestFile
+    ? nodeTestGrantSchema.parse({
+        ...run.authorization,
+        testFiles: [...run.authorization.testFiles, "second.test.mjs"],
+      })
+    : run.authorization;
+  const forgedPayload = {
+    ...payload,
+    authorization,
+    authorizationDigest: sha256(canonicalize(authorization)!),
+    result: {
+      ...run.result,
+      runtimeLocations: { ...run.result.runtimeLocations, locations },
+    },
+  };
+  return verifyRunEvidence(
+    verificationRunSchema.parse({
+      ...forgedPayload,
+      evidence: runEvidence(forgedPayload, snapshot, "local"),
+    }),
+  );
+}
+
+function expectRuntimeLocationsBound(
+  run: VerificationRun,
+  snapshot: Snapshot,
+  sourcePath: string,
+  line: number,
+) {
+  for (const locations of [
+    [{ sourcePath: "outside.ts", line }],
+    [{ sourcePath, line: line + 1 }],
+    [
+      { sourcePath, line },
+      { sourcePath, line },
+    ],
+  ])
+    expect(() =>
+      validateVerificationRun(
+        forgeRuntimeLocations(run, snapshot, locations),
+        snapshot,
+      ),
+    ).toThrow("Locais de runtime");
+  expect(() =>
+    validateVerificationRun(
+      forgeRuntimeLocations(run, snapshot, [{ sourcePath, line }], true),
+      snapshot,
+    ),
+  ).toThrow("Locais de runtime");
+}
+
+async function persistBoundRuntimeRun(
+  store: Awaited<ReturnType<typeof openStore>>,
+  snapshot: Awaited<ReturnType<typeof store.snapshot>>,
+  declaration: Snapshot["declarations"][number],
+) {
+  const locations =
+    declaration.source.line === null
+      ? []
+      : [
+          {
+            sourcePath: declaration.source.path,
+            line: declaration.source.line,
+          },
+        ];
+  const run = await persistRun(
+    store,
+    snapshot,
+    [
+      { name: "save", outcome: "passed" },
+      { name: "load", outcome: "passed" },
+    ],
+    image,
+    declaration.id,
+    locations,
+  );
+  if (declaration.source.line !== null)
+    expectRuntimeLocationsBound(
+      run,
+      snapshot,
+      declaration.source.path,
+      declaration.source.line,
+    );
+  return run;
+}
+
 async function assertAllComparisonAdapters(input: {
   apiUrl: string;
   beforeRunId: string;
@@ -408,15 +509,10 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     const beforeDeclaration = beforeSnapshot.declarations.find(
       (item) => item.kind === "script" && item.name === "verify-feature",
     )!;
-    const beforeRun = await persistRun(
+    const beforeRun = await persistBoundRuntimeRun(
       store,
       beforeSnapshot,
-      [
-        { name: "save", outcome: "passed" },
-        { name: "load", outcome: "passed" },
-      ],
-      image,
-      beforeDeclaration.id,
+      beforeDeclaration,
     );
 
     await writeFile(join(repo, "service.ts"), "export const value=2;\n");

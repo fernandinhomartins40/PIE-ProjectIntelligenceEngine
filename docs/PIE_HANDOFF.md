@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Próxima frente — associação semântica teste→capacidade — 18/10/2026
+
+`runIntegrity.ts` agora impede que runtime locations persistidas extrapolem o binding v2/path/linha do snapshot; grants com múltiplos arquivos não podem reportar localização focal, e duplicatas/path/linhas divergentes são rejeitadas. Focused regression/persistence/admission passou (8 pass, 2 skips); `check:fast` passou. Próximo em T4.1: projetar uma relação explícita de resultado executado para capacidade sem tratá-la como `covers` automaticamente. Exigir prova adicional de asserção/comportamento; linha executada sozinha é somente observação, não cobertura semântica.
+
 ## Próxima frente — auditoria seletiva dos 104 commits REA pendentes — 18/10/2026
 
 Upstream foi atualizado por fetch para `23f984b1a` (104 commits à frente somente de upstream; 219 locais-only antes do cherry-pick). `093ce695f` foi integrado em `068815b30`, com ownership reconhecível nos diretórios temporários e teste de hygiene. Node 24.18 `.nvmrc`: boundary 7/7, descoberta 1.583/1.583, `check:fast` passou. A primeira execução com Node 22 falhou por import direto de `.ts`, resolvido usando o runtime fixado, sem patch no teste. Próximo: classificar os commits upstream restantes por impacto PIE/segurança/compatibilidade, simulando conflitos e selecionando slices sem misturar os quatro conflitos de lifecycle; revalidar licenças/dependências antes de integrar mudanças que os alterem.

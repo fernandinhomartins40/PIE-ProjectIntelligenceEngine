@@ -5,6 +5,34 @@ import canonicalize from "canonicalize";
 import { verifyEvidence } from "../evidence.js";
 import { hasValidTestBindings } from "./testBindings.js";
 
+function runtimeLocationsMatchAuthorization(
+  run: Extract<VerificationRun, { schemaVersion: 2 }>,
+  snapshot: Snapshot,
+): boolean {
+  if (run.result.schemaVersion !== 2) return true;
+  const grant = run.authorization;
+  const allowed = new Set<string>();
+  if (grant.schemaVersion === 2 && grant.testFiles.length === 1) {
+    const declarations = new Map(
+      snapshot.declarations.map((declaration) => [declaration.id, declaration]),
+    );
+    for (const binding of grant.testBindings) {
+      const declaration = declarations.get(binding.declarationId);
+      if (declaration && declaration.source.line !== null)
+        allowed.add(
+          JSON.stringify([declaration.source.path, declaration.source.line]),
+        );
+    }
+  }
+  const observed = new Set<string>();
+  for (const location of run.result.runtimeLocations.locations) {
+    const identity = JSON.stringify([location.sourcePath, location.line]);
+    if (!allowed.has(identity) || observed.has(identity)) return false;
+    observed.add(identity);
+  }
+  return true;
+}
+
 export function validateVerificationRun(
   input: unknown,
   snapshot: Snapshot,
@@ -37,6 +65,14 @@ export function validateVerificationRun(
     throw new PieError(
       "INTEGRITY_ERROR",
       "Bindings VERIFY não correspondem ao grant ou às declarações do snapshot.",
+    );
+  if (
+    run.schemaVersion === 2 &&
+    !runtimeLocationsMatchAuthorization(run, snapshot)
+  )
+    throw new PieError(
+      "INTEGRITY_ERROR",
+      "Locais de runtime excedem as declarações autorizadas e instrumentadas.",
     );
   return run;
 }

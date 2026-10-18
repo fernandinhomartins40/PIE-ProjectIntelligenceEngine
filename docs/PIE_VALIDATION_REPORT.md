@@ -19,6 +19,12 @@
 
 # PIE — Registro de validação contínua
 
+## Binding de locais de runtime em VERIFY — 18/10/2026
+
+- Alteração: `validateVerificationRun` confirma que linhas reportadas foram focalizadas por grant v2 de um único arquivo e correspondem exatamente a declarações vinculadas do snapshot; rejeita local externo, linha diferente, duplicata e localização quando há múltiplos testes autorizados sem instrumentação focal.
+- `npm.cmd run test:focused -- tests/boundary/pieRegressionResults.test.ts tests/boundary/pieRunPersistence.test.ts tests/boundary/pieExecutionAdmission.test.ts`: 3 arquivos, 8 testes aprovados e 2 skips previstos. Usa Git/SQLite reais; persistência de PostgreSQL e execução Docker local não foram exercitadas.
+- `npm.cmd run check:fast`: typecheck e lint passaram (2 tarefas). `npm.cmd run format:check` passou após formatação do teste; `git diff --check` executado junto à validação de formatação. A alteração não declara cobertura de comportamento: registra apenas que uma linha de declaração foi executada.
+
 ## Cherry-pick upstream de ownership dos temporários — 18/10/2026
 
 - Fetch leu `upstream/main=23f984b1a`; contagem relativa ao HEAD antes do cherry-pick: 104 upstream-only / 219 locais-only. Commit selecionado `093ce695f` integrado em `068815b30`, sem nova branch.
