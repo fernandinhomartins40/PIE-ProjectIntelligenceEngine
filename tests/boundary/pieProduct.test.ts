@@ -6,7 +6,10 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { discoverProject } from "../../src/pie/discovery.js";
-import { assessProduct } from "../../src/pie/functional.js";
+import {
+  assessProduct,
+  assessProductResult,
+} from "../../src/pie/functional.js";
 import { PieError } from "../../src/pie/contracts.js";
 const exec = promisify(execFile);
 
@@ -28,6 +31,20 @@ it("reports product evidence gaps without inventing journeys or UX opportunities
       snapshotId: snapshot.id,
       limit: 1,
     });
+    expect(assessProductResult(snapshot, { snapshotId: "invalid" })).toEqual({
+      ok: false,
+      error: { kind: "invalid_input", reason: "schema" },
+    });
+    expect(assessProductResult({}, { snapshotId: snapshot.id })).toEqual({
+      ok: false,
+      error: { kind: "invalid_snapshot" },
+    });
+    expect(assessProductResult(snapshot, { snapshotId: randomUUID() })).toEqual(
+      {
+        ok: false,
+        error: { kind: "policy_denied", reason: "snapshot_mismatch" },
+      },
+    );
     expect(result).toMatchObject({
       engine: "product",
       state: "insufficient_evidence",

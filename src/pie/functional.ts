@@ -22,6 +22,10 @@ export type FunctionalFailure =
     }
   | { kind: "policy_denied"; reason: "snapshot_mismatch" | "scope" }
   | { kind: "invalid_snapshot" };
+export type ProductFailure =
+  | { kind: "invalid_input"; reason: "schema" | "module_path" }
+  | { kind: "policy_denied"; reason: "snapshot_mismatch" }
+  | { kind: "invalid_snapshot" };
 const target = z.strictObject({
   id: z.string(),
   state: z.literal("unverified"),
@@ -89,14 +93,10 @@ export const productOutput = z.strictObject({
   }),
 });
 
-export function assessProduct(snapshotInput: Snapshot, input: unknown) {
-  const request = productInput.parse(input);
-  const snapshot = validateSnapshot(snapshotInput);
-  if (request.snapshotId !== snapshot.id)
-    throw new PieError(
-      "POLICY_DENIED",
-      "Análise de produto pertence a outro snapshot.",
-    );
+function assessValidatedProduct(
+  snapshot: Snapshot,
+  request: z.infer<typeof productInput>,
+) {
   const { targets, selected } = selectFunctionalTargets(snapshot, request);
   const opportunities = selected.items.map((declaration) => ({
     id: `product:evidence-gap:${declaration.id}`,
@@ -143,6 +143,51 @@ export function assessProduct(snapshotInput: Snapshot, input: unknown) {
       ],
     },
   });
+}
+
+/** Expected caller and snapshot rejections use tags; internal faults escape. */
+export function assessProductResult(
+  snapshotInput: unknown,
+  input: unknown,
+): Result<ReturnType<typeof assessValidatedProduct>, ProductFailure> {
+  const request = productInput.safeParse(input);
+  if (!request.success) return err({ kind: "invalid_input", reason: "schema" });
+  if (!canonicalModulePath(request.data.modulePath))
+    return err({ kind: "invalid_input", reason: "module_path" });
+
+  let snapshot: Snapshot;
+  try {
+    snapshot = validateSnapshot(snapshotInput);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_snapshot" });
+    throw cause;
+  }
+  if (request.data.snapshotId !== snapshot.id)
+    return err({ kind: "policy_denied", reason: "snapshot_mismatch" });
+
+  return ok(assessValidatedProduct(snapshot, request.data));
+}
+
+export function assessProduct(snapshotInput: Snapshot, input: unknown) {
+  const result = assessProductResult(snapshotInput, input);
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot de produto inválido.");
+  if (result.error.kind === "policy_denied")
+    throw new PieError(
+      "POLICY_DENIED",
+      "Análise de produto pertence a outro snapshot.",
+    );
+  throw new PieError(
+    "INVALID_INPUT",
+    result.error.reason === "module_path"
+      ? "Módulo deve ser caminho relativo canônico, sem segmentos vazios ou traversal."
+      : "Entrada de produto inválida.",
+  );
 }
 
 function canonicalModulePath(modulePath: string): boolean {

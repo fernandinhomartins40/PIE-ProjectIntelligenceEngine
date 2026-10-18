@@ -725,3 +725,9 @@ Reteste negativo da composição: import ESM apontando a `module.exports` Common
 - `npm.cmd run test:focused -- tests/boundary/pieInfrastructure.test.ts tests/boundary/pieUnifiedPlan.test.ts`: 2 arquivos/3 testes passaram com Git/SQLite reais; cobre tags de entrada, identidade e snapshot inválidos e fluxo compartilhado.
 - `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram. O `check:fast` inicial apontou o limite de tamanho da função de teste; asserções foram extraídas para helper e a execução subsequente passou.
 - O contrato não comprova runtime de containers ou métricas; a saída continua `unverified`/`NOT_MEASURED`.
+
+## Result tipado no motor de produto/UX — 17/10/2026
+
+- `npm.cmd run test:focused -- tests/boundary/pieProduct.test.ts tests/boundary/pieUnifiedPlan.test.ts tests/boundary/pieAdapters.test.ts`: 3 arquivos/14 testes passaram. Cobrem tags de falha, plano unificado e paridade/adaptação de produto.
+- `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run format:check`, `npm.cmd run docs:check` e `git diff --check` passaram.
+- As tags não transformam declarações estáticas em jornadas ou oportunidades UX observadas.

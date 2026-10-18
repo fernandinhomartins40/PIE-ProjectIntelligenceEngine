@@ -14,7 +14,7 @@ import { compareSnapshots, comparisonInput } from "./compare.js";
 import { traceInput, traceSnapshot } from "./knowledgeGraph.js";
 import {
   assessFunctionalResult,
-  assessProduct,
+  assessProductResult,
   functionalInput,
 } from "./functional.js";
 import { dataReviewInput, reviewDataResult } from "./dataReview.js";
@@ -113,6 +113,23 @@ function infrastructureValue(
       "Infraestrutura pertence a outro snapshot.",
     );
   throw new PieError("INVALID_INPUT", "Entrada de infraestrutura inválida.");
+}
+
+function productValue(result: ReturnType<typeof assessProductResult>) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_snapshot")
+    throw new PieError("INTEGRITY_ERROR", "Snapshot de produto inválido.");
+  if (result.error.kind === "policy_denied")
+    throw new PieError(
+      "POLICY_DENIED",
+      "Análise de produto pertence a outro snapshot.",
+    );
+  throw new PieError(
+    "INVALID_INPUT",
+    result.error.reason === "module_path"
+      ? "Módulo deve ser caminho relativo canônico, sem segmentos vazios ou traversal."
+      : "Entrada de produto inválida.",
+  );
 }
 
 function discoveryValue(
@@ -711,9 +728,15 @@ export class PieService {
   }
   product(input: unknown) {
     return this.#read(async () => {
-      const request = functionalInput.parse(input);
-      const snapshot = await this.store.snapshot(request.snapshotId);
-      return assessProduct(snapshot, request);
+      const snapshotId = functionalInput.shape.snapshotId.safeParse(
+        typeof input === "object" && input !== null
+          ? (input as { snapshotId?: unknown }).snapshotId
+          : undefined,
+      );
+      if (!snapshotId.success)
+        throw new PieError("INVALID_INPUT", "Entrada de produto inválida.");
+      const snapshot = await this.store.snapshot(snapshotId.data);
+      return productValue(assessProductResult(snapshot, input));
     });
   }
   dataReview(input: unknown) {
