@@ -103,10 +103,11 @@ export class PostgresPieStore implements PiePersistence {
           await this.#client.$queryRaw<
             Array<{
               migration_name: string;
+              checksum: string;
               finished_at: Date | null;
               rolled_back_at: Date | null;
             }>
-          >`SELECT migration_name,finished_at,rolled_back_at FROM "_prisma_migrations"`,
+          >`SELECT migration_name,checksum,finished_at,rolled_back_at FROM "_prisma_migrations"`,
         )
       : missingMigrationHistory();
     return {

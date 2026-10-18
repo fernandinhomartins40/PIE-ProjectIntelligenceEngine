@@ -818,3 +818,9 @@ Atualização de gates finais — 18/10/2026
 - `PostgresPieStore.inspectSchema` consulta tabelas e `_prisma_migrations` em leitura. A classificacao exige todas as migrations versionadas desta aplicacao finalizadas, ignora tentativas explicitamente revertidas, e denuncia faltantes, incompletas e migrations desconhecidas de uma versao futura.
 - Doctor reporta `incomplete` sem aplicar migrations; `openPersistence` recusa o banco com mensagem segura e sem fallback para SQLite. O catalogo de migrations e testado contra os diretorios reais em `prisma/migrations`.
 - `npm.cmd run test:focused -- tests/boundary/piePostgresMigrations.test.ts tests/boundary/pieDoctor.test.ts tests/boundary/piePostgres.test.ts`: 5 passaram, 1 PostgreSQL real foi skipped. `PIE_TEST_DATABASE_URL` nao esta configurada; `docker info` confirmou daemon Linux indisponivel. A consulta real ao historico nao foi exercitada neste host.
+
+## Verificacao de checksum do historico Prisma - 18/10/2026
+
+- `PostgresPieStore.inspectSchema` tambem seleciona `checksum`. O catalogo embutido contem SHA-256 esperado por migration; status `drifted` bloqueia `doctor` como incomplete e impede `openPersistence`. Prisma documenta `_prisma_migrations.checksum` como SHA-256 do arquivo migration (`prisma-engines/schema-engine/ARCHITECTURE.md`).
+- `piePostgresMigrations.test.ts` recalcula os oito hashes dos bytes de `migration.sql`, compara ao catalogo e valida checksum alterado, migration ausente/futura/incompleta e rollback. `pieDoctor` + `piePostgresMigrations`: 5 passaram; `piePostgres` real foi skipped.
+- `PIE_TEST_DATABASE_URL` continua ausente e Docker daemon Linux indisponivel; nao alegar verificacao do checksum contra banco real.

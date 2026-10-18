@@ -75,5 +75,6 @@ it("doctor exige que a lista estrutural do PostgreSQL acompanhe todos os models 
   expect(inspected).toContain("information_schema.tables");
   expect(inspected).toContain('"_prisma_migrations"');
   expect(inspected).toContain("inspectAppliedMigrations");
+  expect(inspected).toContain("checksum");
   expect(inspected).not.toMatch(/CREATE|ALTER|DROP|migrate/u);
 });

@@ -591,3 +591,7 @@ A checagem pre-dispatch agora tambem respeita AbortSignal ja acionado pelo heart
 ## Doctor e abertura fail-closed para migrations PostgreSQL - T1.2/T6.2 - 18/10/2026
 
 A sondagem estrutural le `_prisma_migrations`, exige as oito migrations esperadas desta versao e detecta tentativas incompletas e migrations desconhecidas (banco adiante do binario). `doctor` permanece read-only; `openPersistence` recusa schema incompleto sem fallback SQLite. Testes `pieDoctor` + `piePostgresMigrations`: 5/5 passaram; cobertura compara nomes aos diretorios Prisma reais e classifica historico aplicado, ausente, falho, pendente e futuro. PostgreSQL runtime ainda nao foi validado: `PIE_TEST_DATABASE_URL` ausente e `docker info` falhou porque o daemon Linux nao esta ativo.
+
+## Drift de checksum das migrations - T1.2 - 18/10/2026
+
+O catalogo esperado agora associa cada nome ao SHA-256 do `migration.sql`; a sondagem compara com `checksum` salvo em `_prisma_migrations` e recusa banco cujo script aplicado foi editado. A boundary calcula os hashes dos oito arquivos reais e cobre checksum divergente. O engine Prisma documenta esse campo como SHA-256 do arquivo de migration: https://github.com/prisma/prisma-engines/blob/main/schema-engine/ARCHITECTURE.md. PostgreSQL runtime nao foi exercitado neste host.

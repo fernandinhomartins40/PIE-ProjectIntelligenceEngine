@@ -59,6 +59,9 @@ export async function openPersistence(
               migrations.unknown > 0
                 ? `${migrations.unknown} migration(s) fora desta versão`
                 : null,
+              migrations.drifted > 0
+                ? `${migrations.drifted} checksum(s) diferente(s)`
+                : null,
             ]
               .filter((issue): issue is string => issue !== null)
               .join(", ");
