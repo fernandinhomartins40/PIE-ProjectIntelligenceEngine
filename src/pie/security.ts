@@ -616,7 +616,7 @@ function workflowPermissionFindings(
         severity: "high",
         kind: "workflow_write_all_permissions",
         condition: fact.parent
-          ? "O job " + fact.parent + " declara permissions: write-all."
+          ? `O job ${JSON.stringify(fact.parent)} declara permissions: write-all.`
           : "O workflow declara permissions: write-all.",
         impact:
           "Um token GITHUB_TOKEN concedido a esse escopo pode receber permissões de escrita amplas, aumentando o impacto de código de workflow comprometido ou acionado por conteúdo não confiável.",
