@@ -12,6 +12,7 @@ import { runPie } from "../../src/pie/cli.js";
 import { createPieMcp } from "../../src/pie/mcp.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
+import { readSqlMigration } from "../../src/pie/adapters/sqlMigration.js";
 import { sha256 } from "../../src/pie/evidence.js";
 import {
   dataReviewOutput,
@@ -19,6 +20,21 @@ import {
 } from "../../src/pie/dataReview.js";
 
 const exec = promisify(execFile);
+
+it("reconhece seletores inline de PK e UNIQUE", () => {
+  const parsed = readSqlMigration(
+    'CREATE TABLE "InlineSelectors" ("id" TEXT PRIMARY KEY, "email" TEXT UNIQUE);',
+  );
+  expect(parsed.declarations).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        name: "primary_key",
+        parent: "InlineSelectors",
+      }),
+      expect.objectContaining({ name: "unique", parent: "InlineSelectors" }),
+    ]),
+  );
+});
 
 async function collectDataReviewExport(
   service: PieService,
@@ -327,6 +343,9 @@ async function writeDataReviewFixture(repo: string) {
       "model MismatchedUnique {",
       "  code String @unique",
       "}",
+      "model ColumnUnique {",
+      "  email String @unique",
+      "}",
       "model FunctionalUnique {",
       "  email String @unique",
       "}",
@@ -400,6 +419,7 @@ async function writeDataReviewFixture(repo: string) {
       'CREATE TABLE "TenantUser" ("tenantId" TEXT, "id" TEXT, PRIMARY KEY ("tenantId", "id"));',
       'CREATE TABLE "CompositeChild" ("id" TEXT PRIMARY KEY, "tenantId" TEXT, "parentId" TEXT, FOREIGN KEY ("tenantId", "parentId") REFERENCES "TenantUser" ("tenantId", "id"));',
       'CREATE TABLE "MismatchedUnique" ("code" TEXT, UNIQUE ("other"));',
+      'CREATE TABLE "ColumnUnique" ("email" TEXT UNIQUE);',
       'CREATE TABLE "FunctionalUnique" ("email" TEXT);',
       'CREATE UNIQUE INDEX "FunctionalUnique_email_lower_key" ON "FunctionalUnique" (lower("email"));',
       'CREATE TABLE "MissingPrimaryKey" ("id" TEXT);',
@@ -425,7 +445,7 @@ function expectDataReview(input: unknown) {
     coverage: {
       runtime: false,
       schemaFiles: 1,
-      examinedModels: 16,
+      examinedModels: 17,
       unexaminedSchemaFiles: 0,
       migrationFiles: 1,
       unexaminedMigrationFiles: 0,
@@ -441,6 +461,16 @@ function expectDataReview(input: unknown) {
           state: "aligned_observed",
           expected: [
             expect.objectContaining({ kind: "primary_key", columns: ["id"] }),
+          ],
+        }),
+      }),
+      expect.objectContaining({
+        model: expect.objectContaining({ name: "ColumnUnique" }),
+        state: "unique_constraint_observed",
+        selectors: expect.objectContaining({
+          state: "aligned_observed",
+          expected: [
+            expect.objectContaining({ kind: "unique", columns: ["email"] }),
           ],
         }),
       }),
@@ -809,6 +839,83 @@ it("nao assume schema default apos SET search_path em migration", async () => {
     expect(review.coverage.limitations.join(" ")).toContain(
       "Migration SQL contexto de schema fora do subconjunto suportado na linha 1",
     );
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("nao trata indice UNIQUE parcial como seletor global do Prisma", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-partial-index-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_partial_index");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id String @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    [
+      'CREATE TABLE "User" ("id" TEXT NOT NULL, "deleted_at" TIMESTAMP);',
+      'CREATE UNIQUE INDEX "User_active_id_key" ON "User" ("id") WHERE "deleted_at" IS NULL;',
+    ].join("\n"),
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("marca CREATE TABLE LIKE com indices importados como inconclusivo", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-like-indexes-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_like_indexes");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id String @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    'CREATE TABLE "User" (LIKE "Base" INCLUDING INDEXES);\n',
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
   } finally {
     await service.close();
     await rm(root, { recursive: true, force: true });

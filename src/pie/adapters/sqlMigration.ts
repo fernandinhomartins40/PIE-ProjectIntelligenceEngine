@@ -203,7 +203,7 @@ function referencedTables(tokens: Token[]) {
       foreignKey >= 0
         ? identifierList(tokens, foreignKey + 2)
         : (() => {
-            const column = identifier(tokens, 0);
+            const column = identifier(tokens, keyword(tokens[0], "(") ? 1 : 0);
             return column ? [column] : null;
           })();
     return [
@@ -271,6 +271,10 @@ export function readSqlMigration(source: string): AdapterRead {
               (token, tokenIndex) =>
                 tokenIndex >= target.next && keyword(token, "("),
             );
+            if (statement.some((token) => keyword(token, "where"))) {
+              markUnsupportedDdl(statement);
+              continue;
+            }
             const columns = literalColumnList(statement, open);
             add(
               "config_directive",
@@ -411,6 +415,14 @@ export function readSqlMigration(source: string): AdapterRead {
     }
     for (const definition of definitions) {
       const line = definition[0]!.line;
+      const firstIndex = keyword(definition[0], "(") ? 1 : 0;
+      if (
+        keyword(definition[0], "like") ||
+        (keyword(definition[0], "(") && keyword(definition[1], "like"))
+      ) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       if (hasPair(definition, "primary", "key")) {
         const primaryIndex = definition.findIndex((token, tokenIndex) =>
           keyword(token, "primary"),
@@ -422,8 +434,8 @@ export function readSqlMigration(source: string): AdapterRead {
         const columns =
           open >= 0
             ? literalColumnList(definition, open)
-            : identifier(definition, 0)
-              ? [identifier(definition, 0)!]
+            : identifier(definition, firstIndex)
+              ? [identifier(definition, firstIndex)!]
               : null;
         add(
           "config_directive",
@@ -445,8 +457,8 @@ export function readSqlMigration(source: string): AdapterRead {
         const columns =
           open >= 0
             ? literalColumnList(definition, open)
-            : identifier(definition, 0)
-              ? [identifier(definition, 0)!]
+            : identifier(definition, firstIndex)
+              ? [identifier(definition, firstIndex)!]
               : null;
         add(
           "config_directive",

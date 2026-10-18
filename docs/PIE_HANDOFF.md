@@ -671,3 +671,7 @@ Data Review: DDL de migration nao reconhecido em `ALTER TABLE`, operacoes `DROP`
 Atualizacao T4.5: nomes SQL qualificados nao geram facts de tabela/constraint e deixam a migration inconclusiva, evitando cruzar schemas homonimos sem search_path/@@schema suportados. Boundary Git/SQLite cobre DROP de PK e other.User versus Prisma User; Data Review 3/3, adapters 20/20. PostgreSQL runtime continua nao verificado.
 
 Data Review tambem trata SET/RESET search_path, SET SCHEMA e set_config como contexto de schema nao resolvido. Boundary real Git/SQLite demonstra que migration com SET search_path TO other nao produz alinhamento do modelo Prisma User. pieDataReview 4/4; adapter 20/20. Nenhum PostgreSQL runtime foi executado.
+
+## Continuidade Data Review — 18/10/2026
+
+Cobertos PK/UNIQUE inline, indice UNIQUE parcial e `CREATE TABLE ... LIKE` fail-closed. Boundary Data Review/adapters passou 27/27; `pie:build`, `check:fast`, `docs:check` e `format:check` passaram. O teste direto valida `Declaration.name` (`primary_key`/`unique`), pois o kind comum e `config_directive`. Prioridade confirmada para triagem: impacto decrescente, risco decrescente, menor esforco; sem calculo automatico de notas. PostgreSQL runtime e estado final/reducer continuam pendentes.

@@ -899,3 +899,7 @@ cap_add/cap_drop literais agora sao fatos com Evidence; security-review schemaVe
 ## DDL de migration fora do subconjunto — 18/10/2026
 
 `ALTER TABLE` nao reconhecido, DDL `DROP`/`TRUNCATE`/`RENAME`, nomes qualificados e contexto de schema (`SET/RESET search_path`, `SET SCHEMA`, `set_config`) marcam a migration incompleta. Facts de schema qualificado nao sao comparados a nomes Prisma homonimos. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 24/24.
+
+## Continuidade T4.5 — seletores inline e limites SQL — 18/10/2026
+
+O parser identifica PK/UNIQUE inline; a boundary integrada valida UNIQUE inline e indice parcial; `CREATE TABLE ... LIKE` deixa a migration inconclusiva. Uma boundary direta adicional cobre declarations SQL. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 27/27; `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` e `npm.cmd run format:check` passaram. PostgreSQL runtime nao executado; estado final/reducer completo nao comprovado.

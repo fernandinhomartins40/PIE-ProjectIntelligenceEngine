@@ -647,3 +647,7 @@ A investigacao do painel agora consulta security-review, apresenta findings susp
 ## Fail-closed para DDL destrutivo fora do parser — T4.5 — 18/10/2026
 
 O parser de migrations registra `ALTER TABLE` fora do subconjunto suportado, DDL `DROP`/`TRUNCATE`/`RENAME`, nomes qualificados e contexto `SET/RESET search_path`, `SET SCHEMA` ou `set_config` como limitacoes com caminho/linha. DDL/schema nao suportados mantem inventory e seletores inconclusivos; facts qualificados nao sao associados a modelos homonimos. `pieDataReview`: 4/4; `pieAdapters`: 20/20. `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. PostgreSQL runtime nao foi executado; reducer completo e estado aplicado continuam pendentes.
+
+Continuidade T4.5 — seletores inline e DDL de migration — 18/10/2026
+
+O parser reconhece PK/UNIQUE inline, confirmado por teste direto das declarations e pela fixture integrada `ColumnUnique`. `CREATE UNIQUE INDEX ... WHERE` nao e tratado como unicidade global; `CREATE TABLE ... LIKE` que importa indices marca inventario inconclusivo. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 27/27; `pie:build`, `check:fast`, `docs:check` e `format:check` passaram. Os casos limitados continuam fail-closed. PostgreSQL runtime e reducer completo de estado aplicado seguem pendentes; T4.5 parcial.
