@@ -907,3 +907,8 @@ O parser identifica PK/UNIQUE inline; a boundary integrada valida UNIQUE inline 
 ## Objetos condicionais em migrations — T4.5 — 18/10/2026
 
 `CREATE TABLE IF NOT EXISTS` e `CREATE UNIQUE INDEX IF NOT EXISTS` nao produzem facts de existencia, pois o objeto pode preexistir com definicao diferente. Ambos deixam a migration incompleta; boundary Git/SQLite e parser testam o comportamento. `PIE_TEST_DATABASE_URL` e `psql` nao estao configurados e Docker CLI nao alcança daemon; PostgreSQL runtime nao foi executado. Reducer de estado aplicado permanece pendente.
+
+## Particoes e heranca PostgreSQL - T4.5 - 18/10/2026
+
+`PARTITION OF` e `INHERITS` sao fail-closed, sem interpretar limites de particao como colunas nem presumir constraints/colunas locais completas. O DDL do pai `PARTITION BY` ainda produz seus facts locais. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieAdapters.test.ts`: 31/31; testes incluem parser e Data Review Git/SQLite. PostgreSQL runtime nao foi executado.
+Validação geral desta extensão: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram. Boundary Data Review/adapters: 31/31.

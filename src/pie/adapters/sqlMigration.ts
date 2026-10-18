@@ -317,6 +317,14 @@ export function readSqlMigration(source: string): AdapterRead {
         markUnsupportedDdl(statement);
         continue;
       }
+      if (
+        hasPair(statement, "partition", "of") ||
+        statement.some((token) => keyword(token, "inherits")) ||
+        statement.some((token) => keyword(token, "of"))
+      ) {
+        markUnsupportedDdl(statement);
+        continue;
+      }
       table = target.name;
       bodyStart = statement.findIndex(
         (token, tokenIndex) => keyword(token, "(") && tokenIndex >= target.next,

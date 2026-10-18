@@ -655,3 +655,7 @@ O parser reconhece PK/UNIQUE inline, confirmado por teste direto das declaration
 Continuidade T4.5 — objetos condicionais — 18/10/2026
 
 `CREATE TABLE IF NOT EXISTS` e `CREATE UNIQUE INDEX IF NOT EXISTS` agora nao emitem facts de existencia/constraint: se o objeto ja existia, o comando pode nao ter aplicado a definicao declarada. Ambos marcam a migration incompleta; Data Review nao alinha seletor com essa prova ambigua. A boundary Git/SQLite integrada e o teste direto do parser cobrem os dois casos. A verificacao local confirmou `PIE_TEST_DATABASE_URL` ausente, `psql` ausente e Docker CLI sem daemon; PostgreSQL runtime continua indisponivel neste ambiente. Reducer completo, schemas SQL e constraint aplicada seguem pendentes; T4.5 parcial.
+
+Continuidade T4.5 - particoes e heranca SQL - 18/10/2026
+
+`CREATE TABLE ... PARTITION OF` e `INHERITS` agora marcam a migration incompleta e nao emitem facts do objeto derivado: limites de particao usam expressoes parenteticas e partitions clonam indexes/constraints do pai, enquanto heranca SQL pode fornecer colunas ausentes da declaracao local. `CREATE TABLE ... PARTITION BY` do pai mantem seus facts locais observaveis. Testes cobrem parse direto de particao/heranca e Data Review inconclusivo com Git/SQLite; focused Data Review/adapters passou 31/31. PostgreSQL runtime continua indisponivel; T4.5 parcial.
