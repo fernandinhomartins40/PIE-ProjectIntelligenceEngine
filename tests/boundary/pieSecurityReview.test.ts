@@ -45,6 +45,26 @@ async function expectSecurityInputFailures(
   });
 }
 
+async function writeDependencyManifest(repo: string) {
+  await writeFile(
+    join(repo, "package.json"),
+    JSON.stringify(
+      {
+        dependencies: {
+          mutable: "github:owner/repo#main",
+          pinned:
+            "git+https://example.invalid/org/repo.git#0123456789abcdef0123456789abcdef01234567",
+          pinnedSha256:
+            "git+https://example.invalid/org/repo.git#0123456789abcdef0123456789abcdef012345670123456789abcdef01234567",
+          registry: "^1.2.3",
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+}
+
 async function verifySecurityAdapters(input: {
   service: PieService;
   apiUrl: string;
@@ -115,10 +135,11 @@ async function verifySecurityFindings(
   const request = { snapshotId, limit: 1 };
   const expected = await service.security(request);
   expect(expected).toMatchObject({
+    schemaVersion: 2,
     engine: "security",
     state: "suspected_findings",
     findings: {
-      total: 10,
+      total: 11,
       items: [
         {
           category: "credential_like_material",
@@ -149,14 +170,16 @@ async function verifySecurityFindings(
       authorizationTargets: 1,
       dynamicCodePatterns: "partial",
       workflowPermissionPatterns: "partial",
+      supplyChainPatterns: "partial",
       astFilesExamined: 4,
       astFilesSkipped: 0,
-      filesExamined: 7,
+      filesExamined: 8,
       filesSkipped: 0,
       runtime: false,
     },
   });
   expect(JSON.stringify(expected)).not.toContain(canary);
+  expect(JSON.stringify(expected)).not.toContain("example.invalid");
 
   const secondPage = await service.security({
     snapshotId,
@@ -168,7 +191,7 @@ async function verifySecurityFindings(
     source: { path: "config.ts", line: 2 },
   });
 
-  const allFindings = await service.security({ snapshotId, limit: 10 });
+  const allFindings = await service.security({ snapshotId, limit: 20 });
   expect(allFindings.findings.items).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
@@ -217,9 +240,15 @@ async function verifySecurityFindings(
           line: 5,
         },
       }),
+      expect.objectContaining({
+        category: "supply_chain_configuration",
+        kind: "mutable_git_dependency_reference",
+        source: { path: "package.json", line: 3 },
+        evidenceIds: [expect.any(String)],
+      }),
     ]),
   );
-  expect(allFindings.findings.items).toHaveLength(10);
+  expect(allFindings.findings.items).toHaveLength(11);
   expect(allFindings.findings.items[0]).toMatchObject({
     condition: expect.any(String),
     impact: expect.any(String),
@@ -244,6 +273,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     join(repo, "config.ts"),
     `export const token = "${canary}";\nexport const key = "AKIA1234567890ABCDEF";\n`,
   );
+  await writeDependencyManifest(repo);
   await writeFile(join(repo, "ordinary.ts"), "export const ready = true;\n");
   await writeFile(
     join(repo, "routes.js"),
@@ -338,7 +368,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(8);
+    expect(stale.findings.total).toBe(9);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
@@ -357,7 +387,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       snapshotId: discovered.snapshot.id,
       limit: 20,
     });
-    expect(staleWorkflow.findings.total).toBe(7);
+    expect(staleWorkflow.findings.total).toBe(8);
     expect(
       staleWorkflow.findings.items.some(
         (finding) =>

@@ -48,7 +48,9 @@ function manifest(path: string, source: string): AdapterRead {
         "optionalDependencies",
       ]
     : ["require", "require-dev"]) {
-    for (const name of Object.keys(object(parsed[group]) ?? {}))
+    for (const [name, specification] of Object.entries(
+      object(parsed[group]) ?? {},
+    )) {
       declarations.push({
         adapter,
         kind: "dependency",
@@ -56,6 +58,19 @@ function manifest(path: string, source: string): AdapterRead {
         parent: group,
         line: fieldLine(group, name),
       });
+      if (
+        node &&
+        typeof specification === "string" &&
+        isMutableGitDependency(specification)
+      )
+        declarations.push({
+          adapter,
+          kind: "config_directive",
+          name: "dependency.git_reference_unpinned",
+          parent: `${group}:${name}`,
+          line: fieldLine(group, name),
+        });
+    }
   }
   // Persist script names, never their shell bodies or embedded credential values.
   for (const name of Object.keys(object(parsed.scripts) ?? {}))
@@ -70,8 +85,17 @@ function manifest(path: string, source: string): AdapterRead {
     declarations,
     limitations: [
       "Dependências e scripts declarados não comprovam instalação, uso ou execução. Linhas JSON vêm da árvore sintática da propriedade.",
+      "Referências Git são classificadas somente para dependências diretas do package.json e sem hash completo literal; lockfiles, workspaces e resolução do gerenciador não são analisados.",
     ],
   };
+}
+
+function isMutableGitDependency(specification: string): boolean {
+  const gitReference =
+    /^(?:git\+|git:|github:|gitlab:|bitbucket:|gist:)/iu.test(specification);
+  if (!gitReference) return false;
+  const fragment = specification.split("#", 2)[1];
+  return !/^[0-9a-f]{40}(?:[0-9a-f]{24})?$/iu.test(fragment ?? "");
 }
 
 function structured(path: string, source: string): AdapterRead {
@@ -556,7 +580,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v9", path, sha256(source), limit],
+    ["pie-declarations-v10", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }

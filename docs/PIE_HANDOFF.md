@@ -555,3 +555,7 @@ Continuação: Data Review já aparece na investigação web do snapshot, com co
 Gates desta integração aprovados: check:fast, format:check, docs:check, pie:web:typecheck, pie:web:build, pieWeb em Chrome (4 passaram/1 Linux-only skipped) e git diff --check. Ledger global segue complete=false; continuar pelas pendências do plano mestre.
 
 Continuação T6.1: export Data Review JSON/Markdown/HTML paginado UTF-8 disponível pelo serviço, CLI, GET autenticado e MCP; agrega páginas, verifica consistência/sha256 e inclui treeDigest e Evidence, mantendo unverified. pie:build e pieDataReview passaram (Git/SQLite; Ajv). PostgreSQL runtime, estado final de migrations, demais exports e CI geral seguem pendentes.
+
+## Próxima frente — cobertura estática de dependências Git — 18/10/2026
+
+`package.json` agora produz fato redigido para dependência direta com referência Git sem SHA completo; `security-review` exige Evidence/hash atual, não consulta rede e não declara CVE. A saída estrita usa schemaVersion 2 e anuncia `supplyChainPatterns: partial`. A boundary Git/SQLite verifica `github:...#main`, SHA fixado, versão registry, não vazamento da URL e paridade CLI/API/MCP. `pieSecurityReview` + `pieAdapters`: 13/13. `npm audit --offline --json`: 0 findings em 902 dependências segundo cache local, cuja atualidade não foi verificada. Próximo: decidir contrato para consumir `npm audit --offline` como evidência local com estado/cobertura explícitos e ausência de garantia de frescor; outros lockfiles continuam pendentes. PostgreSQL e consultas remotas não foram envolvidos.

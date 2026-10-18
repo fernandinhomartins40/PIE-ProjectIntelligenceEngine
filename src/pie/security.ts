@@ -32,6 +32,7 @@ const secretKind = z.enum([
   "function_constructor",
   "tls_verification_disabled",
   "workflow_write_all_permissions",
+  "mutable_git_dependency_reference",
 ]);
 
 const findingSchema = z.strictObject({
@@ -41,6 +42,7 @@ const findingSchema = z.strictObject({
     "dynamic_code_evaluation",
     "insecure_tls_configuration",
     "workflow_privilege",
+    "supply_chain_configuration",
   ]),
   state: z.literal("suspected"),
   severity: z.enum(["high", "critical"]),
@@ -69,7 +71,7 @@ const authorizationSurfaceSchema = z.strictObject({
 });
 
 export const securityOutput = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   engine: z.literal("security"),
   snapshotId: z.string().uuid(),
   state: z.enum(["suspected_findings", "no_patterns_observed", "incomplete"]),
@@ -90,6 +92,7 @@ export const securityOutput = z.strictObject({
     credentialPatterns: z.literal("partial"),
     dynamicCodePatterns: z.literal("partial"),
     workflowPermissionPatterns: z.literal("partial"),
+    supplyChainPatterns: z.literal("partial"),
     astFilesExamined: z.number().int().nonnegative(),
     astFilesSkipped: z.number().int().nonnegative(),
     authorization: z.literal("unverified"),
@@ -570,6 +573,17 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
     limitations.push(
       "Limite de findings atingido; configurações de permissão de workflows restantes não foram analisadas.",
     );
+  const mutableGitDependencies = mutableGitDependencyFindings(
+    snapshot,
+    currentFiles,
+    MAX_FINDINGS - findings.length,
+  );
+  findings.push(...mutableGitDependencies.findings);
+  findingsTruncated ||= mutableGitDependencies.truncated;
+  if (mutableGitDependencies.truncated)
+    limitations.push(
+      "Limite de findings atingido; referências mutáveis de dependências restantes não foram analisadas.",
+    );
   return {
     findings,
     limitations,
@@ -581,6 +595,64 @@ async function scanSnapshot(snapshot: Snapshot): Promise<SnapshotScan> {
     astFilesSkipped,
     currentFiles,
   };
+}
+
+function mutableGitDependencyFindings(
+  snapshot: Snapshot,
+  currentFiles: ReadonlySet<string>,
+  remaining: number,
+) {
+  const evidenceById = new Map(
+    snapshot.evidence.map((item) => [item.id, item]),
+  );
+  const facts = snapshot.declarations.filter(
+    (fact) =>
+      fact.adapter === "node-manifest" &&
+      fact.kind === "config_directive" &&
+      fact.name === "dependency.git_reference_unpinned" &&
+      currentFiles.has(fact.source.path),
+  );
+  const findings = facts.slice(0, remaining).flatMap((fact) => {
+    const evidence = evidenceById.get(fact.evidenceId);
+    if (!evidence) return [];
+    return [
+      findingSchema.parse({
+        id: `security:mutable-git-dependency:${identity(
+          fact.source.path,
+          fact.source.line ?? 1,
+          fact.parent ?? fact.name,
+          evidence.source.sha256,
+        )}`,
+        category: "supply_chain_configuration",
+        state: "suspected",
+        severity: "high",
+        kind: "mutable_git_dependency_reference",
+        condition: `A dependência ${JSON.stringify(fact.parent)} usa uma referência Git sem hash completo de commit imutável.`,
+        impact:
+          "A resolução pode mudar entre instalações e permitir que conteúdo de terceiros seja alterado sem mudança no manifesto.",
+        probability: "unassessed",
+        source: { path: fact.source.path, line: fact.source.line },
+        evidenceIds: [fact.evidenceId],
+        observation:
+          "O parser do manifesto classificou a especificação Git como não fixada; o destino remoto não foi consultado.",
+        uncertainty: [
+          "A análise não resolve tags/branches, não verifica o lockfile nem prova que a dependência será instalada ou executada.",
+          "Uma referência pode ser imutável por política externa; isso não é verificável localmente.",
+        ],
+        reproduction: [
+          "Conferir a especificação observada e o lockfile do gerenciador sem buscar nem executar conteúdo remoto.",
+        ],
+        remediation:
+          "Preferir versão publicada com lockfile íntegro ou fixar a dependência Git em um hash completo de commit revisado.",
+        regression: [
+          "Adicionar teste de contrato que confirme a resolução somente a partir do lockfile e do hash revisado.",
+        ],
+        verificationStatus: "not_run",
+        owner: null,
+      }),
+    ];
+  });
+  return { findings, truncated: facts.length > findings.length };
 }
 
 function workflowPermissionFindings(
@@ -682,7 +754,7 @@ function securityReport(
 ) {
   const authorization = authorizationReviewPage(snapshot, input);
   return securityOutput.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     engine: "security",
     snapshotId: snapshot.id,
     state: reportState(snapshot, scan),
@@ -696,6 +768,7 @@ function securityReport(
       credentialPatterns: "partial",
       dynamicCodePatterns: "partial",
       workflowPermissionPatterns: "partial",
+      supplyChainPatterns: "partial",
       astFilesExamined: scan.astFilesExamined,
       astFilesSkipped: scan.astFilesSkipped,
       authorization: "unverified",
@@ -712,6 +785,7 @@ function securityReport(
         "Rotas declaradas são inventário de escopo; não determinam se existe ou falta autorização e permanecem unverified sem testes negativos de runtime.",
         "AST JavaScript/TypeScript cobre somente chamadas diretas globais eval/Function; não realiza análise de fluxo, alcançabilidade ou outros sinks.",
         "Permissões GitHub Actions: somente write-all literal em arquivo atual que passou pelo hash da Evidence; configuração efetiva, eventos e permissões granulares permanecem fora da análise.",
+        "Supply chain: somente referências Git diretas reconhecidas no package.json sem SHA completo; lockfiles, resolução, conteúdo remoto e CVEs não são analisados.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },
