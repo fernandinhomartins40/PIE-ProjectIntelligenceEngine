@@ -1,5 +1,11 @@
 # Relatório de validação de segurança do PIE
 
+## Auditoria SCA npm — 18/10/2026
+
+- `npm.cmd audit --json`: código 0; 0 vulnerabilidades reportadas (info/low/moderate/high/critical) entre 902 dependências. O registry foi consultado durante a execução; o resultado representa advisories conhecidos naquele momento.
+- `.github/workflows/pie.yml` agora executa `npm audit --audit-level=low` no lockfile em cada lane PIE, depois de `npm ci --ignore-scripts --no-audit --no-fund`.
+- Essa verificação cobre apenas o grafo npm atual e a base de advisories acessível ao registry. Não cobre segredos, SAST/taint, outros ecossistemas, configuração efetiva ou uma avaliação completa de segurança/LGPD; SEC-07 permanece parcial até execução CI desta mudança.
+
 Data: 17/10/2026. Escopo: implementação da API/painel local do PIE, conforme código e testes existentes. O trabalho é uma revisão técnica parcial; não declara risco zero, certificação ou conformidade integral com a LGPD.
 
 ## Inventário e controles observados

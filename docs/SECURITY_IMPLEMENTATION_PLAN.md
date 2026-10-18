@@ -16,6 +16,10 @@ Escopo inicial: API/painel local do PIE e os controles de sessão atualmente imp
 
 ## Evidência desta etapa
 
+### SCA npm do lockfile
+
+O workflow `.github/workflows/pie.yml` agora executa `npm audit --audit-level=low` após instalar o lockfile sem lifecycle scripts; a checagem usa os advisories atuais do registry e falha para qualquer nível reportado. Em 18/10/2026, `npm.cmd audit --json` concluiu com código 0: 0 vulnerabilidades reportadas nas 902 dependências do lockfile. Esse resultado é pontual e não substitui scanner de segredos, SAST, outros formatos de lockfile, revisão de licença ou análise de código; SEC-07 continua parcial até validar a nova etapa em CI e ampliar cobertura.
+
 - `node scripts/run-exact-tests.mjs tests/boundary/pieBrowserSessions.test.ts`: 3/3 passaram.
 - `pieApiScope.test.ts` criou dois repositórios Git reais na mesma persistência SQLite. Antes da correção, GET autenticado `/v1/graph/:snapshotId` retornou `200` para snapshot da raiz não autorizada. Depois da correção, snapshots, Evidence, projetos, exports, análises, registros e consultas HTTP ficam limitados à raiz configurada; IDs externos retornam `404` e a lista não revela projeto vizinho.
 - O teste PostgreSQL local foi skipped por ausência de `PIE_TEST_DATABASE_URL`; a lane `PIE integration` do GitHub Actions (run `39063676154`, SHA `b7f9d53b3`) executou a boundary PostgreSQL real e passou, junto com o conjunto full PIE e a validação browser. A evidência inclui consultas `project`/`projectsForRoot` em duas raízes, paginação e associação Evidence→snapshot. Isso comprova esses caminhos de ownership na CI, não uma revisão completa de todos os efeitos de escrita.
