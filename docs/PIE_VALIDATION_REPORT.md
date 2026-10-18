@@ -946,3 +946,7 @@ As variantes de UNIQUE com NULLS NOT DISTINCT em CREATE TABLE, CREATE UNIQUE IND
 ## Indice ON ONLY em tabela particionada - T4.5 - 18/10/2026
 
 Corrigida a interpretacao de CREATE UNIQUE INDEX ON ONLY quando a mesma migration declara a tabela como PARTITION BY. PostgreSQL cria esse indice invalido ate os indices filhos serem anexados; o Data Review agora marca o inventario incompleto e nao alinha @unique. Testes parser e Git/SQLite integrados passaram, mantendo o caso ON ONLY nao particionado. Focused Data Review/adapters 45/45. Runtime PostgreSQL nao executado.
+
+## Drenagem de saida de processos autorizados - T1.3/T3.2 - 18/10/2026
+
+A captura stdout/stderr do `ProviderProcessSupervisor` permanece ligada ate fechamento real ou limite de 1 s apos cleanup do processo proprio. A cauda adicional e limitada a 64 KiB. Cleanup incompleto permite retry mantendo ownership/captura; saida tardia apos sucesso pode ser capturada; timeout, erro de stream ou descarte antecipado marca output incompleto sem revogar a prova de cleanup nem destruir streams herdados. Focused: `ProviderProcessOutput`, boundary do processo e `pieDockerLifecycle`/`pieDockerPlan`, 24 passaram e 1 skipped. `pie:build`, `check:fast`, `docs:check`, format e diff-check passaram. O processo POSIX real com stderr herdado foi skipped no host Windows; Linux/macOS ainda requer CI/ambiente correspondente. Mudanca upstream 701695139 foi portada manualmente; nenhum merge/cherry-pick do upstream foi feito.

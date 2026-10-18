@@ -14,6 +14,7 @@ export const spawnProviderProcessFixture = (
     | "exit"
     | "graceful"
     | "invalid-utf8"
+    | "late-stderr"
     | "valid-multibyte"
     | "stubborn",
   value?: number,
@@ -21,7 +22,12 @@ export const spawnProviderProcessFixture = (
   spawn(
     process.execPath,
     [fixturePath, mode, ...(value === undefined ? [] : [String(value)])],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    {
+      stdio:
+        mode === "late-stderr"
+          ? ["ignore", "pipe", "pipe", "pipe"]
+          : ["ignore", "pipe", "pipe"],
+    },
   );
 
 /** Wait until a long-lived fixture has installed its signal behavior. */

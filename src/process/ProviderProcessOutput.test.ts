@@ -4,6 +4,176 @@ import { expect, it, vi } from "vitest";
 import { ProviderProcessSupervisor } from "./ProviderProcess.js";
 import { redactCapturedTransportCredential } from "./ProviderDiagnosticRedaction.js";
 
+it("retains final stderr until owned output pipes close", async () => {
+  const producer = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    exitCode: null,
+    signalCode: null,
+    kill: () => false,
+  });
+  let cleanupStarted: () => void = () => {};
+  const started = new Promise<void>((resolve) => {
+    cleanupStarted = resolve;
+  });
+  const owner = new ProviderProcessSupervisor({
+    process: producer,
+    ownsProcessLifetime: true,
+    cleanup: async () => {
+      producer.emit("exit", 2, null);
+      cleanupStarted();
+      return { cleaned: true, signaled: false };
+    },
+  });
+  const stopped = owner.stop();
+  expect(owner.stop()).toBe(stopped);
+  await started;
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  producer.stderr.end("final launcher diagnostic");
+  producer.stdout.end();
+  producer.emit("close", 2, null);
+  await expect(stopped).resolves.toEqual({ status: "verified-cleanup" });
+  expect(owner.snapshot()).toMatchObject({
+    stderr: { text: "final launcher diagnostic" },
+    exitCode: 2,
+  });
+  expect(owner.observedOutputClose()).toBe(true);
+});
+
+it("bounds late output retention and marks an undrained tail incomplete", async () => {
+  vi.useFakeTimers();
+  const producer = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(),
+    stderr: Object.assign(new PassThrough(), { unref: vi.fn() }),
+    exitCode: null,
+    signalCode: null,
+    kill: () => false,
+  });
+  const owner = new ProviderProcessSupervisor({
+    process: producer,
+    ownsProcessLifetime: true,
+    cleanup: async () => {
+      producer.emit("exit", 0, null);
+      return { cleaned: true, signaled: false };
+    },
+  });
+  const checkpoint = owner.checkpointOutput();
+  try {
+    const stopped = owner.stop();
+    await vi.advanceTimersByTimeAsync(0);
+    producer.stderr.write("x".repeat(65537));
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(stopped).resolves.toEqual({ status: "verified-cleanup" });
+    expect(owner.snapshot()).toMatchObject({
+      stderr: { bytes: 65536, observedBytes: 65537 },
+      outputIncomplete: true,
+      diagnosticTruncated: true,
+    });
+    expect(owner.snapshotOutputSince(checkpoint).complete).toBe(false);
+    expect(producer.stderr.destroyed).toBe(false);
+    expect(producer.stderr.unref).toHaveBeenCalledOnce();
+  } finally {
+    owner.dispose();
+    producer.stdout.destroy();
+    producer.stderr.destroy();
+    vi.useRealTimers();
+  }
+});
+
+it("keeps capture ownership through a failed cleanup and retry", async () => {
+  const producer = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    exitCode: null,
+    signalCode: null,
+    kill: vi.fn(() => false),
+  });
+  let fails = true;
+  const owner = new ProviderProcessSupervisor({
+    process: producer,
+    ownsProcessLifetime: true,
+    cleanup: async () => {
+      if (fails) return { cleaned: false, reason: "identity unavailable" };
+      producer.emit("exit", 0, null);
+      return { cleaned: true, signaled: false };
+    },
+  });
+  await expect(owner.stop()).resolves.toMatchObject({ status: "incomplete" });
+  producer.stderr.write("retained during retry");
+  fails = false;
+  const retried = owner.stop();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  producer.stderr.end(" and final tail");
+  producer.stdout.end();
+  producer.emit("close", 0, null);
+  await expect(retried).resolves.toEqual({ status: "verified-cleanup" });
+  expect(owner.snapshot().stderr.text).toBe(
+    "retained during retry and final tail",
+  );
+  expect(owner.snapshot().outputIncomplete).toBeUndefined();
+});
+
+it("waits without a deadline until output closes or the caller aborts", async () => {
+  const producer = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    exitCode: null,
+    signalCode: null,
+    kill: () => false,
+  });
+  const owner = new ProviderProcessSupervisor({
+    process: producer,
+    ownsProcessLifetime: false,
+  });
+  const controller = new AbortController();
+  let settled = false;
+  const pending = owner
+    .waitForOutputClose(undefined, controller.signal)
+    .then((result) => {
+      settled = true;
+      return result;
+    });
+  try {
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    controller.abort();
+    await expect(pending).resolves.toBe(false);
+  } finally {
+    owner.dispose();
+    producer.stdout.destroy();
+    producer.stderr.destroy();
+  }
+});
+
+it("keeps a stream read error visible after the process closes", async () => {
+  const producer = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    exitCode: null,
+    signalCode: null,
+    kill: () => false,
+  });
+  const owner = new ProviderProcessSupervisor({
+    process: producer,
+    ownsProcessLifetime: false,
+  });
+  try {
+    producer.stderr.emit("error", new Error("read failure"));
+    producer.stdout.end();
+    producer.stderr.end();
+    producer.emit("close", 1, null);
+    expect(await owner.waitForOutputClose(0)).toBe(true);
+    expect(owner.snapshot()).toMatchObject({
+      outputIncomplete: true,
+      diagnosticTruncated: true,
+    });
+  } finally {
+    owner.dispose();
+    producer.stdout.destroy();
+    producer.stderr.destroy();
+  }
+});
+
 it("exit does not establish complete output when a producer closes its streams later", async () => {
   const producer = Object.assign(new EventEmitter(), {
     stdout: new PassThrough(),
