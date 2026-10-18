@@ -162,6 +162,49 @@ export function InfrastructureReview({
                             ? "Dockerfile inline declarado; conteúdo não retido"
                             : "Referência de Dockerfile não resolvida"}
                     </p>
+                    <p>
+                      {build.dockerfileAnalysis === "static_facts_observed"
+                        ? "Fatos estáticos selecionados observados; comportamento de build não verificado"
+                        : build.dockerfileAnalysis ===
+                            "file_observed_no_supported_facts"
+                          ? "Arquivo observado sem fatos suportados no snapshot; isso não comprova arquivo vazio"
+                          : build.dockerfileAnalysis ===
+                              "inline_content_not_retained"
+                            ? "Conteúdo inline não retido para análise"
+                            : build.dockerfileAnalysis ===
+                                "not_observed_in_snapshot"
+                              ? "Arquivo não observado; conteúdo permanece desconhecido"
+                              : "Análise do Dockerfile não resolvida"}
+                    </p>
+                    {build.dockerfileAnalysis === "static_facts_observed" && (
+                      <ul aria-label="Instruções Dockerfile observadas">
+                        {build.instructions.map(
+                          (instruction, instructionIndex) => (
+                            <li
+                              key={`${instruction.evidenceId}:${instructionIndex}`}
+                            >
+                              {instruction.instruction}
+                              {instruction.value !== null && (
+                                <>
+                                  : <code>{instruction.value}</code>
+                                </>
+                              )}
+                              {instruction.stage !== null &&
+                                ` · estágio ${instruction.stage + 1}`}
+                              {` · linha ${instruction.line} · `}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onEvidence(instruction.evidenceId)
+                                }
+                              >
+                                Evidence da instrução
+                              </button>
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    )}
                     {build.evidenceIds.map((evidenceId) => (
                       <button
                         key={evidenceId}

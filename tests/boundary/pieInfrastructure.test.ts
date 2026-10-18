@@ -79,9 +79,24 @@ function expectComposeRuntimeSettings(
       dockerfile: "Dockerfile.api",
       candidatePath: "app/Dockerfile.api",
       dockerfileObservation: "observed_in_snapshot",
+      dockerfileAnalysis: "static_facts_observed",
+      instructions: expect.arrayContaining([
+        expect.objectContaining({
+          instruction: "FROM",
+          value: "node:24-alpine",
+          stage: 0,
+        }),
+        expect.objectContaining({ instruction: "RUN", value: null }),
+        expect.objectContaining({ instruction: "VOLUME", value: "/data" }),
+      ]),
       evidenceIds: expect.arrayContaining([expect.any(String)]),
     }),
   ]);
+  expect(
+    api?.builds[0]?.instructions.every((item) =>
+      evidenceIds.has(item.evidenceId),
+    ),
+  ).toBe(true);
   expect(
     api?.settings.every((setting) => evidenceIds.has(setting.evidenceId)),
   ).toBe(true);
@@ -91,7 +106,7 @@ async function writeDockerComposeFixture(repository: string) {
   await mkdir(join(repository, "app"));
   await writeFile(
     join(repository, "app", "Dockerfile.api"),
-    "FROM node:24-alpine\n",
+    'FROM node:24-alpine\nARG BUILD_SECRET=NEVER_RETAIN\nENV APP_MODE=production\nWORKDIR /app\nCOPY . .\nRUN echo NEVER_RETAIN_SHELL\nEXPOSE 3000\nVOLUME /data\nCMD ["node", "server.js"]\n',
   );
 }
 
@@ -159,6 +174,8 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
     );
     expectInfrastructureNginxFacts(result);
     expect(JSON.stringify(result)).not.toContain("DO_NOT_RETAIN");
+    expect(JSON.stringify(result)).not.toContain("NEVER_RETAIN");
+    expect(JSON.stringify(result)).not.toContain("NEVER_RETAIN_SHELL");
     expect(result.coverage.sourceFacts).toBeGreaterThan(
       result.components.total,
     );

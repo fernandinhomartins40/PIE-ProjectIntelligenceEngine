@@ -219,7 +219,7 @@ function classify(path: string): GraphNode["kind"] {
   )
     return "manifest";
   if (
-    /(^|\/)(Dockerfile[^/]*|compose[^/]*\.ya?ml|docker-compose[^/]*\.ya?ml)$/.test(
+    /(^|\/)(Dockerfile[^/]*|compose[^/]*\.ya?ml|docker-compose[^/]*\.ya?ml)$/i.test(
       path,
     )
   )

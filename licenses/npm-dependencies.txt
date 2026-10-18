@@ -2,7 +2,7 @@ REA npm dependency inventory
 Prepared from the root package-lock.json; refresh this inventory when locked dependencies change.
 License identifiers are upstream lockfile declarations, not a legal assessment.
 Runtime includes transitive and optional platform packages; development includes build, test and website tooling.
-Locked package entries: 902; runtime: 365.
+Locked package entries: 905; runtime: 368.
 Full runtime copyright/license/NOTICE texts: npm-runtime-notices.txt.
 
 @algolia/abtesting@1.25.0 | development | MIT
@@ -2530,6 +2530,11 @@ diff3@0.0.3 | runtime | MIT
   Package: https://www.npmjs.com/package/diff3/v/0.0.3
   Archive: https://registry.npmjs.org/diff3/-/diff3-0.0.3.tgz
   Integrity: sha512-iSq8ngPOt0K53A6eVr4d5Kn6GNrM2nQZtC740pzIriHtn4pOQ2lyzEXQMBeVcWERN0ye7fhBsk9PbLLQOnUx/g==
+dockerfile-ast@0.7.1 | runtime | MIT
+  Lockfile path: node_modules/dockerfile-ast
+  Package: https://www.npmjs.com/package/dockerfile-ast/v/0.7.1
+  Archive: https://registry.npmjs.org/dockerfile-ast/-/dockerfile-ast-0.7.1.tgz
+  Integrity: sha512-oX/A4I0EhSkGqrFv0YuvPkBUSYp1XiY8O8zAKc8Djglx8ocz+JfOr8gP0ryRMC2myqvDLagmnZaU9ot1vG2ijw==
 dotenv@17.4.2 | runtime | BSD-2-Clause
   Lockfile path: node_modules/dotenv
   Package: https://www.npmjs.com/package/dotenv/v/17.4.2
@@ -4420,6 +4425,16 @@ vitest@5.0.3 | development | MIT
   Package: https://www.npmjs.com/package/vitest/v/5.0.3
   Archive: https://registry.npmjs.org/vitest/-/vitest-5.0.3.tgz
   Integrity: sha512-xMw97S3rjdtj5dkVat7jCsqWBpvchs3RlpQctUqwJD0KkERk40vz2fJ77lDwW/Vzh/pk18eItYAzkodhSes3jQ==
+vscode-languageserver-textdocument@1.0.15 | runtime | MIT
+  Lockfile path: node_modules/vscode-languageserver-textdocument
+  Package: https://www.npmjs.com/package/vscode-languageserver-textdocument/v/1.0.15
+  Archive: https://registry.npmjs.org/vscode-languageserver-textdocument/-/vscode-languageserver-textdocument-1.0.15.tgz
+  Integrity: sha512-Gsfr9S8LU3S6885cS+NaleasJ0n3V5y/SOTqHCifQiXWFw3G9w9/YItDfwHrlCz+dSZWWZ8ilYVMcJe7Sz7Sxw==
+vscode-languageserver-types@3.18.4 | runtime | MIT
+  Lockfile path: node_modules/vscode-languageserver-types
+  Package: https://www.npmjs.com/package/vscode-languageserver-types/v/3.18.4
+  Archive: https://registry.npmjs.org/vscode-languageserver-types/-/vscode-languageserver-types-3.18.4.tgz
+  Integrity: sha512-nQsacoiijvl0fRf2q28uFDrAVwRhdCa3QveiF7/CX0r18mLR5FU/1WskSsCKOjmEbtteKUnY8x8Yzxop+k0zwg==
 vue@3.5.43 | development | MIT
   Lockfile path: node_modules/vue
   Package: https://www.npmjs.com/package/vue/v/3.5.43

@@ -6,7 +6,10 @@ import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 import { discoverProject } from "../../src/pie/discovery.js";
-import { parseComposeServiceSettingName } from "../../src/pie/adapters/contracts.js";
+import {
+  parseComposeServiceSettingName,
+  parseDockerfileInstructionName,
+} from "../../src/pie/adapters/contracts.js";
 import {
   readDeclarations,
   readDeclarationsResult,
@@ -595,6 +598,90 @@ it("Compose redige autenticação em contexto remoto e não retém Dockerfile in
   expect(JSON.stringify(parsed)).not.toContain("user:secret@");
   expect(JSON.stringify(parsed)).not.toContain("NEVER_RETAIN_INLINE");
   expect(JSON.stringify(parsed)).not.toContain("FROM alpine");
+});
+
+it("Dockerfile registra instruções estáticas sem reter valores de ARG/ENV ou comandos", () => {
+  const parsed = readDeclarations(
+    "app/Dockerfile.api",
+    [
+      "# escape=`",
+      "FROM --platform=$BUILDPLATFORM node:24-alpine AS base",
+      "ARG TOKEN=DO_NOT_RETAIN_ARG",
+      "ENV PASSWORD=DO_NOT_RETAIN_ENV FEATURE=enabled",
+      "WORKDIR /app",
+      "RUN echo first `",
+      "    && echo DO_NOT_RETAIN_CONTINUED",
+      "COPY <<EOF /app/notes",
+      "FROM fake:tag",
+      "EOF",
+      "RUN <<EOF",
+      "ENV INNER_SECRET=DO_NOT_RETAIN_HEREDOC",
+      "EOF",
+      "EXPOSE 3000 8080/tcp",
+      "USER node",
+      "FROM alpine AS runtime",
+      'VOLUME ["/data", "/cache"]',
+      'CMD ["node", "DO_NOT_RETAIN_COMMAND"]',
+    ].join("\n"),
+    100,
+  )!;
+  const facts = parsed.declarations.map((declaration) => ({
+    instruction: parseDockerfileInstructionName(declaration.name),
+    line: declaration.line,
+    parent: declaration.parent,
+  }));
+  expect(facts).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        instruction: { instruction: "FROM", stage: 0, value: "node:24-alpine" },
+        line: 2,
+        parent: "stage:0",
+      }),
+      expect.objectContaining({
+        instruction: { instruction: "ARG", stage: 0, value: "TOKEN" },
+      }),
+      expect.objectContaining({
+        instruction: { instruction: "ENV", stage: 0, value: "PASSWORD" },
+      }),
+      expect.objectContaining({
+        instruction: { instruction: "WORKDIR", stage: 0, value: "/app" },
+      }),
+      expect.objectContaining({
+        instruction: {
+          instruction: "EXPOSE",
+          stage: 0,
+          value: "3000,8080/tcp",
+        },
+      }),
+      expect.objectContaining({
+        instruction: { instruction: "FROM", stage: 1, value: "alpine" },
+        parent: "stage:1",
+      }),
+      expect.objectContaining({
+        instruction: { instruction: "VOLUME", stage: 1, value: "/data" },
+      }),
+      expect.objectContaining({
+        instruction: { instruction: "CMD", stage: 1, value: null },
+      }),
+    ]),
+  );
+  expect(JSON.stringify(parsed)).not.toContain("DO_NOT_RETAIN");
+  expect(JSON.stringify(parsed)).not.toContain("FROM fake:tag");
+  const limited = readDeclarations(
+    "Dockerfile.limited",
+    "FROM alpine\nARG TOKEN=secret\nRUN echo secret\nVOLUME /data",
+    2,
+  )!;
+  expect(limited.declarations).toHaveLength(2);
+  expect(limited.limitations).toContain(
+    "Fatos Dockerfile adicionais foram omitidos pelo limite de recursos; a quantidade total não foi calculada.",
+  );
+  expect(
+    readDeclarationsResult("Dockerfile", "FROM alpine\rARG TOKEN=secret", 10),
+  ).toEqual({
+    ok: false,
+    error: { kind: "unsupported_format", path: "Dockerfile" },
+  });
 });
 
 it("Nginx integra inventário Git, evidência e trace sem ler include externo", async () => {

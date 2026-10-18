@@ -617,3 +617,13 @@ E2E em Chrome real (`pieInfrastructureWeb`): o painel exibe image/port/restart/p
 ## Limites/reservas Compose — T4.4 — 18/10/2026
 
 `infrastructure-review` schemaVersion 3 agora inclui `deploy.replicas` e valores literais `resources.limits|reservations` para CPU, memória e PIDs, cada um ligado a Evidence/linha. Todos permanecem configurações declaradas e `unverified`; não se afirma que Docker Compose/Swarm as aplica. Boundary adapter/infra/MCP: 15/15. Depois de `npm.cmd run pie:web:build`, `pieInfrastructureWeb`: 1/1 em Chrome real, verificando rótulos de limites e réplicas, Evidence, omissão do comando de healthcheck e viewports. Nginx/Compose reais, runtime e métricas VPS continuam sem validação.
+
+# Continuidade T2.3/T4.4 — análise estática de Dockerfile — 18/10/2026
+
+O Compose mantém contexto, Dockerfile, Evidence e resultado explícito da resolução local. O novo adapter usa `dockerfile-ast@0.7.1` MIT para fatos selecionados de instruções: imagem/stage `FROM`, nomes `ARG`/`ENV`, `WORKDIR`, `USER`, argumentos estruturais `EXPOSE`/`VOLUME` e presença de outras instruções. Corpos de shell/build e valores `ARG`/`ENV` não saem no contrato. Continuação, parser directive de escape e heredoc têm cobertura; conteúdo de heredoc não vira falsa instrução. Limites de fatos são explícitos e não alegam contagem total omitida.
+
+Contrato `infrastructure-review` schemaVersion 5 integra facts ao build por caminho observado e Evidence; CLI, API, MCP e painel compartilham o serviço/schema. Teste de integração usa Git/SQLite reais, MCP testa schemas, Chrome local comprova instruções e Evidence. Nenhum build, registry, container, Nginx ou VPS foi consultado/executado. Compose volume mounts ainda não são analisados.
+
+Validação executada após `npm ci` (Node 24.18.0/npm 11.16.0): `pie:build`; adapters/infrastructure/MCP focused 17/17; `pie:web:build` + `pieInfrastructureWeb` 1/1; `pie:web:typecheck`; `check:fast`; `format:check`; `docs:check`; `npm audit --audit-level=low` com zero reportadas; `licenses:refresh-notices` adicionou três notices MIT sem gaps e `licenses:generate` registrou 905 lockados/368 runtime. Ledger `complete=false` permanece correto.
+
+Medição sintética diagnóstica (274 B/13 linhas): fria 10,133 ms; 1.000 hits quentes 66,921 ms; CPU 94 ms; RSS do processo 50,55→55,48 MiB; heap 13,91 MiB. Não mede process family nem VPS; o PIE não contém Dockerfiles versionados para baseline comparável, token cost não medido. Próxima frente segura: analisar montagens Compose e recursos top-level com contratos/Evidence, mantendo valores de `build.args`/environment e comportamento efetivo desconhecidos. T2.3/T4.4 parciais.

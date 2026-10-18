@@ -31,7 +31,7 @@ it.skipIf(!existsSync(executablePath))(
     await mkdir(join(repo, "app"));
     await writeFile(
       join(repo, "app", "Dockerfile.api"),
-      "FROM node:24-alpine\n",
+      "FROM node:24-alpine\nENV APP_MODE=production\nRUN echo NEVER_RETAIN_COMMAND\nEXPOSE 3000\n",
     );
     await exec("git", ["-C", repo, "add", "."]);
     const store = await openStore(join(root, "history.sqlite"), repo);
@@ -60,7 +60,10 @@ it.skipIf(!existsSync(executablePath))(
       const serviceCard = section.getByRole("article", {
         name: "Serviço api",
       });
-      await serviceCard.getByText("node:24-alpine", { exact: true }).waitFor();
+      await serviceCard
+        .getByRole("list", { name: "Configurações Compose declaradas" })
+        .getByText("node:24-alpine", { exact: true })
+        .waitFor();
       await serviceCard
         .getByText("127.0.0.1:8080:3000", { exact: true })
         .waitFor();
@@ -74,11 +77,21 @@ it.skipIf(!existsSync(executablePath))(
         .getByText("app/Dockerfile.api", { exact: true })
         .waitFor();
       await serviceCard.getByText("Dockerfile observado no snapshot").waitFor();
+      const dockerfileInstructions = serviceCard.getByRole("list", {
+        name: "Instruções Dockerfile observadas",
+      });
+      await dockerfileInstructions.waitFor();
+      await dockerfileInstructions
+        .getByText("FROM: node:24-alpine", { exact: false })
+        .waitFor();
       await serviceCard
         .getByText("Réplicas declaradas:", { exact: false })
         .waitFor();
       expect(
         await page.getByText("DO_NOT_RETAIN", { exact: false }).count(),
+      ).toBe(0);
+      expect(
+        await page.getByText("NEVER_RETAIN_COMMAND", { exact: false }).count(),
       ).toBe(0);
       await serviceCard
         .getByRole("list", { name: "Configurações Compose declaradas" })

@@ -1,6 +1,51 @@
 import { z } from "zod";
 import { sourceSchema } from "../source.js";
 
+export const dockerfileInstructionSchema = z.strictObject({
+  instruction: z.enum([
+    "ADD",
+    "ARG",
+    "CMD",
+    "COPY",
+    "ENTRYPOINT",
+    "ENV",
+    "EXPOSE",
+    "FROM",
+    "HEALTHCHECK",
+    "LABEL",
+    "MAINTAINER",
+    "ONBUILD",
+    "RUN",
+    "SHELL",
+    "STOPSIGNAL",
+    "USER",
+    "VOLUME",
+    "WORKDIR",
+  ]),
+  stage: z.number().int().nonnegative().nullable(),
+  value: z.string().max(900).nullable(),
+});
+
+const dockerfileInstructionPrefix = "dockerfile_instruction:";
+
+export function dockerfileInstructionName(
+  instruction: z.infer<typeof dockerfileInstructionSchema>,
+) {
+  return `${dockerfileInstructionPrefix}${JSON.stringify(instruction)}`;
+}
+
+export function parseDockerfileInstructionName(name: string) {
+  if (!name.startsWith(dockerfileInstructionPrefix)) return null;
+  try {
+    const parsed = dockerfileInstructionSchema.safeParse(
+      JSON.parse(name.slice(dockerfileInstructionPrefix.length)),
+    );
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
 export const relationShapeSchema = z.strictObject({
   field: z.string().max(1000).nullable(),
   sourceFields: z.array(z.string().min(1).max(1000)).nullable(),
@@ -59,6 +104,7 @@ export const adapterFactSchema = z.strictObject({
     "composer-manifest",
     "npm-lockfile",
     "compose",
+    "dockerfile",
     "openapi",
     "prisma-schema",
     "sql-migration",

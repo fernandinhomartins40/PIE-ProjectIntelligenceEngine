@@ -1,7 +1,18 @@
 import { parseDocument, LineCounter, isMap, isScalar } from "yaml";
+import { z } from "zod";
+import {
+  Arg as DockerfileArg,
+  DockerfileParser,
+  Env as DockerfileEnv,
+  From as DockerfileFrom,
+  User as DockerfileUser,
+  Workdir as DockerfileWorkdir,
+} from "dockerfile-ast";
 import { posix } from "node:path";
 import { parseTree, findNodeAtLocation } from "jsonc-parser";
 import {
+  dockerfileInstructionSchema,
+  dockerfileInstructionName,
   composeServiceSettingName,
   type AdapterRead,
   type Declaration,
@@ -29,6 +40,101 @@ function redactBuildContext(value: string) {
   return {
     value: value.replace(transportAuthentication, "$1[REDACTED]@"),
     redacted,
+  };
+}
+
+function dockerfile(path: string, source: string, limit: number): AdapterRead {
+  const normalized = source.replace(/\r\n/g, "\n");
+  if (normalized.includes("\r"))
+    throw new AdapterParseFailure("unsupported_format");
+  let parsed: ReturnType<typeof DockerfileParser.parse>;
+  try {
+    parsed = DockerfileParser.parse(normalized);
+  } catch {
+    throw new AdapterParseFailure("invalid_syntax");
+  }
+  const declarations: Declaration[] = [];
+  let stage = -1;
+  let limitReached = false;
+  for (const instruction of parsed.getInstructions()) {
+    const keyword = instruction.getKeyword().toUpperCase();
+    if (
+      !dockerfileInstructionSchema.shape.instruction.safeParse(keyword).success
+    )
+      continue;
+    if (keyword === "FROM") stage++;
+    let values: Array<string | null> = [null];
+    if (instruction instanceof DockerfileFrom) {
+      values = [instruction.getImage()];
+    } else if (instruction instanceof DockerfileArg) {
+      values = [instruction.getProperty()?.getName() ?? null];
+    } else if (instruction instanceof DockerfileEnv) {
+      values = instruction
+        .getProperties()
+        .map((property) => property.getName());
+    } else if (instruction instanceof DockerfileWorkdir) {
+      values = [instruction.getPath()];
+    } else if (instruction instanceof DockerfileUser) {
+      values = [instruction.getArgumentsContent()?.trim() ?? null];
+    } else if (keyword === "EXPOSE") {
+      values = [
+        instruction
+          .getArguments()
+          .map((argument) => argument.getValue())
+          .join(","),
+      ];
+    } else if (keyword === "VOLUME") {
+      const raw = instruction.getArgumentsContent()?.trim() ?? "";
+      if (raw.startsWith("[")) {
+        try {
+          const targets: unknown = JSON.parse(raw);
+          values = Array.isArray(targets)
+            ? targets.filter(
+                (target): target is string => typeof target === "string",
+              )
+            : [null];
+        } catch {
+          values = [null];
+        }
+      } else {
+        values = instruction
+          .getArguments()
+          .map((argument) => argument.getValue());
+      }
+    }
+    const line = instruction.getInstructionRange().start.line + 1;
+    for (const value of values) {
+      if (value !== null && value.length > 900) continue;
+      if (declarations.length >= limit + 1) break;
+      declarations.push({
+        adapter: "dockerfile",
+        kind: "config_directive",
+        name: dockerfileInstructionName({
+          instruction: keyword as z.infer<
+            typeof dockerfileInstructionSchema
+          >["instruction"],
+          stage: stage < 0 ? null : stage,
+          value,
+        }),
+        parent: stage < 0 ? null : `stage:${stage}`,
+        line,
+      });
+    }
+    if (declarations.length > limit) {
+      limitReached = true;
+      break;
+    }
+  }
+  return {
+    declarations: declarations.slice(0, limit),
+    limitations: [
+      `Dockerfile parseado estaticamente com parser de instruções; origem ${path}. Valores de RUN/CMD/ENTRYPOINT/HEALTHCHECK/COPY/ADD e outros corpos não são retidos. ARG/ENV retêm somente nomes; isso não valida frontend, expansão, imagem, contexto, segurança, construção ou runtime.`,
+      ...(limitReached
+        ? [
+            "Fatos Dockerfile adicionais foram omitidos pelo limite de recursos; a quantidade total não foi calculada.",
+          ]
+        : []),
+    ],
   };
 }
 
@@ -826,7 +932,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v12", path, sha256(source), limit],
+    ["pie-declarations-v13", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }
@@ -852,9 +958,13 @@ function readDeclarationsUncached(
   limit: number,
 ): AdapterRead | null {
   let parsed: AdapterRead;
-  if (/(?:^|\/)nginx(?:\.[^/]*)?\.conf$|(?:^|\/)nginx\/.*\.conf$/.test(path))
+  if (/(?:^|\/)Dockerfile(?:\.[^/]*)?$/i.test(path))
+    parsed = dockerfile(path, source, limit);
+  else if (
+    /(?:^|\/)nginx(?:\.[^/]*)?\.conf$|(?:^|\/)nginx\/.*\.conf$/.test(path)
+  )
     return readNginx(source, limit);
-  if (/(?:^|\/)routes\/.+\.php$/i.test(path))
+  else if (/(?:^|\/)routes\/.+\.php$/i.test(path))
     parsed = readLaravelDeclarations(path, source, limit);
   else if (/(?:^|\/)\.github\/workflows\/[^/]+\.ya?ml$/i.test(path))
     parsed = githubActionsWorkflow(source);

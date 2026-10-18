@@ -4,6 +4,7 @@ import { type Snapshot, PieError } from "./contracts.js";
 import { page, pageSchema } from "./graph.js";
 import {
   adapterFactSchema,
+  parseDockerfileInstructionName,
   parseComposeServiceSettingName,
 } from "./adapters/contracts.js";
 import { validateSnapshot } from "./snapshotIntegrity.js";
@@ -66,6 +67,22 @@ const componentSchema = z.strictObject({
         "inline_content_not_retained",
       ]),
       evidenceIds: z.array(z.string().uuid()).min(1),
+      dockerfileAnalysis: z.enum([
+        "unresolved",
+        "not_observed_in_snapshot",
+        "file_observed_no_supported_facts",
+        "static_facts_observed",
+        "inline_content_not_retained",
+      ]),
+      instructions: z.array(
+        z.strictObject({
+          instruction: z.string().min(1),
+          stage: z.number().int().nonnegative().nullable(),
+          line: z.number().int().positive(),
+          value: z.string().max(900).nullable(),
+          evidenceId: z.string().uuid(),
+        }),
+      ),
     }),
   ),
   redactionStatus: z.enum(["not_collected", "redacted", "not_required"]),
@@ -75,7 +92,7 @@ const componentSchema = z.strictObject({
 
 const measurement = z.literal("NOT_MEASURED");
 export const infrastructureOutput = z.strictObject({
-  schemaVersion: z.literal(4),
+  schemaVersion: z.literal(5),
   engine: z.literal("infrastructure"),
   snapshotId: z.string().uuid(),
   state: z.literal("unverified"),
@@ -156,6 +173,12 @@ function inventoryFacts(snapshot: Snapshot) {
   const composeFiles = snapshot.nodes.filter((node) =>
     /(?:^|\/)(?:docker-)?compose[^/]*\.ya?ml$/i.test(node.path),
   );
+  const dockerfileFacts = facts.flatMap((fact) => {
+    if (fact.adapter !== "dockerfile" || fact.kind !== "config_directive")
+      return [];
+    const instruction = parseDockerfileInstructionName(fact.name);
+    return instruction ? [{ fact, instruction }] : [];
+  });
   const evidenceById = new Map(
     snapshot.evidence.map((item) => [item.id, item]),
   );
@@ -215,6 +238,15 @@ function inventoryFacts(snapshot: Snapshot) {
           const matched = candidatePath
             ? snapshot.nodes.some((node) => node.path === candidatePath)
             : false;
+          const instructions = candidatePath
+            ? dockerfileFacts
+                .filter(({ fact }) => fact.source.path === candidatePath)
+                .map(({ fact, instruction }) => ({
+                  ...instruction,
+                  line: fact.source.line ?? 1,
+                  evidenceId: fact.evidenceId,
+                }))
+            : [];
           return {
             context: contextSetting.value,
             dockerfile,
@@ -226,6 +258,16 @@ function inventoryFacts(snapshot: Snapshot) {
                 : matched
                   ? ("observed_in_snapshot" as const)
                   : ("not_observed_in_snapshot" as const),
+            dockerfileAnalysis: inlineSetting
+              ? ("inline_content_not_retained" as const)
+              : !candidatePath
+                ? ("unresolved" as const)
+                : !matched
+                  ? ("not_observed_in_snapshot" as const)
+                  : instructions.length > 0
+                    ? ("static_facts_observed" as const)
+                    : ("file_observed_no_supported_facts" as const),
+            instructions,
             evidenceIds: [
               contextSetting.evidenceId,
               ...(dockerfileSetting
@@ -279,6 +321,7 @@ function inventoryFacts(snapshot: Snapshot) {
       composeServices.length +
       dependencies.length +
       settings.length +
+      dockerfileFacts.length +
       nginxFacts.length,
   };
 }
@@ -290,7 +333,7 @@ function reviewValidatedInfrastructure(
 ) {
   const { components, sourceFacts } = inventoryFacts(snapshot);
   return infrastructureOutput.parse({
-    schemaVersion: 4,
+    schemaVersion: 5,
     engine: "infrastructure",
     snapshotId: snapshot.id,
     state: "unverified",
@@ -313,7 +356,8 @@ function reviewValidatedInfrastructure(
       sourceFacts,
       runtimeMeasured: false,
       limitations: [
-        "Inventário limitado a fatos Compose/Nginx já parseados. Referências de build identificam contexto e Dockerfile declarados; caminhos locais só são resolvidos com um único arquivo Compose observado no snapshot. Dockerfile não observado não significa ausência; contextos externos, dinâmicos ou ambíguos ficam sem resolução. dockerfile_inline é indicado sem reter seu conteúdo. Nenhum Dockerfile é interpretado nem build executado.",
+        "Dockerfile é interpretado somente por instruções estáticas reconhecidas. Corpos de RUN/CMD/ENTRYPOINT/HEALTHCHECK/COPY/ADD não são retidos; nomes de ARG/ENV não incluem valores. Fatos não comprovam expansão, segurança, conteúdo da imagem, build, deploy ou runtime. Arquivos não observados, sem fatos ou sintaxe não suportada não comprovam ausência de instruções.",
+        "Referências de build identificam contexto e Dockerfile declarados; caminhos locais só são resolvidos com um único arquivo Compose observado no snapshot. Contextos externos, dinâmicos ou ambíguos ficam sem resolução; conteúdo de dockerfile_inline não é retido. Nenhum build é executado nem registry consultado.",
         "Limites/reservas e réplicas são valores declarados: não comprovam que Docker Compose/Swarm ou o host os aplicam. Também não se provam serviços ativos, relações de consumidores, funcionamento do healthcheck, persistência, exposição efetiva, segurança ou necessidade operacional.",
         "Métricas de CPU/RAM/disco/I/O/rede/latência p95/p99/reinícios são NOT_MEASURED; esta análise não executa Docker, carga ou comandos na aplicação-alvo.",
         ...(components.length === 0
