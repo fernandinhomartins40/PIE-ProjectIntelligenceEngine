@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { posix } from "node:path";
 import { PieError, type Snapshot } from "./contracts.js";
 import { page, pageSchema } from "./graph.js";
 import { inventoryPath } from "./inventoryPath.js";
@@ -605,14 +606,43 @@ function mutableGitDependencyFindings(
   const evidenceById = new Map(
     snapshot.evidence.map((item) => [item.id, item]),
   );
+  const lockFacts = new Set(
+    snapshot.declarations
+      .filter(
+        (fact) =>
+          fact.adapter === "npm-lockfile" &&
+          fact.kind === "config_directive" &&
+          fact.name.startsWith("dependency.git_reference_locked:") &&
+          currentFiles.has(fact.source.path),
+      )
+      .map((fact) =>
+        JSON.stringify([
+          posix.dirname(fact.source.path),
+          fact.parent,
+          fact.name.slice("dependency.git_reference_locked:".length),
+        ]),
+      ),
+  );
   const facts = snapshot.declarations.filter(
     (fact) =>
       fact.adapter === "node-manifest" &&
       fact.kind === "config_directive" &&
-      fact.name === "dependency.git_reference_unpinned" &&
+      fact.name.startsWith("dependency.git_reference_unpinned:") &&
       currentFiles.has(fact.source.path),
   );
-  const findings = facts.slice(0, remaining).flatMap((fact) => {
+  const eligibleFacts = facts.filter((fact) => {
+    const specDigest = fact.name.slice(
+      "dependency.git_reference_unpinned:".length,
+    );
+    return !lockFacts.has(
+      JSON.stringify([
+        posix.dirname(fact.source.path),
+        fact.parent,
+        specDigest,
+      ]),
+    );
+  });
+  const findings = eligibleFacts.slice(0, remaining).flatMap((fact) => {
     const evidence = evidenceById.get(fact.evidenceId);
     if (!evidence) return [];
     return [
@@ -627,16 +657,17 @@ function mutableGitDependencyFindings(
         state: "suspected",
         severity: "high",
         kind: "mutable_git_dependency_reference",
-        condition: `A dependência ${JSON.stringify(fact.parent)} usa uma referência Git sem hash completo de commit imutável.`,
+        condition: `A dependência ${JSON.stringify(fact.parent)} usa referência Git sem comprovação atual de pin npm correspondente.`,
         impact:
           "A resolução pode mudar entre instalações e permitir que conteúdo de terceiros seja alterado sem mudança no manifesto.",
         probability: "unassessed",
         source: { path: fact.source.path, line: fact.source.line },
         evidenceIds: [fact.evidenceId],
         observation:
-          "O parser do manifesto classificou a especificação Git como não fixada; o destino remoto não foi consultado.",
+          "O parser classificou a especificação Git como não fixada e não encontrou Evidence atual de resolução npm correspondente em SHA completo; o destino remoto não foi consultado.",
         uncertainty: [
-          "A análise não resolve tags/branches, não verifica o lockfile nem prova que a dependência será instalada ou executada.",
+          "Somente package-lock npm v2/v3 na mesma pasta, com spec de raiz idêntica e caminho direto, pode suprimir este padrão; outros formatos e aliases permanecem desconhecidos.",
+          "O hash resolvido no lockfile não foi buscado nem comparado ao objeto remoto e a dependência não foi instalada ou executada.",
           "Uma referência pode ser imutável por política externa; isso não é verificável localmente.",
         ],
         reproduction: [
@@ -652,7 +683,7 @@ function mutableGitDependencyFindings(
       }),
     ];
   });
-  return { findings, truncated: facts.length > findings.length };
+  return { findings, truncated: eligibleFacts.length > findings.length };
 }
 
 function workflowPermissionFindings(
@@ -785,7 +816,7 @@ function securityReport(
         "Rotas declaradas são inventário de escopo; não determinam se existe ou falta autorização e permanecem unverified sem testes negativos de runtime.",
         "AST JavaScript/TypeScript cobre somente chamadas diretas globais eval/Function; não realiza análise de fluxo, alcançabilidade ou outros sinks.",
         "Permissões GitHub Actions: somente write-all literal em arquivo atual que passou pelo hash da Evidence; configuração efetiva, eventos e permissões granulares permanecem fora da análise.",
-        "Supply chain: somente referências Git diretas reconhecidas no package.json sem SHA completo; lockfiles, resolução, conteúdo remoto e CVEs não são analisados.",
+        "Supply chain: referências Git diretas do package.json são comparadas apenas a package-lock npm v2/v3 atual, com spec raiz idêntica e resolução direta em SHA completo; outros lockfiles, aliases, workspaces, conteúdo remoto e CVEs não são analisados.",
         `Limites desta revisão: ${MAX_FILES} arquivos, ${MAX_FILE_BYTES} bytes por arquivo, ${MAX_TOTAL_BYTES} bytes no total e ${MAX_FINDINGS} suspeitas.`,
       ],
     },

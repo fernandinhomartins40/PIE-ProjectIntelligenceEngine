@@ -52,6 +52,8 @@ async function writeDependencyManifest(repo: string) {
       {
         dependencies: {
           mutable: "github:owner/repo#main",
+          lockedMutable: "github:owner/locked#main",
+          mismatchedLock: "github:owner/mismatch#main",
           pinned:
             "git+https://example.invalid/org/repo.git#0123456789abcdef0123456789abcdef01234567",
           pinnedSha256:
@@ -63,6 +65,56 @@ async function writeDependencyManifest(repo: string) {
       2,
     ) + "\n",
   );
+  await writeFile(
+    join(repo, "package-lock.json"),
+    JSON.stringify(
+      {
+        name: "fixture",
+        lockfileVersion: 3,
+        packages: {
+          "": {
+            dependencies: {
+              lockedMutable: "github:owner/locked#main",
+              mismatchedLock: "github:owner/mismatch#different",
+            },
+          },
+          "node_modules/lockedMutable": {
+            version: "1.0.0",
+            resolved:
+              "git+https://example.invalid/org/locked.git#0123456789abcdef0123456789abcdef01234567",
+          },
+          "node_modules/mismatchedLock": {
+            version: "1.0.0",
+            resolved:
+              "git+https://example.invalid/org/mismatch.git#0123456789abcdef0123456789abcdef01234567",
+          },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+}
+
+async function expectStaleLockNotToSuppress(
+  service: PieService,
+  repo: string,
+  snapshotId: string,
+) {
+  await writeFile(
+    join(repo, "package-lock.json"),
+    '{"lockfileVersion":3,"packages":{"":{"dependencies":{"lockedMutable":"github:owner/locked#main"}}}}\n',
+  );
+  const staleLock = await service.security({ snapshotId, limit: 20 });
+  expect(staleLock.findings.total).toBe(10);
+  expect(
+    staleLock.findings.items.some(
+      (finding) =>
+        finding.kind === "mutable_git_dependency_reference" &&
+        finding.condition.includes("lockedMutable"),
+    ),
+  ).toBe(true);
+  expect(staleLock.coverage.filesSkipped).toBe(3);
 }
 
 async function verifySecurityAdapters(input: {
@@ -139,7 +191,7 @@ async function verifySecurityFindings(
     engine: "security",
     state: "suspected_findings",
     findings: {
-      total: 11,
+      total: 12,
       items: [
         {
           category: "credential_like_material",
@@ -173,7 +225,7 @@ async function verifySecurityFindings(
       supplyChainPatterns: "partial",
       astFilesExamined: 4,
       astFilesSkipped: 0,
-      filesExamined: 8,
+      filesExamined: 9,
       filesSkipped: 0,
       runtime: false,
     },
@@ -248,7 +300,14 @@ async function verifySecurityFindings(
       }),
     ]),
   );
-  expect(allFindings.findings.items).toHaveLength(11);
+  expect(allFindings.findings.items).toHaveLength(12);
+  expect(
+    allFindings.findings.items.some(
+      (finding) =>
+        finding.kind === "mutable_git_dependency_reference" &&
+        finding.condition.includes("mismatchedLock"),
+    ),
+  ).toBe(true);
   expect(allFindings.findings.items[0]).toMatchObject({
     condition: expect.any(String),
     impact: expect.any(String),
@@ -368,7 +427,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
     const stale = await service.security({
       snapshotId: discovered.snapshot.id,
     });
-    expect(stale.findings.total).toBe(9);
+    expect(stale.findings.total).toBe(10);
     expect(
       stale.findings.items.every(
         (finding) => finding.source.path !== "config.ts",
@@ -387,7 +446,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       snapshotId: discovered.snapshot.id,
       limit: 20,
     });
-    expect(staleWorkflow.findings.total).toBe(8);
+    expect(staleWorkflow.findings.total).toBe(9);
     expect(
       staleWorkflow.findings.items.some(
         (finding) =>
@@ -396,6 +455,7 @@ it("detecta formatos de credencial sem revelar valores e compartilha CLI, API e 
       ),
     ).toBe(false);
     expect(staleWorkflow.coverage.filesSkipped).toBe(2);
+    await expectStaleLockNotToSuppress(service, repo, discovered.snapshot.id);
   } finally {
     await client.close();
     await mcp.close();

@@ -15,6 +15,7 @@ export const adapterFactSchema = z.strictObject({
   adapter: z.enum([
     "node-manifest",
     "composer-manifest",
+    "npm-lockfile",
     "compose",
     "openapi",
     "prisma-schema",

@@ -66,7 +66,7 @@ function manifest(path: string, source: string): AdapterRead {
         declarations.push({
           adapter,
           kind: "config_directive",
-          name: "dependency.git_reference_unpinned",
+          name: `dependency.git_reference_unpinned:${sha256(specification)}`,
           parent: `${group}:${name}`,
           line: fieldLine(group, name),
         });
@@ -85,17 +85,86 @@ function manifest(path: string, source: string): AdapterRead {
     declarations,
     limitations: [
       "Dependências e scripts declarados não comprovam instalação, uso ou execução. Linhas JSON vêm da árvore sintática da propriedade.",
-      "Referências Git são classificadas somente para dependências diretas do package.json e sem hash completo literal; lockfiles, workspaces e resolução do gerenciador não são analisados.",
+      "Referências Git são classificadas somente para dependências diretas do package.json e sem hash completo literal; o manifesto isolado não comprova a resolução final do gerenciador.",
     ],
   };
 }
 
 function isMutableGitDependency(specification: string): boolean {
-  const gitReference =
-    /^(?:git\+|git:|github:|gitlab:|bitbucket:|gist:)/iu.test(specification);
-  if (!gitReference) return false;
+  if (!isGitDependency(specification)) return false;
   const fragment = specification.split("#", 2)[1];
   return !/^[0-9a-f]{40}(?:[0-9a-f]{24})?$/iu.test(fragment ?? "");
+}
+
+function isGitDependency(specification: string): boolean {
+  return /^(?:git\+|git:|github:|gitlab:|bitbucket:|gist:)/iu.test(
+    specification,
+  );
+}
+
+function npmLockfile(source: string): AdapterRead {
+  let parsedValue: unknown;
+  try {
+    parsedValue = JSON.parse(source);
+  } catch (cause) {
+    if (cause instanceof SyntaxError)
+      throw new AdapterParseFailure("invalid_syntax");
+    throw cause;
+  }
+  const parsed = object(parsedValue);
+  if (!parsed) throw new AdapterParseFailure("invalid_structure");
+  if (parsed.lockfileVersion !== 2 && parsed.lockfileVersion !== 3)
+    return {
+      declarations: [],
+      limitations: [
+        "Somente package-lock npm v2/v3 é analisado para resolução Git; versões diferentes permanecem desconhecidas.",
+      ],
+    };
+  const packages = object(parsed.packages);
+  const root = object(packages?.[""]);
+  const tree = parseTree(source);
+  if (!tree) throw new Error("Missing JSON syntax tree");
+  const fieldLine = (segments: string[]) => {
+    const node = findNodeAtLocation(tree, segments);
+    return source
+      .slice(0, node?.parent?.offset ?? node?.offset ?? 0)
+      .split("\n").length;
+  };
+  const declarations: Declaration[] = [];
+  for (const group of [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
+    const dependencies = object(root?.[group]);
+    if (!dependencies) continue;
+    for (const [name, specification] of Object.entries(dependencies)) {
+      if (
+        typeof specification !== "string" ||
+        !isMutableGitDependency(specification)
+      )
+        continue;
+      const packagePath = `node_modules/${name}`;
+      const resolved = object(packages?.[packagePath])?.resolved;
+      if (typeof resolved !== "string" || !isGitDependency(resolved)) continue;
+      const commit = resolved.split("#", 2)[1] ?? "";
+      if (!/^[0-9a-f]{40}(?:[0-9a-f]{24})?$/iu.test(commit)) continue;
+      declarations.push({
+        adapter: "npm-lockfile",
+        kind: "config_directive",
+        name: `dependency.git_reference_locked:${sha256(specification)}`,
+        parent: `${group}:${name}`,
+        line: fieldLine(["packages", "", packagePath, "resolved"]),
+      });
+    }
+  }
+  return {
+    declarations,
+    limitations: [
+      "Somente package-lock npm v2/v3 com spec raiz idêntica e resolução direta Git em SHA completo pode confirmar pinning; aliases, workspaces e resolução final não são analisados.",
+    ],
+  };
 }
 
 function structured(path: string, source: string): AdapterRead {
@@ -580,7 +649,7 @@ export function readDeclarations(
   limit: number,
 ): AdapterRead | null {
   return cachedAnalysis(
-    ["pie-declarations-v10", path, sha256(source), limit],
+    ["pie-declarations-v11", path, sha256(source), limit],
     () => readDeclarationsUncached(path, source, limit),
   );
 }
@@ -614,6 +683,8 @@ function readDeclarationsUncached(
     parsed = githubActionsWorkflow(source);
   else if (/(?:^|\/)(package|composer)\.json$/.test(path))
     parsed = manifest(path, source);
+  else if (/(?:^|\/)package-lock\.json$/.test(path))
+    parsed = npmLockfile(source);
   else if (
     /(?:^|\/)(?:(?:docker-)?compose[^/]*\.ya?ml|(?:openapi|swagger)[^/]*\.(?:json|ya?ml))$/i.test(
       path,
