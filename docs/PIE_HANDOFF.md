@@ -524,6 +524,8 @@ Continuidade do T1.1: motor de produto/UX recebeu `assessProductResult`; a front
 
 Continuidade T1.1/T4.3: motor de segurança agora expõe `reviewSecurityResult` assíncrono e consome-o pelo `PieService`; falhas de entrada/snapshot/identidade são tags, enquanto falhas internas do scanner não são ocultadas. `pieSecurityReview` e `pieAdapters` passaram 13/13. `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. Findings continuam suspeitos e redigidos conforme o contrato.
 
+Continuidade T1.1/T4.5: `compareVerificationRunsResult` tipa schema inválido, cada histórico inconsistente e recusa por escopo/ordem. A fronteira do serviço preserva a leitura dos mesmos registros persistidos e o comparador não reexecuta runs. `pieRegressionResults` passou 2/2; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram.
+
 ## Continuidade — Result em revisão de dados — 17/10/2026
 
 `reviewDataResult` adiciona tags para input, snapshot e identidade divergentes; somente falhas esperadas são convertidas e erros internos continuam propagando. `PieService` converte as tags para erros do domínio e mantém os contratos CLI/API/MCP. `npm.cmd run test:focused -- tests/boundary/pieDataReview.test.ts tests/boundary/pieUnifiedPlan.test.ts` passou: 2 arquivos, 3 testes. Build PIE, `check:fast`, `format:check` e `docs:check` também passaram. T1.1 segue parcial; não declarar uniformidade global.

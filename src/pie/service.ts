@@ -50,7 +50,7 @@ import {
 import { comparePlanPriority } from "./planPriority.js";
 import { httpGrantSchema, probeLocalHttp } from "./execution/httpProbe.js";
 import {
-  compareVerificationRuns,
+  compareVerificationRunsResult,
   verificationComparisonInput,
 } from "./regressionResults.js";
 import { exportVerification as renderVerificationExport } from "./execution/runExport.js";
@@ -141,6 +141,20 @@ function securityValue(
   if (result.error.kind === "policy_denied")
     throw new PieError("INVALID_INPUT", "Snapshot de segurança diverge.");
   throw new PieError("INVALID_INPUT", "Entrada de segurança inválida.");
+}
+
+function verificationComparisonValue(
+  result: ReturnType<typeof compareVerificationRunsResult>,
+) {
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_run")
+    throw new PieError("INTEGRITY_ERROR", "Registro de execucao invalido.");
+  throw new PieError(
+    "INVALID_INPUT",
+    result.error.kind === "policy_denied"
+      ? "Execucoes devem ser distintas, ordenadas e pertencer ao mesmo projeto e raiz."
+      : "Entrada de comparacao de execucoes invalida.",
+  );
 }
 
 function discoveryValue(
@@ -375,19 +389,36 @@ export class PieService {
   }
   verificationComparison(input: unknown) {
     return this.#read(async () => {
-      const request = verificationComparisonInput.parse(input);
-      const before = await this.store.verification(request.beforeRunId);
-      const after = await this.store.verification(request.afterRunId);
+      const beforeRunId =
+        verificationComparisonInput.shape.beforeRunId.safeParse(
+          typeof input === "object" && input !== null
+            ? (input as { beforeRunId?: unknown }).beforeRunId
+            : undefined,
+        );
+      const afterRunId = verificationComparisonInput.shape.afterRunId.safeParse(
+        typeof input === "object" && input !== null
+          ? (input as { afterRunId?: unknown }).afterRunId
+          : undefined,
+      );
+      if (!beforeRunId.success || !afterRunId.success)
+        throw new PieError(
+          "INVALID_INPUT",
+          "Entrada de comparacao de execucoes invalida.",
+        );
+      const before = await this.store.verification(beforeRunId.data);
+      const after = await this.store.verification(afterRunId.data);
       const [beforeSnapshot, afterSnapshot] = await Promise.all([
         this.store.snapshot(before.snapshotId),
         this.store.snapshot(after.snapshotId),
       ]);
-      return compareVerificationRuns(
-        before,
-        beforeSnapshot,
-        after,
-        afterSnapshot,
-        request,
+      return verificationComparisonValue(
+        compareVerificationRunsResult(
+          before,
+          beforeSnapshot,
+          after,
+          afterSnapshot,
+          input,
+        ),
       );
     });
   }

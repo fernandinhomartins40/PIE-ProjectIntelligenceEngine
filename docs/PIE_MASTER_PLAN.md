@@ -507,6 +507,10 @@ T4.3 adiciona fato produzido pelo parser YAML de `.github/workflows/*.yml|yaml` 
 
 `reviewSecurityResult` classifica entrada inválida, snapshot inválido e divergência de identidade; falhas internas da leitura, AST e validação de saída continuam propagando. O `PieService` usa a fronteira assíncrona antes da conversão para erro de domínio. O scanner mantém as regras de Evidence/hash, redaction e limites existentes; não amplia cobertura nem afirma validade de findings suspeitos. `pieSecurityReview` e `pieAdapters` passaram 13/13; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1/T4.3 seguem parciais.
 
+## Result tipado na comparação de regressão — 17/10/2026
+
+`compareVerificationRunsResult` diferencia entrada inválida, histórico de run inconsistente (com lado identificado) e política de comparação recusada. Run e Evidence continuam validados antes da comparação; falhas internas ao montar/validar a saída não são capturadas. `PieService` consome o Result e mantém a saída compartilhada. `pieRegressionResults` passou 2/2; `pie:build`, `check:fast`, `docs:check`, `format:check` e `git diff --check` passaram. T1.1/T4.5 permanecem parciais.
+
 ## Result tipado na revisão de dados — 17/10/2026
 
 `reviewDataResult` separa entrada inválida, snapshot inválido e divergência de snapshot em falhas tagged; erros inesperados seguem propagando. `PieService.dataReview` valida o identificador necessário à leitura, usa a fronteira Result para o contrato completo e traduz falhas para `PieError` estável; o wrapper de domínio preserva o consumidor de planejamento. `pieDataReview` e `pieUnifiedPlan`: 3/3 passaram com Git/SQLite locais e paridade CLI/API/MCP. T1.1 continua parcial: Result ainda não é uniforme nos demais engines, adapters e runners.

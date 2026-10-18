@@ -6,6 +6,7 @@ import { page, pageSchema } from "./graph.js";
 import { pagedOutput } from "./outputContracts.js";
 import type { VerificationRun } from "./execution/runContracts.js";
 import { validateVerificationRun } from "./execution/runIntegrity.js";
+import { err, ok, type Result } from "../domain/result.js";
 
 export const verificationComparisonInput = pageSchema.extend({
   beforeRunId: z.string().uuid(),
@@ -190,30 +191,13 @@ function sameSet(left: Set<string>, right: Set<string>): boolean {
 }
 
 /** Compares only uniquely matched Node cases from immutable, same-project runs. */
-export function compareVerificationRuns(
-  beforeInput: unknown,
+function compareVerifiedRuns(
+  before: VerificationRun,
   beforeSnapshot: Snapshot,
-  afterInput: unknown,
+  after: VerificationRun,
   afterSnapshot: Snapshot,
-  rawInput: unknown,
+  input: z.infer<typeof verificationComparisonInput>,
 ) {
-  const input = verificationComparisonInput.parse(rawInput);
-  const before = validateVerificationRun(beforeInput, beforeSnapshot);
-  const after = validateVerificationRun(afterInput, afterSnapshot);
-  if (
-    before.id === after.id ||
-    before.id !== input.beforeRunId ||
-    after.id !== input.afterRunId ||
-    before.projectId !== after.projectId ||
-    beforeSnapshot.root !== afterSnapshot.root ||
-    Date.parse(before.completedAt) > Date.parse(after.completedAt) ||
-    Date.parse(beforeSnapshot.createdAt) > Date.parse(afterSnapshot.createdAt)
-  )
-    throw new PieError(
-      "INVALID_INPUT",
-      "Execuções devem ser distintas, ordenadas e pertencer ao mesmo projeto e raiz.",
-    );
-
   const beforeFiles = authorizedFiles(before);
   const afterFiles = authorizedFiles(after);
   const limitations = [
@@ -438,4 +422,92 @@ export function compareVerificationRuns(
       limitations,
     },
   });
+}
+
+export type VerificationComparisonFailure =
+  | { kind: "invalid_input" }
+  | { kind: "invalid_run"; side: "before" | "after" }
+  | { kind: "policy_denied"; reason: "comparison_scope" };
+
+/** Expected request, history, and comparison-scope rejections are tagged. */
+export function compareVerificationRunsResult(
+  beforeInput: unknown,
+  beforeSnapshot: Snapshot,
+  afterInput: unknown,
+  afterSnapshot: Snapshot,
+  rawInput: unknown,
+): Result<
+  ReturnType<typeof verificationComparisonOutput.parse>,
+  VerificationComparisonFailure
+> {
+  const input = verificationComparisonInput.safeParse(rawInput);
+  if (!input.success) return err({ kind: "invalid_input" });
+
+  let before: VerificationRun;
+  try {
+    before = validateVerificationRun(beforeInput, beforeSnapshot);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_run", side: "before" });
+    throw cause;
+  }
+  let after: VerificationRun;
+  try {
+    after = validateVerificationRun(afterInput, afterSnapshot);
+  } catch (cause) {
+    if (
+      cause instanceof z.ZodError ||
+      (cause instanceof PieError && cause.code === "INTEGRITY_ERROR")
+    )
+      return err({ kind: "invalid_run", side: "after" });
+    throw cause;
+  }
+  if (
+    before.id === after.id ||
+    before.id !== input.data.beforeRunId ||
+    after.id !== input.data.afterRunId ||
+    before.projectId !== after.projectId ||
+    beforeSnapshot.root !== afterSnapshot.root ||
+    Date.parse(before.completedAt) > Date.parse(after.completedAt) ||
+    Date.parse(beforeSnapshot.createdAt) > Date.parse(afterSnapshot.createdAt)
+  )
+    return err({ kind: "policy_denied", reason: "comparison_scope" });
+
+  return ok(
+    compareVerifiedRuns(
+      before,
+      beforeSnapshot,
+      after,
+      afterSnapshot,
+      input.data,
+    ),
+  );
+}
+
+export function compareVerificationRuns(
+  beforeInput: unknown,
+  beforeSnapshot: Snapshot,
+  afterInput: unknown,
+  afterSnapshot: Snapshot,
+  rawInput: unknown,
+) {
+  const result = compareVerificationRunsResult(
+    beforeInput,
+    beforeSnapshot,
+    afterInput,
+    afterSnapshot,
+    rawInput,
+  );
+  if (result.ok) return result.value;
+  if (result.error.kind === "invalid_run")
+    throw new PieError("INTEGRITY_ERROR", "Registro de execucao invalido.");
+  throw new PieError(
+    "INVALID_INPUT",
+    result.error.kind === "policy_denied"
+      ? "Execucoes devem ser distintas, ordenadas e pertencer ao mesmo projeto e raiz."
+      : "Entrada de comparacao de execucoes invalida.",
+  );
 }

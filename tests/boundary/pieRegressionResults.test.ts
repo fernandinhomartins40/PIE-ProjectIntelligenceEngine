@@ -24,8 +24,51 @@ import {
 } from "../../src/pie/execution/runEvidence.js";
 import { validateVerificationRun } from "../../src/pie/execution/runIntegrity.js";
 import { openStore } from "../../src/pie/store.js";
+import { compareVerificationRunsResult } from "../../src/pie/regressionResults.js";
 
 const exec = promisify(execFile);
+
+function expectComparisonFailureTags(
+  beforeRun: unknown,
+  beforeSnapshot: Snapshot,
+  afterRun: unknown,
+  afterSnapshot: Snapshot,
+  input: { beforeRunId: string; afterRunId: string; limit: number },
+) {
+  expect(
+    compareVerificationRunsResult(
+      beforeRun,
+      beforeSnapshot,
+      afterRun,
+      afterSnapshot,
+      { ...input, limit: -1 },
+    ),
+  ).toEqual({ ok: false, error: { kind: "invalid_input" } });
+  expect(
+    compareVerificationRunsResult(
+      {},
+      beforeSnapshot,
+      afterRun,
+      afterSnapshot,
+      input,
+    ),
+  ).toEqual({
+    ok: false,
+    error: { kind: "invalid_run", side: "before" },
+  });
+  expect(
+    compareVerificationRunsResult(
+      beforeRun,
+      beforeSnapshot,
+      afterRun,
+      afterSnapshot,
+      { ...input, beforeRunId: input.afterRunId },
+    ),
+  ).toEqual({
+    ok: false,
+    error: { kind: "policy_denied", reason: "comparison_scope" },
+  });
+}
 const image = `node@sha256:${"b".repeat(64)}`;
 let nextRunTime = Date.now();
 
@@ -403,6 +446,13 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
       afterRunId: afterRun.id,
       limit: 1,
     };
+    expectComparisonFailureTags(
+      beforeRun,
+      beforeSnapshot,
+      afterRun,
+      afterSnapshot,
+      input,
+    );
     const expected = await service.verificationComparison(input);
     expect(expected).toMatchObject({
       schemaVersion: 2,
