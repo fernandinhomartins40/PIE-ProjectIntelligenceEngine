@@ -218,6 +218,34 @@ export class SqliteJobQueue implements JobQueue {
       return true;
     });
   }
+  interrupt(id: string, token: string, errorCode: string): boolean {
+    return this.#transaction(() => {
+      const job = this.get(id);
+      const now = this.now();
+      if (
+        job.leaseToken !== token ||
+        !["running", "cancelling"].includes(job.state) ||
+        (job.leaseUntil ?? 0) <= now
+      )
+        return false;
+      const cancelled = job.state === "cancelling";
+      const retry =
+        !cancelled &&
+        job.kind === "discovery" &&
+        job.attempts < job.maxAttempts;
+      this.#write({
+        ...job,
+        state: cancelled ? "cancelled" : retry ? "queued" : "failed",
+        result: null,
+        errorCode: cancelled ? "CANCELLED" : errorCode,
+        owner: null,
+        leaseToken: null,
+        leaseUntil: null,
+        updatedAt: now,
+      });
+      return true;
+    });
+  }
   cancel(id: string): Job {
     return this.#transaction(() => {
       const job = this.get(id);

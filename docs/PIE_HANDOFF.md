@@ -774,3 +774,7 @@ HEAD/`origin/main` `cd4e4fac4`. GitHub Actions: CI #252 do commit anterior apare
 ## T1.3 — causas distintas de interrupção — 18/10/2026
 
 `JobWorker` não colapsa mais timeout, perda de lease/heartbeat e encerramento em `ABORTED_OR_TIMEOUT`; persiste `JOB_TIMEOUT`, `LEASE_LOST`, `HEARTBEAT_FAILED`, `WORKER_SHUTDOWN` ou `ABORTED`. `CANCELLED` da fila preserva precedência. Boundary SQLite real passou 10 testes: deadline, shutdown, perda de lease e erro do heartbeat foram exercitados; 1 caso Linux-only foi skipped. `check:fast`, `format:check` e diff check passaram. Próxima tarefa T1.3: definir/validar retomada idempotente após shutdown sem publicar resultado duplicado, inclusive worker concorrente e PostgreSQL.
+
+## T1.3 - retomada apos shutdown - 18/10/2026
+
+Interrupcao graciosa do worker agora libera o lease de discovery atomicamente e faz requeue somente dentro de maxAttempts. Token obsoleto ou lease expirada nao alteram job reassumido; cancelamento concorrente prevalece. Verification nao tem replay automatico. SQLite real passou 10 testes com 1 skip Linux-only e comprovou a proxima tentativa por um novo worker. Foi adicionado teste PostgreSQL real para token obsoleto e retomada por peer, mas nao executado porque PIE_TEST_DATABASE_URL esta indisponivel; a boundary foi skipped. check:fast passou. Proximo: executar a boundary PostgreSQL em banco dedicado e continuar recuperacao/isolamento dos runners e validacao POSIX.

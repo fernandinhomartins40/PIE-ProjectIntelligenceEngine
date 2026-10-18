@@ -179,13 +179,16 @@ export class JobWorker {
           : cause instanceof PieError
             ? cause.code
             : "WORKFLOW_FAILED";
-      await this.queue.finish(
-        job.id,
-        job.leaseToken!,
-        cancelled ? "cancelled" : "failed",
-        {},
-        errorCode,
-      );
+      if (!cancelled && errorCode === "WORKER_SHUTDOWN")
+        await this.queue.interrupt(job.id, job.leaseToken!, errorCode);
+      else
+        await this.queue.finish(
+          job.id,
+          job.leaseToken!,
+          cancelled ? "cancelled" : "failed",
+          {},
+          errorCode,
+        );
     } finally {
       clearInterval(heartbeat);
       clearTimeout(timeout);

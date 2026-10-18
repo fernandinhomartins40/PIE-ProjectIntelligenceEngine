@@ -185,6 +185,42 @@ export class PostgresJobQueue implements JobQueue {
       return true;
     });
   }
+  async interrupt(
+    id: string,
+    token: string,
+    errorCode: string,
+  ): Promise<boolean> {
+    return this.#client.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id::text FROM pie_jobs WHERE id=${id}::uuid FOR UPDATE`;
+      const row = await tx.job.findUnique({ where: { id } });
+      const now = await this.#now(tx);
+      if (
+        !row ||
+        row.leaseToken !== token ||
+        !["running", "cancelling"].includes(row.state) ||
+        (row.leaseUntil ?? 0n) <= now
+      )
+        return false;
+      const cancelled = row.state === "cancelling";
+      const retry =
+        !cancelled &&
+        row.kind === "discovery" &&
+        row.attempts < row.maxAttempts;
+      await tx.job.update({
+        where: { id },
+        data: {
+          state: cancelled ? "cancelled" : retry ? "queued" : "failed",
+          result: Prisma.DbNull,
+          errorCode: cancelled ? "CANCELLED" : errorCode,
+          owner: null,
+          leaseToken: null,
+          leaseUntil: null,
+          updatedAt: now,
+        },
+      });
+      return true;
+    });
+  }
   async cancel(id: string): Promise<Job> {
     return this.#client.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id::text FROM pie_jobs WHERE id=${id}::uuid FOR UPDATE`;

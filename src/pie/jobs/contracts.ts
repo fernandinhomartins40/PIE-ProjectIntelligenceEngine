@@ -91,6 +91,8 @@ export interface JobQueue {
     result?: object,
     errorCode?: string,
   ): Awaitable<boolean>;
+  /** Releases an interrupted lease; only retry-safe discovery may be requeued. */
+  interrupt(id: string, token: string, errorCode: string): Awaitable<boolean>;
   cancel(id: string): Awaitable<Job>;
   close(): Awaitable<void>;
 }

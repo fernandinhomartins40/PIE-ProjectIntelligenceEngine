@@ -71,6 +71,53 @@ async function verifyInterruptedJob(
   ).toBe(false);
 }
 
+async function verifyDiscoveryShutdownRetry(
+  queue: PostgresJobQueue,
+  peerQueue: PostgresJobQueue,
+  repositoryRoot: string,
+) {
+  const interrupted = await queue.enqueue({
+    idempotencyKey: randomUUID(),
+    kind: "discovery",
+    payload: {
+      repositoryRoot,
+      profile: "OBSERVE",
+      environment: "local",
+    },
+  });
+  const claim = await queue.claim("pg-shutdown", 5000);
+  expect(claim?.id).toBe(interrupted.id);
+  expect(
+    await peerQueue.interrupt(interrupted.id, "stale-token", "WORKER_SHUTDOWN"),
+  ).toBe(false);
+  expect(
+    await queue.interrupt(
+      interrupted.id,
+      claim!.leaseToken!,
+      "WORKER_SHUTDOWN",
+    ),
+  ).toBe(true);
+  expect(await peerQueue.get(interrupted.id)).toMatchObject({
+    state: "queued",
+    attempts: 1,
+    errorCode: "WORKER_SHUTDOWN",
+    owner: null,
+    leaseToken: null,
+  });
+  const retryClaim = await peerQueue.claim("pg-retry", 5000);
+  expect(retryClaim?.id).toBe(interrupted.id);
+  expect(
+    await queue.finish(interrupted.id, retryClaim!.leaseToken!, "succeeded", {
+      retried: true,
+    }),
+  ).toBe(true);
+  expect(await queue.get(interrupted.id)).toMatchObject({
+    state: "succeeded",
+    attempts: 2,
+    result: { retried: true },
+  });
+}
+
 async function verifyPostgresHttpProbe(details: {
   store: PostgresPieStore;
   peer: PostgresPieStore;
@@ -307,6 +354,7 @@ it.skipIf(!url)(
         state: "cancelled",
         result: null,
       });
+      await verifyDiscoveryShutdownRetry(queue, peerQueue, repo);
       await verifyInterruptedJob(queue, peerQueue, pool, snapshot);
     } finally {
       await Promise.all([

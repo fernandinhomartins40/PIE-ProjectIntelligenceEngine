@@ -376,11 +376,38 @@ it.each([
           throw new Error("database unavailable");
         };
       await running;
-      expect(queue.get(job.id)).toMatchObject({
-        state: "failed",
-        result: null,
-        errorCode: expectedCode,
-      });
+      if (_scenario === "shutdown") {
+        expect(queue.get(job.id)).toMatchObject({
+          state: "queued",
+          attempts: 1,
+          result: null,
+          errorCode: expectedCode,
+          owner: null,
+          leaseToken: null,
+        });
+        service.discover = async () =>
+          ({}) as Awaited<ReturnType<PieService["discover"]>>;
+        const retryingWorker = new JobWorker(queue, repo, {
+          kind: "discovery",
+          service,
+        });
+        try {
+          expect(await retryingWorker.runOnce()).toBe(true);
+          expect(queue.get(job.id)).toMatchObject({
+            state: "succeeded",
+            attempts: 2,
+            errorCode: null,
+          });
+        } finally {
+          await retryingWorker.close();
+        }
+      } else {
+        expect(queue.get(job.id)).toMatchObject({
+          state: "failed",
+          result: null,
+          errorCode: expectedCode,
+        });
+      }
     } finally {
       await worker.close();
       await service.close();
@@ -458,6 +485,58 @@ it("fila real persiste, usa leases, recupera após perda de worker e impede resu
     expect(reopened.enqueue(input).state).toBe("cancelled");
   } finally {
     reopened.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("interrupcao respeita limite de tentativas e cancelamento concorrente", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-interrupt-"));
+  const queue = new SqliteJobQueue(join(root, "jobs.sqlite"));
+  try {
+    const terminal = queue.enqueue({
+      idempotencyKey: "terminal-interruption",
+      kind: "discovery",
+      maxAttempts: 1,
+      payload: {
+        profile: "OBSERVE",
+        environment: "local",
+        repositoryRoot: root,
+      },
+    });
+    const claim = queue.claim("worker", 500)!;
+    expect(
+      queue.interrupt(terminal.id, claim.leaseToken!, "WORKER_SHUTDOWN"),
+    ).toBe(true);
+    expect(queue.get(terminal.id)).toMatchObject({
+      state: "failed",
+      attempts: 1,
+      result: null,
+      errorCode: "WORKER_SHUTDOWN",
+    });
+
+    const cancelled = queue.enqueue({
+      idempotencyKey: "cancelled-interruption",
+      kind: "discovery",
+      payload: {
+        profile: "OBSERVE",
+        environment: "local",
+        repositoryRoot: root,
+      },
+    });
+    const cancelClaim = queue.claim("worker", 500)!;
+    expect(cancelClaim.id).toBe(cancelled.id);
+    expect(queue.cancel(cancelled.id).state).toBe("cancelling");
+    expect(
+      queue.interrupt(cancelled.id, cancelClaim.leaseToken!, "WORKER_SHUTDOWN"),
+    ).toBe(true);
+    expect(queue.get(cancelled.id)).toMatchObject({
+      state: "cancelled",
+      attempts: 1,
+      result: null,
+      errorCode: "CANCELLED",
+    });
+  } finally {
+    queue.close();
     await rm(root, { recursive: true, force: true });
   }
 });
