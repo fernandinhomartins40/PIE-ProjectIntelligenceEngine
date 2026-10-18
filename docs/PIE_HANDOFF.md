@@ -567,3 +567,7 @@ Parser YAML produz facts para `uses` remoto em job reutilizável e em steps sem 
 ## Integridade das arestas de import — T2.2/T1.1 — 18/10/2026
 
 `validateSnapshot` exige uma prova AST única por aresta `depends`, Evidence estática derivada, arquivo de origem compatível e, para pacote declarado, prova adicional do manifest. A mesma prova não pode sustentar duas arestas `depends`; uso adicional em `calls` Express é válido. `pieExpressCrossFile`, `pieTrace` e `pieAdapters`: 21/21 passaram com Git/SQLite. Imports omitidos por orçamento permanecem cobertura parcial; sem execução ou alegação de grafo completo.
+
+## Impacto de mudanças — T2.4 — 18/10/2026
+
+`pie_change_impact` schemaVersion 2 separa nó alterado (`changed`) de dependente alcançado e expõe `relationEvidenceIds` das arestas registradas em cada snapshot. `pieComparison`, API autenticada e MCP/CLI passaram 6/6; nenhuma inferência runtime ou dependência fora do grafo observado. Cache por commit e incremental persistente continuam pendentes.

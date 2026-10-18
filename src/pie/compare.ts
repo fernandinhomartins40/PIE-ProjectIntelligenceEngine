@@ -33,10 +33,12 @@ export const impactSchema = z.strictObject({
   path: z.string(),
   nodeId: z.string(),
   versions: z.array(z.enum(["before", "after"])),
-  evidenceIds: z.array(z.string().uuid()),
+  changed: z.boolean(),
+  evidenceIds: z.array(z.string().uuid()).min(1),
+  relationEvidenceIds: z.array(z.string().uuid()),
 });
 export const comparisonOutput = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   projectId: z.string().uuid(),
   beforeId: z.string().uuid(),
   afterId: z.string().uuid(),
@@ -129,19 +131,51 @@ export function compareSnapshots(
     const seeds = changes.flatMap((change) =>
       change[version] ? [change[version]!.nodeId] : [],
     );
-    for (const node of impactedNodes(snapshot.nodes, snapshot.edges, seeds)) {
+    const changedIds = new Set(seeds);
+    const reverse = new Map<
+      string,
+      Array<{ from: string; evidenceIds: string[] }>
+    >();
+    for (const edge of snapshot.edges) {
+      if (!["depends", "calls", "covers"].includes(edge.kind)) continue;
+      const sources = reverse.get(edge.to) ?? [];
+      sources.push({ from: edge.from, evidenceIds: edge.evidenceIds });
+      reverse.set(edge.to, sources);
+    }
+    const reached = impactedNodes(snapshot.nodes, snapshot.edges, seeds);
+    const reachedIds = new Set(reached.map((node) => node.id));
+    const relationEvidence = new Map<string, Set<string>>();
+    for (const [targetId, dependents] of reverse)
+      if (reachedIds.has(targetId))
+        for (const edge of dependents)
+          if (reachedIds.has(edge.from)) {
+            const found = relationEvidence.get(edge.from) ?? new Set<string>();
+            for (const id of edge.evidenceIds) found.add(id);
+            relationEvidence.set(edge.from, found);
+          }
+    for (const node of reached) {
+      const changed = changedIds.has(node.id);
+      const relationEvidenceIds = changed
+        ? []
+        : [...(relationEvidence.get(node.id) ?? [])];
       const existing = impact.get(node.path);
       if (existing) {
         existing.versions.push(version);
         existing.evidenceIds = [
           ...new Set([...existing.evidenceIds, ...node.evidenceIds]),
         ];
+        existing.changed ||= changed;
+        existing.relationEvidenceIds = [
+          ...new Set([...existing.relationEvidenceIds, ...relationEvidenceIds]),
+        ];
       } else
         impact.set(node.path, {
           path: node.path,
           nodeId: node.id,
           versions: [version],
+          changed,
           evidenceIds: [...node.evidenceIds],
+          relationEvidenceIds,
         });
     }
   }
@@ -168,7 +202,7 @@ export function compareSnapshots(
         ? "inconclusive"
         : "unchanged";
   return comparisonOutput.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     projectId: before.projectId,
     beforeId: before.id,
     afterId: after.id,

@@ -244,26 +244,61 @@ it("compara versões reais, preserva arestas removidas e não confirma exclusão
       environment: "local",
     };
     const first = await service.discover(policy);
-    await writeFile(join(repo, "page.ts"), "export const page = true;");
     await writeFile(join(repo, "service.ts"), "export const value = 2;");
     const second = await service.discover(policy);
+    const beforeSnapshot = await store.snapshot(first.snapshot.id);
+    const afterSnapshot = await store.snapshot(second.snapshot.id);
     const comparison = await service.compare({
       beforeId: first.snapshot.id,
       afterId: second.snapshot.id,
       limit: 1,
     });
     expect(comparison.status).toBe("changed");
-    expect(comparison.counts.modified).toBe(2);
-    expect(comparison.changes.nextOffset).toBe(1);
+    expect(comparison.counts.modified).toBe(1);
+    expect(comparison.changes.nextOffset).toBeNull();
     expect(comparison.runtimeVerified).toBe(false);
     const all = await service.compare({
       beforeId: first.snapshot.id,
       afterId: second.snapshot.id,
     });
-    expect(all.impact.items.map((item) => item.path)).toContain("page.ts");
+    expect(all).toMatchObject({ schemaVersion: 2 });
+    const changedFile = all.impact.items.find(
+      (item) => item.path === "service.ts" && item.changed,
+    );
+    expect(changedFile?.evidenceIds).toHaveLength(2);
+    expect(changedFile?.relationEvidenceIds).toEqual([]);
+    const dependent = all.impact.items.find((item) => item.path === "page.ts");
+    expect(dependent).toMatchObject({
+      changed: false,
+      versions: ["before", "after"],
+    });
+    expect(dependent?.evidenceIds.length).toBeGreaterThan(0);
+    expect(dependent?.relationEvidenceIds.length).toBeGreaterThan(0);
+    const pageImport = beforeSnapshot.edges.find(
+      (edge) =>
+        edge.kind === "depends" &&
+        beforeSnapshot.nodes.find((node) => node.id === edge.from)?.path ===
+          "page.ts" &&
+        beforeSnapshot.nodes.find((node) => node.id === edge.to)?.path ===
+          "service.ts",
+    );
+    expect(pageImport).toBeDefined();
     expect(
-      all.impact.items.find((item) => item.path === "page.ts")?.versions,
-    ).toContain("before");
+      pageImport?.evidenceIds.every((id) =>
+        dependent?.relationEvidenceIds.includes(id),
+      ),
+    ).toBe(true);
+    expect(
+      [
+        ...(dependent?.relationEvidenceIds ?? []),
+        ...(changedFile?.evidenceIds ?? []),
+      ].every((id) =>
+        [
+          ...beforeSnapshot.evidence.map((item) => item.id),
+          ...afterSnapshot.evidence.map((item) => item.id),
+        ].includes(id),
+      ),
+    ).toBe(true);
     const partial = await service.discover({ ...policy, maxFiles: 1 });
     const incomplete = await service.compare({
       beforeId: second.snapshot.id,
