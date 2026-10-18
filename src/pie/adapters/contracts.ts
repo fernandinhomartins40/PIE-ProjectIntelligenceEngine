@@ -81,6 +81,9 @@ export const composeServiceSettingSchema = z.strictObject({
     "include_path",
     "include_project_directory",
     "extends_reference",
+    "network_mode",
+    "network_attachment",
+    "network_definition",
   ]),
   value: z.string().max(900),
 });

@@ -1499,3 +1499,52 @@ it("preserva leitura e idempotência de snapshots históricos sem o campo declar
     await rm(dbRoot, { recursive: true, force: true });
   }
 });
+
+it("Compose records bounded network declarations", () => {
+  const parsed = readDeclarations(
+    "compose.yaml",
+    [
+      "services:",
+      "  api:",
+      "    network_mode: host",
+      "    networks:",
+      "      backend:",
+      "        aliases: [gateway]",
+      "        ipv4_address: 10.0.0.4",
+      "networks:",
+      "  backend:",
+      "    driver: bridge",
+      "    internal: true",
+      "    ipam:",
+      "      config: [DO_NOT_RETAIN_ARBITRARY_OPTIONS]",
+    ].join("\n"),
+    20,
+  )!;
+  const settings = parsed.declarations.flatMap((fact) => {
+    const setting = parseComposeServiceSettingName(fact.name);
+    return setting
+      ? [{ ...setting, parent: fact.parent, line: fact.line }]
+      : [];
+  });
+  expect(settings).toEqual(
+    expect.arrayContaining([
+      { key: "network_mode", value: "host", parent: "api", line: 3 },
+      {
+        key: "network_attachment",
+        value:
+          '{"network":"backend","aliases":["gateway"],"ipv4_address":"10.0.0.4"}',
+        parent: "api",
+        line: 5,
+      },
+      {
+        key: "network_definition",
+        value: '{"driver":"bridge","internal":true}',
+        parent: "backend",
+        line: 9,
+      },
+    ]),
+  );
+  expect(JSON.stringify(settings)).not.toContain(
+    "DO_NOT_RETAIN_ARBITRARY_OPTIONS",
+  );
+});

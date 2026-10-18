@@ -69,6 +69,9 @@ const componentSchema = z.strictObject({
         "include_path",
         "include_project_directory",
         "extends_reference",
+        "network_mode",
+        "network_attachment",
+        "network_definition",
       ]),
       value: z.string(),
       evidenceId: z.string().uuid(),
@@ -193,7 +196,8 @@ function inventoryFacts(snapshot: Snapshot) {
     ({ setting }) =>
       setting.key === "volume_definition" ||
       setting.key === "secret_definition" ||
-      setting.key === "config_definition",
+      setting.key === "config_definition" ||
+      setting.key === "network_definition",
   );
   const rootSettings = settings.filter(
     ({ fact, setting }) =>
@@ -336,7 +340,8 @@ function inventoryFacts(snapshot: Snapshot) {
           ? ("compose_volume" as const)
           : ("compose_resource" as const),
       name:
-        fact.parent?.replace(/^(?:volumes|secrets|configs):/, "") ?? "resource",
+        fact.parent?.replace(/^(?:volumes|secrets|configs|networks):/, "") ??
+        "resource",
       parent: null,
       path: fact.source.path,
       line: fact.source.line,

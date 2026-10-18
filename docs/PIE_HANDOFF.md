@@ -649,3 +649,7 @@ Adapter adiciona profiles e opcoes conhecidas `condition`, `restart` e `required
 # Continuidade T2.3/T4.4 - referencias include/extends Compose
 
 Adapter preserva include path/project_directory e extends service/file com Evidence; o servico e o painel apresentam referencias. Os arquivos indicados nao sao abertos e nenhuma configuracao e merged. Boundary adapter/infra: 20/20; E2E Chrome: 1/1. Include/extends efetivos, interpolacao e runtime seguem nao verificados.
+
+## Redes Compose estáticas — T2.3/T4.4 — 18/10/2026
+
+Adapter emite modo de rede, anexos do serviço com aliases/endereço literal selecionado, e definições top-level restritas a nome/driver/external/internal/attachable/IPv6. Valores estruturais retidos não representam conectividade efetiva; IPAM e opções arbitrárias são omitidos. `npm.cmd run pie:build` passou; adapter/infrastructure/MCP/Chrome focused: 23/23. Include/extends continuam sem expansão; rede runtime e Docker/Compose real não foram verificados. `check:fast`, `docs:check`, `format:check` e `pie:web:typecheck` passaram; ap?s o build do painel, Chrome passou 1/1. T2.3/T4.4 permanecem parciais.

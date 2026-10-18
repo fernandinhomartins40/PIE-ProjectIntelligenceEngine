@@ -628,3 +628,8 @@ Facts agora preservam profiles literais e `depends_on` longo com condition conhe
 ### Referencias Compose include/extends
 
 Adapter registra paths e project_directory de include no nivel do arquivo, e service/file de extends no servico, todos com Evidence original. Nao abre arquivos referenciados nem aplica merge; arquivos ausentes permanecem desconhecidos. Boundary adapter/infra e Chrome validaram exibicao sem facts herdados. T2.3/T4.4 continuam parciais.
+@'
+
+### Redes Compose declaradas — T2.3/T4.4 — 18/10/2026
+
+O inventário Compose registra `network_mode`, redes vinculadas a serviços (aliases e endereços literais selecionados) e definições top-level com nome, driver e flags estruturais conhecidas. Evidence aponta para a declaração original. Opções IPAM/driver arbitrárias não são retidas, e nenhuma rede é criada, resolvida ou considerada ativa. T2.3/T4.4 permanecem parciais; expansão Compose e validação de rede/runtime continuam pendentes.

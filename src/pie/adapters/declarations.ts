@@ -384,7 +384,10 @@ function structured(path: string, source: string): AdapterRead {
           | "depends_on_options"
           | "include_path"
           | "include_project_directory"
-          | "extends_reference",
+          | "extends_reference"
+          | "network_mode"
+          | "network_attachment"
+          | "network_definition",
         value: string,
         segments: string[],
         redactions: string[] = [],
@@ -401,6 +404,52 @@ function structured(path: string, source: string): AdapterRead {
         setting("image", service.image, ["services", name, "image"]);
       if (typeof service.restart === "string")
         setting("restart", service.restart, ["services", name, "restart"]);
+      if (typeof service.network_mode === "string")
+        setting("network_mode", service.network_mode, [
+          "services",
+          name,
+          "network_mode",
+        ]);
+      const serviceNetworks = object(service.networks);
+      if (Array.isArray(service.networks))
+        service.networks.forEach((network, index) => {
+          if (typeof network === "string")
+            setting("network_attachment", network, [
+              "services",
+              name,
+              "networks",
+              String(index),
+            ]);
+        });
+      else
+        for (const [network, rawOptions] of Object.entries(
+          serviceNetworks ?? {},
+        )) {
+          const options = object(rawOptions);
+          const selected: Record<string, unknown> = {};
+          for (const field of [
+            "aliases",
+            "ipv4_address",
+            "ipv6_address",
+            "mac_address",
+            "interface_name",
+          ] as const) {
+            const value = options?.[field];
+            if (typeof value === "string") selected[field] = value;
+            else if (
+              Array.isArray(value) &&
+              value.every((item) => typeof item === "string")
+            )
+              selected[field] = value;
+          }
+          setting(
+            "network_attachment",
+            Object.keys(selected).length
+              ? JSON.stringify({ network, ...selected })
+              : network,
+            ["services", name, "networks", network],
+          );
+        }
       if (typeof service.extends === "string")
         setting(
           "extends_reference",
@@ -671,6 +720,35 @@ function structured(path: string, source: string): AdapterRead {
         line: lineAt(["volumes", name]),
       });
     }
+    const topLevelNetworks = object(parsed.networks);
+    for (const [name, raw] of Object.entries(topLevelNetworks ?? {})) {
+      const definition = object(raw);
+      const normalized: Record<string, unknown> = {};
+      if (typeof definition?.name === "string")
+        normalized.name = definition.name;
+      if (typeof definition?.driver === "string")
+        normalized.driver = definition.driver;
+      if (typeof definition?.external === "boolean")
+        normalized.external = definition.external;
+      else if (object(definition?.external)) {
+        const external = object(definition?.external);
+        normalized.external =
+          typeof external?.name === "string" ? external.name : true;
+      }
+      for (const field of ["internal", "attachable", "enable_ipv6"] as const)
+        if (typeof definition?.[field] === "boolean")
+          normalized[field] = definition[field];
+      const value = Object.keys(normalized).length
+        ? JSON.stringify(normalized)
+        : "declared_with_details_not_retained";
+      declarations.push({
+        adapter: "compose",
+        kind: "config_directive",
+        name: composeServiceSettingName({ key: "network_definition", value }),
+        parent: name,
+        line: lineAt(["networks", name]),
+      });
+    }
     for (const [field, key] of [
       ["secrets", "secret_definition"],
       ["configs", "config_definition"],
@@ -700,7 +778,7 @@ function structured(path: string, source: string): AdapterRead {
     return {
       declarations,
       limitations: [
-        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles, depends_on condition/restart/required e referencias include/extends. Includes/extends nao sao expandidos nem merged; interpolacao, build.args e comportamento de container nao sao resolvidos. Profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
+        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles, depends_on condition/restart/required, referencias include/extends e redes selecionadas. Includes/extends nao sao expandidos nem merged; interpolacao, build.args, opcoes arbitrarias de rede e comportamento de container nao sao resolvidos. Profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
       ],
     };
   }

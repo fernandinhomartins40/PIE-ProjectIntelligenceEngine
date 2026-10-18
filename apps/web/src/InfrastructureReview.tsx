@@ -61,6 +61,12 @@ function settingLabel(key: SettingKey): string {
       return "Diretório de projeto do include";
     case "extends_reference":
       return "Serviço Compose estendido";
+    case "network_mode":
+      return "Modo de rede declarado";
+    case "network_attachment":
+      return "Rede declarada no servi??o";
+    case "network_definition":
+      return "Rede Compose declarada";
   }
 }
 

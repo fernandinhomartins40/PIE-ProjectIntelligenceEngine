@@ -876,3 +876,9 @@ Boundary adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1. Profile
 - Adapter emite Evidence para include path/project_directory no nivel Compose e extends service/file no nivel de servico; nao abre arquivos nem agrega fatos herdados.
 - `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts`: 20/20 passaram com Git/SQLite na integracao; `tests/boundary/mcp/pieMcp.test.ts` passou 1/1 com schemas MCP. Fixture declara caminhos nao lidos e confirma que servicos herdados nao aparecem.
 - `npm.cmd run pie:web:build`; `npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts`: Chrome 1/1 confirma apresentacao das referencias. Include/extends reais, merge e runtime nao foram validados.
+
+## Redes Compose estáticas — 18/10/2026
+
+- Compose registra `network_mode`, `network_attachment` e `network_definition` com Evidence da origem. Opções arbitrárias IPAM/driver não são retidas; nenhuma conectividade ou recurso runtime é inferido.
+- `npm.cmd run pie:build` passou. `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts tests/boundary/mcp/pieMcp.test.ts tests/boundary/pieInfrastructureWeb.test.ts` passou: 23/23 com Git/SQLite, MCP e Chrome.
+- Compose/Docker real, IPAM, recursos externos e conectividade não foram validados. T2.3/T4.4 continuam parciais.
