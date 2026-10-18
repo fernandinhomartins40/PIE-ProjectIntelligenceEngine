@@ -13,6 +13,7 @@ import {
   observeOwnedProcessLineage,
   systemProcessOwnershipHost,
 } from "../../../src/process/ProcessOwnershipObservation.js";
+import { privateRuntimeRootCapability } from "../../../src/process/PrivateRuntimeRoot.js";
 import {
   ProviderProcessSupervisor,
   spawnOwnedProviderProcess,
@@ -58,7 +59,16 @@ describe("provider process runtime and wait primitives", () => {
       parent: tmpdir(),
       prefix: "rea-provider-test-",
     });
-    expect((await stat(runtime.path)).mode & 0o077).toBe(0);
+    if (process.platform === "win32") {
+      // Windows ACL privacy is established by the native creation handshake;
+      // POSIX mode bits returned by stat are not an ACL observation.
+      expect(privateRuntimeRootCapability()).toMatchObject({
+        available: true,
+        proof: "native-authority",
+      });
+    } else {
+      expect((await stat(runtime.path)).mode & 0o077).toBe(0);
+    }
     await writeFile(join(runtime.path, "owned-scratch"), "fixture");
 
     const first = runtime.close();
@@ -568,10 +578,19 @@ describe("provider process spawning primitives", () => {
       expect(spawned.ownership).toMatchObject({
         runId,
         leaderPid: spawned.process.pid,
-        processGroupId: spawned.process.pid,
-        expectedCommand: process.execPath,
         expectedParentPid: process.pid,
       });
+      if (process.platform === "win32") {
+        // A retained Job Object is the Windows cleanup authority; process
+        // command-line matching belongs to the POSIX process-group adapter.
+        expect(spawned.ownership).not.toHaveProperty("expectedCommand");
+        expect(spawned.cleanup).toEqual(expect.any(Function));
+      } else {
+        expect(spawned.ownership).toMatchObject({
+          processGroupId: spawned.process.pid,
+          expectedCommand: process.execPath,
+        });
+      }
       expect(spawned.process.stdout).not.toBeNull();
       expect(spawned.process.stderr).not.toBeNull();
     } finally {
