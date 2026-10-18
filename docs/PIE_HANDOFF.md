@@ -641,3 +641,7 @@ O adapter Compose agora retém apenas nomes válidos das chaves de `environment`
 # Continuidade T2.3/T4.4 - secrets e configs Compose - 18/10/2026
 
 O adapter registra referencias de secrets/configs curtas/longas por servico e definicoes top-level. Retem somente source/target/uid/gid/mode de mounts e metadados external/name/file; nao abre file, nao le conteudo secreto e nao confirma runtime. Boundary adapter/infra/MCP passou 18/18 e Chrome `pieInfrastructureWeb` 1/1. Nenhum arquivo de secret/config foi aberto.
+
+# Continuidade T2.3/T4.4 - profiles e depends_on Compose
+
+Adapter adiciona profiles e opcoes conhecidas `condition`, `restart` e `required` de depends_on longo, sem inferir ordem/saude/runtime. Adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1; nenhum estado operacional e inferido.

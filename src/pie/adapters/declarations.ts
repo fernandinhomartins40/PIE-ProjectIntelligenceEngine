@@ -351,7 +351,9 @@ function structured(path: string, source: string): AdapterRead {
           | "secret_mount"
           | "config_mount"
           | "secret_definition"
-          | "config_definition",
+          | "config_definition"
+          | "profile"
+          | "depends_on_options",
         value: string,
         segments: string[],
         redactions: string[] = [],
@@ -368,6 +370,16 @@ function structured(path: string, source: string): AdapterRead {
         setting("image", service.image, ["services", name, "image"]);
       if (typeof service.restart === "string")
         setting("restart", service.restart, ["services", name, "restart"]);
+      if (Array.isArray(service.profiles))
+        service.profiles.forEach((profile, index) => {
+          if (typeof profile === "string")
+            setting("profile", profile, [
+              "services",
+              name,
+              "profiles",
+              String(index),
+            ]);
+        });
       if (Array.isArray(service.ports))
         for (const port of service.ports) {
           const value = typeof port === "string" ? port : JSON.stringify(port);
@@ -559,6 +571,27 @@ function structured(path: string, source: string): AdapterRead {
           parent: name,
           line,
         });
+      const dependencyConfig = object(service.depends_on);
+      for (const dependency of depends) {
+        const options = object(dependencyConfig?.[dependency]);
+        if (!options) continue;
+        const selected: Record<string, string | boolean> = {};
+        if (
+          options.condition === "service_started" ||
+          options.condition === "service_healthy" ||
+          options.condition === "service_completed_successfully"
+        )
+          selected.condition = options.condition;
+        for (const field of ["restart", "required"] as const)
+          if (typeof options[field] === "boolean")
+            selected[field] = options[field];
+        if (Object.keys(selected).length)
+          setting(
+            "depends_on_options",
+            JSON.stringify({ dependency, ...selected }),
+            ["services", name, "depends_on", dependency],
+          );
+      }
     }
     const topLevelVolumes = object(parsed.volumes);
     for (const [name, raw] of Object.entries(topLevelVolumes ?? {})) {
@@ -613,7 +646,7 @@ function structured(path: string, source: string): AdapterRead {
     return {
       declarations,
       limitations: [
-        "Compose: inventário limitado a serviços, dependências, image, ports, restart, presença de healthcheck, escalares selecionados de deploy e referências de build (contexto/Dockerfile). Interpolacao, include, extends, profiles, build.args e runtime nao sao resolvidos; volumes, nomes de ambiente, env_file e referencias/definicoes de secrets/configs sao declarations estaticas sem resolucao ou execucao; conteúdo de dockerfile_inline e comando de healthcheck não são retidos. Userinfo de autenticação em URL de contexto é redigido.",
+        "Compose: inventario estatico limitado a fatos selecionados de servicos, build, volumes, environment keys, env_file, secrets/configs, profiles e depends_on condition/restart/required. Include, extends, interpolacao, build.args e comportamento de container nao sao resolvidos; profiles e dependencias sao declarativas. Arquivos env/secret/config nao sao abertos e valores de ambiente nao sao retidos; conteudo dockerfile_inline e comando healthcheck nao sao retidos. Userinfo de autenticacao em URL remota e redigido.",
       ],
     };
   }

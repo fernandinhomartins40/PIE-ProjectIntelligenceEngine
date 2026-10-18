@@ -76,6 +76,8 @@ export const composeServiceSettingSchema = z.strictObject({
     "config_mount",
     "secret_definition",
     "config_definition",
+    "profile",
+    "depends_on_options",
   ]),
   value: z.string().max(900),
 });

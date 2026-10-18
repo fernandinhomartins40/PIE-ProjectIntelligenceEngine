@@ -63,6 +63,8 @@ const componentSchema = z.strictObject({
         "config_mount",
         "secret_definition",
         "config_definition",
+        "profile",
+        "depends_on_options",
       ]),
       value: z.string(),
       evidenceId: z.string().uuid(),

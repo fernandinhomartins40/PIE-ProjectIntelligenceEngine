@@ -718,6 +718,49 @@ it("Compose preserva referências de secrets/configs sem ler conteúdo", () => {
   );
 });
 
+it("Compose preserva profiles e opções literais de depends_on", () => {
+  const parsed = readDeclarations(
+    "compose.yaml",
+    [
+      "services:",
+      "  api:",
+      "    profiles: [production, staging]",
+      "    depends_on:",
+      "      database:",
+      "        condition: service_healthy",
+      "        restart: true",
+      "        required: false",
+      "  database:",
+      "    image: postgres",
+    ].join("\n"),
+    20,
+  )!;
+  const settings = parsed.declarations.flatMap((fact) => {
+    const setting = parseComposeServiceSettingName(fact.name);
+    return setting ? [{ ...setting, parent: fact.parent }] : [];
+  });
+  expect(settings).toEqual(
+    expect.arrayContaining([
+      { key: "profile", value: "production", parent: "api" },
+      { key: "profile", value: "staging", parent: "api" },
+      {
+        key: "depends_on_options",
+        value:
+          '{"dependency":"database","condition":"service_healthy","restart":true,"required":false}',
+        parent: "api",
+      },
+    ]),
+  );
+  expect(parsed.declarations).toContainEqual(
+    expect.objectContaining({
+      adapter: "compose",
+      kind: "service_dependency",
+      name: "database",
+      parent: "api",
+    }),
+  );
+});
+
 it("Dockerfile registra instruções estáticas sem reter valores de ARG/ENV ou comandos", () => {
   const parsed = readDeclarations(
     "app/Dockerfile.api",

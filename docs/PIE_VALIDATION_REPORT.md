@@ -866,3 +866,7 @@ Atualização de gates finais — 18/10/2026
 - Adapter: referencias curtas/longas de secrets/configs por servico; definicoes top-level preservam somente external/name/file como metadados. Arquivos nao sao abertos e nenhum conteudo e retido.
 - `npm.cmd run test:focused -- tests/boundary/pieAdapters.test.ts tests/boundary/pieInfrastructure.test.ts tests/boundary/mcp/pieMcp.test.ts`: 18/18 passaram; Git/SQLite real verificou componentes, referencias e Evidence.
 - `npm.cmd run pie:build`; `npm.cmd run pie:web:build`; `npm.cmd run test:focused -- tests/boundary/pieInfrastructureWeb.test.ts`: 1/1 passou no Chrome exibindo referencia e definicao. Nenhum secret/config real ou runtime foi consultado.
+
+## Profiles e dependencias Compose
+
+Boundary adapter/infra/MCP passou 20 testes focados e Chrome passou 1/1. Profiles e opcoes condicionais aparecem como facts com Evidence; nao estabelecem ordem, saude ou ativacao efetiva.

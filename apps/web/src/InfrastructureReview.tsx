@@ -51,6 +51,10 @@ function settingLabel(key: SettingKey): string {
       return "Definição de secret declarada";
     case "config_definition":
       return "Definição de config declarada";
+    case "profile":
+      return "Perfil Compose declarado";
+    case "depends_on_options":
+      return "Opções de dependência declaradas";
   }
 }
 

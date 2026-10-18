@@ -122,6 +122,16 @@ function expectComposeRuntimeSettings(
   expect(api?.settings).toContainEqual(
     expect.objectContaining({ key: "config_mount", value: "app_config" }),
   );
+  expect(api?.settings).toContainEqual(
+    expect.objectContaining({ key: "profile", value: "production" }),
+  );
+  expect(api?.settings).toContainEqual(
+    expect.objectContaining({
+      key: "depends_on_options",
+      value:
+        '{"dependency":"database","condition":"service_healthy","restart":true,"required":false}',
+    }),
+  );
   expect(result.components.items).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
@@ -174,7 +184,7 @@ it("integra inventário Compose/Nginx com Evidence e métricas NOT_MEASURED", as
   await mkdir(repository);
   await writeFile(
     join(repository, "compose.yaml"),
-    'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n      args:\n        TOKEN: NEVER_RETAIN\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    secrets:\n      - api_key\n    configs:\n      - app_config\n    restart: unless-stopped\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      - database\n  database:\n    image: postgres\nvolumes:\n  data:\n    external: true\nsecrets:\n  api_key:\n    file: ./secrets/api_key.txt\nconfigs:\n  app_config:\n    file: ./config/app.yml\n',
+    'services:\n  api:\n    image: node:24-alpine\n    build:\n      context: app\n      dockerfile: Dockerfile.api\n      args:\n        TOKEN: NEVER_RETAIN\n    ports:\n      - "127.0.0.1:8080:3000"\n    environment:\n      API_KEY: NEVER_RETAIN_ENV_VALUE\n    env_file:\n      - .env.production\n    volumes:\n      - "data:/var/lib/app:ro"\n    secrets:\n      - api_key\n    configs:\n      - app_config\n    restart: unless-stopped\n    profiles: [production]\n    healthcheck:\n      test: ["CMD", "echo", "DO_NOT_RETAIN"]\n    deploy:\n      replicas: 2\n      resources:\n        limits:\n          cpus: "0.50"\n          memory: 512M\n          pids: 128\n        reservations:\n          cpus: "0.25"\n          memory: 256M\n          pids: 64\n    depends_on:\n      database:\n        condition: service_healthy\n        restart: true\n        required: false\n  database:\n    image: postgres\nvolumes:\n  data:\n    external: true\nsecrets:\n  api_key:\n    file: ./secrets/api_key.txt\nconfigs:\n  app_config:\n    file: ./config/app.yml\n',
   );
   await writeDockerComposeFixture(repository);
   await writeFile(
