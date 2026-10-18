@@ -923,3 +923,8 @@ Revalidacao apos ampliar CTAS com lista opcional de nomes de coluna: focused Dat
 
 `SELECT ... INTO` top-level, inclusive apos CTE, marca inventory incompleto e nao emite facts. Regressao confirma que `INSERT ... SELECT` e leitura `SELECT` comum nao sao marcados. Data Review Git/SQLite confirma inconclusividade. Focused Data Review/adapters: 35/35. PostgreSQL runtime nao executado.
 Validacao geral apos adicionar SELECT INTO: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; focused Data Review/adapters 35/35.
+
+## Foreign tables PostgreSQL — T4.5 — 18/10/2026
+
+`CREATE/ALTER FOREIGN TABLE` e fail-closed: nao declara constraint remota efetiva nem confunde a relation com tabela local validada. Boundary de parser e Data Review Git/SQLite; focused Data Review/adapters 37/37. O enforcement remoto depende do foreign server/FDW e nao foi verificado. PostgreSQL runtime nao executado.
+Validacao geral apos foreign tables: `npm.cmd run pie:build`, `npm.cmd run check:fast`, `npm.cmd run docs:check` (ledger `complete=false`), `npm.cmd run format:check` e `git diff --check` passaram; Data Review/adapters focused 37/37.

@@ -129,6 +129,22 @@ it("marca SELECT INTO e CTES com SELECT INTO como DDL nao resolvido", () => {
   expect(parsed.declarations).toEqual([]);
 });
 
+it("nao assume enforcement de constraints em foreign tables", () => {
+  const parsed = readSqlMigration(
+    [
+      'CREATE FOREIGN TABLE "RemoteUser" ("id" INTEGER NOT NULL) SERVER remote;',
+      'ALTER FOREIGN TABLE "RemoteUser" ADD CONSTRAINT "remote_user_check" CHECK ("id" > 0);',
+    ].join("\n"),
+  );
+  expect(parsed.limitations).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("linha 1"),
+      expect.stringContaining("linha 2"),
+    ]),
+  );
+  expect(parsed.declarations).toEqual([]);
+});
+
 async function collectDataReviewExport(
   service: PieService,
   snapshotId: string,
@@ -1142,6 +1158,43 @@ it("mantem SELECT INTO inconclusivo no Data Review", async () => {
   await writeFile(
     join(migration, "migration.sql"),
     'SELECT * INTO "User" FROM "Source";\n',
+  );
+  await exec("git", ["-C", repo, "add", "."]);
+  const store = await openStore(join(root, "pie.sqlite"), repo);
+  const service = new PieService(store);
+  try {
+    const discovered = await service.discover({
+      repositoryRoot: repo,
+      profile: "OBSERVE",
+      environment: "local",
+    });
+    const review = await service.dataReview({
+      snapshotId: discovered.snapshot.id,
+    });
+    expect(review.migrations.items[0]).toMatchObject({
+      state: "migration_inventory_incomplete",
+      selectors: { state: "inconclusive" },
+    });
+    expect(review.coverage.unexaminedMigrationFiles).toBe(1);
+  } finally {
+    await service.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("mantem foreign table inconclusiva no Data Review", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pie-data-review-foreign-table-"));
+  const repo = join(root, "repo");
+  const migration = join(repo, "prisma", "migrations", "001_foreign_table");
+  await mkdir(migration, { recursive: true });
+  await exec("git", ["init", repo]);
+  await writeFile(
+    join(repo, "schema.prisma"),
+    ["model User {", "  id Int @id", "}"].join("\n"),
+  );
+  await writeFile(
+    join(migration, "migration.sql"),
+    'CREATE FOREIGN TABLE "User" ("id" INTEGER NOT NULL) SERVER remote;\n',
   );
   await exec("git", ["-C", repo, "add", "."]);
   const store = await openStore(join(root, "pie.sqlite"), repo);

@@ -314,6 +314,13 @@ export function readSqlMigration(source: string): AdapterRead {
       } else if (keyword(statement[index], "unlogged")) index++;
       if (!keyword(statement[index], "table")) {
         if (
+          keyword(statement[index], "foreign") &&
+          keyword(statement[index + 1], "table")
+        ) {
+          markUnsupportedDdl(statement);
+          continue;
+        }
+        if (
           keyword(statement[index], "unique") &&
           keyword(statement[index + 1], "index")
         ) {
@@ -385,6 +392,13 @@ export function readSqlMigration(source: string): AdapterRead {
         continue;
       }
       add("model", table, table, statement[0]!.line);
+    } else if (
+      keyword(statement[0], "alter") &&
+      keyword(statement[1], "foreign") &&
+      keyword(statement[2], "table")
+    ) {
+      markUnsupportedDdl(statement);
+      continue;
     } else if (
       keyword(statement[0], "alter") &&
       keyword(statement[1], "table")

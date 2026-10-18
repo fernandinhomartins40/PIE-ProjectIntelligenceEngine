@@ -667,3 +667,7 @@ Continuidade T4.5 - tabelas temporarias e CTAS - 18/10/2026
 Continuidade T4.5 - SELECT INTO - 18/10/2026
 
 O parser detecta `SELECT ... INTO` de nivel superior, incluindo CTE, e deixa a migration incompleta porque PostgreSQL cria uma tabela a partir do resultado; nao emite fatos de schema. `INSERT ... SELECT` e `SELECT` de leitura nao sao marcados. Boundary direta e Data Review Git/SQLite cobrem deteccao e falso positivo; focused Data Review/adapters passou 35/35. Referencia oficial: https://www.postgresql.org/docs/current/sql-selectinto.html .
+
+Continuidade T4.5 - foreign tables - 18/10/2026
+
+`CREATE FOREIGN TABLE` e `ALTER FOREIGN TABLE` agora marcam migration incompleta sem emitir facts de tabela/constraint. PostgreSQL nao verifica constraints de foreign tables no core e o adapter nao comprova enforcement pelo FDW/servidor remoto. Parser direto e Data Review Git/SQLite integrados cobrem a limitacao; Data Review/adapters focused passou 37/37. Referencia oficial: https://www.postgresql.org/docs/current/sql-createforeigntable.html .

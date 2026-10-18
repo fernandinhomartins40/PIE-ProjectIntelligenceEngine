@@ -687,3 +687,6 @@ Revalidacao CTAS com lista opcional de nomes de coluna concluida: boundaries 33/
 
 Continuacao T4.5: `SELECT INTO` top-level e em CTE agora e detectado como criacao de tabela nao analisada; INSERT-SELECT e SELECT de leitura permanecem neutros. Boundary combinada 35/35. Gates gerais desta mudanca ainda precisam ser reexecutados. PostgreSQL runtime continua indisponivel localmente. Fonte: https://www.postgresql.org/docs/current/sql-selectinto.html .
 Gates gerais SELECT INTO passaram: pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check. Boundaries focadas: 35/35. PostgreSQL runtime permanece indisponivel.
+
+T4.5: `CREATE/ALTER FOREIGN TABLE` agora deixam inventory incompleto; constraints declaradas nao provam enforcement do FDW remoto. Boundaries passaram 37/37. Gates gerais apos esta extensao ainda devem ser reexecutados. Fonte oficial: https://www.postgresql.org/docs/current/sql-createforeigntable.html .
+Revalidacao final foreign tables: focused 37/37; pie:build, check:fast, docs:check (ledger complete=false), format:check e git diff --check passaram. Enforcement remoto/FDW e PostgreSQL runtime nao foram verificados.
