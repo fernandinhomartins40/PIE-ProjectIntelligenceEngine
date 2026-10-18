@@ -30,6 +30,102 @@ const caseClassifications = {
   environment_changed: "Ambiente de execução diferente",
 };
 
+const testCaseOutcomes = {
+  passed: "Passou",
+  failed: "Falhou",
+  skipped: "Ignorado",
+  todo: "Pendente (TODO)",
+};
+
+const caseExecutionStates = {
+  not_selected: "Nenhum caso específico foi selecionado",
+  unknown: "Indeterminado: relatório incompleto ou indisponível",
+  not_reported: "Caso não reportado em relatório completo",
+  observed: "Identidade do caso observada",
+  ambiguous: "Identidade ambígua: múltiplos resultados correspondentes",
+};
+
+const testExecutionStates = {
+  unknown: "Indeterminado",
+  no_cases_reported: "Nenhum caso reportado",
+  all_reported_cases_passed: "Todos os casos reportados passaram",
+  failed_cases_observed: "Falha observada em caso reportado",
+  skipped_or_todo_observed: "Caso ignorado ou TODO observado",
+  partial: "Resultados parciais",
+};
+
+const runtimeObservationStates = {
+  unknown: "Indeterminado",
+  not_instrumented: "Instrumentação indisponível",
+  line_observed: "Linha observada no runtime",
+  line_not_observed: "Linha não observada no relatório completo",
+};
+
+function BindingSetDetails({
+  label,
+  bindings,
+}: {
+  label: string;
+  bindings: VerificationComparison["declaredBindings"]["before"];
+}) {
+  return (
+    <section aria-label={label}>
+      <h5>{label}</h5>
+      {bindings.state === "unknown" ? (
+        <p>Esta execução não preserva bindings verificáveis.</p>
+      ) : bindings.bindings.items.length === 0 ? (
+        <p>Nenhum binding foi declarado nesta execução.</p>
+      ) : (
+        <ul>
+          {bindings.bindings.items.map((binding, index) => (
+            <li key={`${binding.declarationId}-${index}`}>
+              <strong>
+                {binding.testCase
+                  ? `Caso selecionado: ${binding.testCase.name} (nível ${binding.testCase.nesting})`
+                  : "Sem seletor de caso específico"}
+              </strong>
+              <p className="path">
+                {binding.testFile} → {binding.declaration.name} —{" "}
+                {binding.declaration.sourcePath}
+                {binding.declaration.line === null
+                  ? ""
+                  : `:${binding.declaration.line}`}
+              </p>
+              <dl>
+                <dt>Resultado do caso vinculado</dt>
+                <dd>
+                  {caseExecutionStates[binding.caseExecution.state]}
+                  {binding.caseExecution.outcome
+                    ? ` — ${testCaseOutcomes[binding.caseExecution.outcome]}`
+                    : ""}
+                  {` (${binding.caseExecution.matches} correspondência(s))`}
+                </dd>
+                <dt>Resultados do arquivo</dt>
+                <dd>
+                  {testExecutionStates[binding.testExecution.state]}; relatório{" "}
+                  {binding.testExecution.complete ? "completo" : "incompleto"}
+                </dd>
+                <dt>Observação de runtime</dt>
+                <dd>
+                  {runtimeObservationStates[binding.runtimeObservation.state]}
+                </dd>
+                <dt>Interpretação</dt>
+                <dd>
+                  Declaração do operador; sem cobertura semântica comprovada
+                </dd>
+                <dt>Evidence do caso</dt>
+                <dd className="path">
+                  {binding.caseExecution.evidenceId ?? "Não disponível"}
+                </dd>
+              </dl>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function ComparisonDetails({
   comparison,
   onPage,
@@ -63,6 +159,22 @@ function ComparisonDetails({
           <li key={index}>{value}</li>
         ))}
       </ul>
+      <details>
+        <summary>Bindings e resultados vinculados às declarações</summary>
+        <p>
+          Os vínculos refletem a intenção registrada pelo operador. Outcome
+          observado não comprova que a asserção valida a declaração nem cria
+          cobertura semântica.
+        </p>
+        <BindingSetDetails
+          label="Execução anterior"
+          bindings={comparison.declaredBindings.before}
+        />
+        <BindingSetDetails
+          label="Execução posterior"
+          bindings={comparison.declaredBindings.after}
+        />
+      </details>
       {comparison.cases.total > 0 ? (
         <>
           <div className="table-wrap">

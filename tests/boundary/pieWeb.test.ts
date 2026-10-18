@@ -10,7 +10,6 @@ import { expect, it } from "vitest";
 import { startPieApi } from "../../src/pie/api.js";
 import { PieService } from "../../src/pie/service.js";
 import { openStore } from "../../src/pie/store.js";
-import { sha256 } from "../../src/pie/evidence.js";
 import { sealEvidence } from "../../src/pie/evidence.js";
 import { NodeVerification } from "../../src/pie/execution/verification.js";
 import { VerificationCoordinator } from "../../src/pie/execution/coordinator.js";
@@ -43,6 +42,79 @@ async function verifyDataReviewPanel(page: Page) {
     .first()
     .click();
   await page.locator("aside.evidence").waitFor();
+}
+
+async function verifyBlockedBindingComparison(
+  section: ReturnType<Page["getByRole"]>,
+) {
+  const comparison = section.getByRole("article", {
+    name: "Comparação de execuções VERIFY",
+  });
+  await comparison
+    .getByRole("heading", { name: "Comparação inconclusiva" })
+    .waitFor();
+  await comparison
+    .getByText("Bindings e resultados vinculados às declarações")
+    .click();
+  expect(
+    await comparison.getByText("Caso selecionado: fixture (nível 0)").count(),
+  ).toBe(2);
+  expect(
+    await comparison
+      .getByText("Indeterminado: relatório incompleto ou indisponível")
+      .count(),
+  ).toBe(2);
+  expect(
+    await comparison
+      .getByText("Declaração do operador; sem cobertura semântica comprovada")
+      .count(),
+  ).toBe(2);
+}
+
+async function connectVerificationPage(page: Page, url: string, token: string) {
+  await page.goto(url);
+  await page.getByLabel("Credencial do serviço local").fill(token);
+  await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+  await page
+    .getByRole("region", { name: "Fila de verificação" })
+    .getByText("Enfileiramento VERIFY não habilitado neste servidor.", {
+      exact: true,
+    })
+    .waitFor();
+}
+
+async function openVerificationDetails(
+  section: ReturnType<Page["getByRole"]>,
+  runId: string,
+) {
+  await section
+    .getByRole("cell", { name: "Bloqueado", exact: true })
+    .first()
+    .waitFor();
+  await section
+    .getByRole("button", { name: `Abrir verificação ${runId.slice(0, 8)}` })
+    .click();
+  return section.getByRole("article", { name: "Detalhes da verificação" });
+}
+
+async function saveBlockedVerification(
+  root: string,
+  store: Awaited<ReturnType<typeof openStore>>,
+  grant: Parameters<NodeVerification["execute"]>[0],
+  snapshot: Parameters<NodeVerification["execute"]>[1],
+) {
+  const owner = new NodeVerification({
+    executable: join(root, "missing-docker"),
+    endpoint: "unix:///var/run/docker.sock",
+    temporaryParent: root,
+  });
+  try {
+    const run = await owner.execute(grant, snapshot);
+    await store.saveVerification(run);
+    return run;
+  } finally {
+    await owner.close();
+  }
 }
 
 it.skipIf(!existsSync(executablePath))(
@@ -345,6 +417,10 @@ it.skipIf(!existsSync(executablePath))(
       join(repo, "test.mjs"),
       "import {test} from 'node:test';test('fixture',()=>{});",
     );
+    await writeFile(
+      join(repo, "package.json"),
+      JSON.stringify({ scripts: { "check-real": "node --test" } }),
+    );
     await promisify(execFile)("git", ["-C", repo, "add", "."]);
     const store = await openStore(join(root, "history.sqlite"), repo);
     const service = new PieService(store);
@@ -354,13 +430,17 @@ it.skipIf(!existsSync(executablePath))(
       repositoryRoot: repo,
     });
     const snapshot = store.snapshot(observed.snapshot.id);
+    const declaration = snapshot.declarations.find(
+      (item) => item.kind === "script" && item.name === "check-real",
+    );
+    if (!declaration) throw new Error("fixture declaration missing");
     const owner = new NodeVerification({
       executable: join(root, "missing-docker"),
       endpoint: "unix:///var/run/docker.sock",
       temporaryParent: root,
     });
     const grant = {
-      schemaVersion: 1,
+      schemaVersion: 3,
       profile: "VERIFY",
       allowTargetExecution: true,
       environment: "local",
@@ -370,6 +450,13 @@ it.skipIf(!existsSync(executablePath))(
       image: `node@sha256:${"1".repeat(64)}`,
       expiresAt: new Date(Date.now() + 60000).toISOString(),
       testFiles: ["test.mjs"],
+      testBindings: [
+        {
+          testFile: "test.mjs",
+          declarationId: declaration.id,
+          testCase: { name: "fixture", nesting: 0 },
+        },
+      ],
       limits: {
         timeoutMs: 1000,
         memoryMiB: 256,
@@ -383,14 +470,12 @@ it.skipIf(!existsSync(executablePath))(
     const run = await owner.execute(grant, snapshot);
     await store.saveVerification(run);
     await owner.close();
-    const laterOwner = new NodeVerification({
-      executable: join(root, "missing-docker"),
-      endpoint: "unix:///var/run/docker.sock",
-      temporaryParent: root,
-    });
-    const laterRun = await laterOwner.execute(grant, snapshot);
-    await store.saveVerification(laterRun);
-    await laterOwner.close();
+    const laterRun = await saveBlockedVerification(
+      root,
+      store,
+      grant,
+      snapshot,
+    );
     const token = "fixture-web-verify-32-characters-minimum";
     const server = await startPieApi(service, {
       root: repo,
@@ -401,30 +486,11 @@ it.skipIf(!existsSync(executablePath))(
     try {
       browser = await chromium.launch({ executablePath, headless: true });
       const page = await browser.newPage();
-      await page.goto(server.url);
-      await page.getByLabel("Credencial do serviço local").fill(token);
-      await page.getByRole("button", { name: "Conectar ao PIE" }).click();
+      await connectVerificationPage(page, server.url, token);
       const section = page.getByRole("region", {
         name: "Verificações do projeto",
       });
-      await page
-        .getByRole("region", { name: "Fila de verificação" })
-        .getByText("Enfileiramento VERIFY não habilitado neste servidor.", {
-          exact: true,
-        })
-        .waitFor();
-      await section
-        .getByRole("cell", { name: "Bloqueado", exact: true })
-        .first()
-        .waitFor();
-      await section
-        .getByRole("button", {
-          name: `Abrir verificação ${run.id.slice(0, 8)}`,
-        })
-        .click();
-      const details = section.getByRole("article", {
-        name: "Detalhes da verificação",
-      });
+      const details = await openVerificationDetails(section, run.id);
       await details
         .getByRole("heading", { name: "Bloqueado", exact: true })
         .waitFor();
@@ -432,16 +498,16 @@ it.skipIf(!existsSync(executablePath))(
       await section.getByLabel("Execução anterior").selectOption(run.id);
       await section.getByLabel("Execução posterior").selectOption(laterRun.id);
       await section.getByRole("button", { name: "Comparar execuções" }).click();
-      await section
-        .getByRole("article", { name: "Comparação de execuções VERIFY" })
-        .getByRole("heading", { name: "Comparação inconclusiva" })
-        .waitFor();
+      await verifyBlockedBindingComparison(section);
       await details
         .getByText("Nenhum caso de teste comprovado nesta execução.")
         .waitFor();
       await details.getByText("Autorização e limites preservados").click();
       expect(await details.locator("pre").textContent()).toContain(
         '"test.mjs"',
+      );
+      expect(await details.locator("pre").textContent()).toContain(
+        '"schemaVersion": 3',
       );
       expect(
         await section

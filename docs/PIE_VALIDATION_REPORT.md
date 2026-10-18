@@ -1,3 +1,9 @@
+## Painel de resultados vinculados VERIFY — 18/10/2026
+
+- `Verifications.tsx` apresenta bindings antes/depois, declaração e arquivo de origem, seletor Node exato, estado/outcome do caso, número de correspondências, estado agregado do arquivo, completude, observação runtime e Evidence. A leitura distingue desconhecido, não reportado, ambíguo e ausência de instrumentação, e declara que binding/outcome não prova semântica da asserção nem cobertura.
+- O E2E percorre grants v3 e dois runs `blocked` reais pela falta do executável Docker, serviço/API autenticada, SQLite/Git locais e Chrome Windows. `tests/boundary/pieWeb.test.ts`: 4 passaram e 1 teste Linux-specific skipped. `pie:web:typecheck`, `pie:web:build`, `check:fast`, `format:check`, `docs:check` e `git diff --check` passaram.
+- Nenhum teste cliente foi executado; a comparação valida apenas apresentação de Evidence já persistida. T4.1 permanece parcial, o cenário Linux aguarda runner Linux e o ledger segue `complete=false`.
+
 ## Sele??o incremental da integra??o PIE ? 17/10/2026
 
 - `scripts/ci/pie-tests.mjs` permite modo focused apenas para diff n?o vazio composto exclusivamente por testes existentes na allowlist; diffs desconhecidos, dispatch manual e source/config seguem no conjunto completo. A su?te ? invocada por `spawnSync` com argumentos, sem interpolar paths no shell. Etapas PostgreSQL/Docker/browser e demais grupos continuam sempre executadas.
