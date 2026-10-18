@@ -770,3 +770,7 @@ Corrigi assertions portáveis em `tests/boundary/process/providerProcess.test.ts
 ## Estado de CI e matriz após lifecycle Windows — 18/10/2026
 
 HEAD/`origin/main` `cd4e4fac4`. GitHub Actions: CI #252 do commit anterior aparece como `Queued` e CI #253 deste commit como `Pending`, aguardando #252; não há resultado integral para registrar. Local Windows: `pieJobs`/worker tem cobertura anterior, e as novas boundaries do processo passaram 25 testes com 6 skips POSIX; `windowsOwnedCommand.test.ts` passou 6/6. Captura Windows real: 8.454.144 bytes em 493 ms. `wsl --status` retornou código 50; não há runtime Linux/WSL disponível neste host. Próximo: acompanhar #252/#253, validar o hash final após término da fila e obter execução POSIX em runner Linux; não declarar T0.1/T6.3 concluídas.
+
+## T1.3 — causas distintas de interrupção — 18/10/2026
+
+`JobWorker` não colapsa mais timeout, perda de lease/heartbeat e encerramento em `ABORTED_OR_TIMEOUT`; persiste `JOB_TIMEOUT`, `LEASE_LOST`, `HEARTBEAT_FAILED`, `WORKER_SHUTDOWN` ou `ABORTED`. `CANCELLED` da fila preserva precedência. Boundary SQLite real passou 10 testes: deadline, shutdown, perda de lease e erro do heartbeat foram exercitados; 1 caso Linux-only foi skipped. `check:fast`, `format:check` e diff check passaram. Próxima tarefa T1.3: definir/validar retomada idempotente após shutdown sem publicar resultado duplicado, inclusive worker concorrente e PostgreSQL.

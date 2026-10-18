@@ -9,6 +9,20 @@ type Workflow =
   | { kind: "discovery"; service: PieService }
   | { kind: "verification"; verifier: VerificationCoordinator };
 
+const abortFailureCode = (reason: unknown, closing: boolean): string => {
+  if (reason instanceof Error) {
+    switch (reason.message) {
+      case "JOB_TIMEOUT":
+        return "JOB_TIMEOUT";
+      case "LEASE_OR_CANCELLATION":
+        return "LEASE_LOST";
+      case "HEARTBEAT_FAILED":
+        return "HEARTBEAT_FAILED";
+    }
+  }
+  return closing ? "WORKER_SHUTDOWN" : "ABORTED";
+};
+
 /** Owns the lease through execution, persistence and final cleanup for one selected workflow. */
 export class JobWorker {
   readonly owner = randomUUID();
@@ -161,7 +175,7 @@ export class JobWorker {
       const errorCode = cancelled
         ? "CANCELLED"
         : controller.signal.aborted
-          ? "ABORTED_OR_TIMEOUT"
+          ? abortFailureCode(controller.signal.reason, this.#closing)
           : cause instanceof PieError
             ? cause.code
             : "WORKFLOW_FAILED";

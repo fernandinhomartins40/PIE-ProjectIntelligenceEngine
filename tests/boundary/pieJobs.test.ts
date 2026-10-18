@@ -321,6 +321,75 @@ it("cancelamento na publicação final impede sucesso do job e preserva snapshot
   }
 });
 
+it.each([
+  ["timeout", "JOB_TIMEOUT"],
+  ["shutdown", "WORKER_SHUTDOWN"],
+  ["lease loss", "LEASE_LOST"],
+  ["heartbeat failure", "HEARTBEAT_FAILED"],
+] as const)(
+  "registra a causa específica de aborto por %s",
+  async (_scenario, expectedCode) => {
+    const root = await mkdtemp(join(tmpdir(), "pie-worker-abort-cause-"));
+    const repo = join(root, "repo");
+    await mkdir(repo);
+    await promisify(execFile)("git", ["init", repo]);
+    await writeFile(join(repo, "index.ts"), "export const fixture = true;");
+    await promisify(execFile)("git", ["-C", repo, "add", "."]);
+    const store = await openStore(join(root, "state.sqlite"), repo);
+    const queue = new SqliteJobQueue(join(root, "queue.sqlite"));
+    const service = new PieService(store);
+    let startedResolve: () => void = () => {};
+    const started = new Promise<void>((resolve) => {
+      startedResolve = resolve;
+    });
+    service.discover = async (_input, signal) => {
+      startedResolve();
+      return await new Promise<never>((_resolve, reject) => {
+        const rejectOnAbort = () => reject(signal?.reason);
+        if (signal?.aborted) rejectOnAbort();
+        else signal?.addEventListener("abort", rejectOnAbort, { once: true });
+      });
+    };
+    const worker = new JobWorker(
+      queue,
+      repo,
+      { kind: "discovery", service },
+      100,
+    );
+    try {
+      const job = queue.enqueue({
+        idempotencyKey: `abort-${expectedCode}`,
+        kind: "discovery",
+        payload: {
+          repositoryRoot: repo,
+          profile: "OBSERVE",
+          environment: "local",
+        },
+        timeoutMs: 100,
+      });
+      const running = worker.runOnce();
+      await started;
+      if (_scenario === "shutdown") await worker.close();
+      else if (_scenario === "lease loss") queue.heartbeat = () => false;
+      else if (_scenario === "heartbeat failure")
+        queue.heartbeat = () => {
+          throw new Error("database unavailable");
+        };
+      await running;
+      expect(queue.get(job.id)).toMatchObject({
+        state: "failed",
+        result: null,
+        errorCode: expectedCode,
+      });
+    } finally {
+      await worker.close();
+      await service.close();
+      queue.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
 it("fila real persiste, usa leases, recupera após perda de worker e impede resultado antigo", async () => {
   const root = await mkdtemp(join(tmpdir(), "pie-jobs-"));
   const path = join(root, "jobs.sqlite");
