@@ -23,6 +23,7 @@
 
 - Executado fetch explícito de `upstream/main`, `rea-fork/main` e `origin/main`; HEAD e origin estão em `80872c6ea`, upstream em `c12d9eda8` e rea-fork em `d200b8618`. `git rev-list --left-right --count upstream/main...HEAD` retornou `101 215`; `rea-fork/main...HEAD` retornou `0 118`.
 - `git merge-tree --write-tree HEAD upstream/main` (simulação sem aplicar alterações) retornou exit 1 e quatro conflitos: supervisor/output boundary e fixture de processo. Nenhum merge/cherry-pick foi executado; worktree permaneceu limpo.
+- Inspeção de `701695139`, `3ad1032b1` e `182e9a268`: o diff de `ProviderProcess.ts` contra upstream fica sem diferenças funcionais quando comentários são ignorados; getter/espera opcional e lifecycle limitado já estão adaptados. As divergências nos testes preservam cobertura PIE adicional. A refatoração Android/JADX de `3ad1032b1` não foi incorporada.
 - `npm.cmd run docs:check` passou: ledger `complete=false`, licenças 905 lockfile/368 runtime e README consistency 5/5. `npm.cmd run format:check` e `git diff --check` passaram após atualizar os relatórios. Não foram executados testes de runtime upstream; a mudança é somente documental e a integração permanece pendente.
 
 ## Ordenação da prioridade manual do plano — 18/10/2026
