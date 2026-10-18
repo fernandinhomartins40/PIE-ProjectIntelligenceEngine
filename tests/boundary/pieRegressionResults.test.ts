@@ -298,6 +298,10 @@ function expectDeclaredBindings(
             declarationId: beforeId,
             declaration: { name: "verify-feature" },
             interpretation: "declared_unverified",
+            runtimeObservation: {
+              state: "line_observed",
+              evidenceId: expect.any(String),
+            },
           },
         ],
       },
@@ -312,6 +316,10 @@ function expectDeclaredBindings(
             declarationId: afterId,
             declaration: { name: "check-feature" },
             interpretation: "declared_unverified",
+            runtimeObservation: {
+              state: "line_not_observed",
+              evidenceId: expect.any(String),
+            },
           },
         ],
       },
@@ -551,7 +559,7 @@ it("compara execuções persistidas por casos e compartilha API, CLI e MCP", asy
     );
     const expected = await service.verificationComparison(input);
     expect(expected).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       engine: "regression",
       state: "regression_observed",
       cases: {

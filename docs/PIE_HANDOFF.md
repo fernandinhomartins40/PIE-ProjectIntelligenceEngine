@@ -12,6 +12,10 @@ Exporta??o JSON do hist?rico funcional agora ? compartilhada e paginada nos tr?s
 
 # PIE — Continuidade
 
+## Próxima frente — prova semântica de capacidade a partir de testes — 18/10/2026
+
+`verification-diff` v3 agora apresenta a observação de linha separada do binding declarado; Evidence aponta ao run. Linha executada/não observada não declara cobertura de comportamento. Focused regression + `toolSchemaValidity`: 17/17, CLI/API/MCP e Ajv; `check:fast` passou. Próximo: investigar relações explícitas de asserção entre teste e capacidade por semântica estática limitada/contrato de teste, com provenance e estados inconclusivos; nunca derivar `covers` somente de import, binding ou execução de linha.
+
 ## Próxima frente — associação semântica teste→capacidade — 18/10/2026
 
 `runIntegrity.ts` agora impede que runtime locations persistidas extrapolem o binding v2/path/linha do snapshot; grants com múltiplos arquivos não podem reportar localização focal, e duplicatas/path/linhas divergentes são rejeitadas. Focused regression/persistence/admission passou (8 pass, 2 skips); `check:fast` passou. Próximo em T4.1: projetar uma relação explícita de resultado executado para capacidade sem tratá-la como `covers` automaticamente. Exigir prova adicional de asserção/comportamento; linha executada sozinha é somente observação, não cobertura semântica.

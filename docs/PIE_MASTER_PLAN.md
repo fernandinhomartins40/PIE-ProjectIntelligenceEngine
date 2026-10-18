@@ -12,6 +12,10 @@ Runs VERIFY persistidos v1/v2 agora s?o exportados sem reexecu??o via `verificat
 
 # PIE — Plano mestre de implementação integral
 
+## Projeção da observação de linha por binding — contrato v3 — 18/10/2026
+
+`verification-diff` schemaVersion 3 preserva cada binding como `declared_unverified` e acrescenta `runtimeObservation` separado: `line_observed`, `line_not_observed`, `unknown` ou `not_instrumented`, com `evidenceId` do run somente quando houve tentativa de instrumentação. `line_not_observed` não afirma que o módulo não executou; `line_observed` não prova que o teste verificou comportamento. V1/legado e grants não instrumentados não produzem fatos de cobertura. Teste integrado compara before/after e valida paridade CLI/API/MCP; Ajv validou os schemas canônicos de todas as tools. `pieRegressionResults` + `toolSchemaValidity`: 17/17; `check:fast` passou; PostgreSQL runtime e Docker não foram necessários nesta fronteira. T4.1 avança na visibilidade de observação por binding, mantendo associação semântica e arestas `covers` pendentes.
+
 ## Integridade de runtime locations versus bindings VERIFY — 18/10/2026
 
 `validateVerificationRun` agora revalida cada `runtimeLocations` persistida contra `testBindings` do grant e a origem exata (path/linha) das declarações do snapshot. Locais são recusados se não houver binding v2, se houver vários arquivos de teste (instrumentação focal não foi habilitada), se path/linha divergir ou se a entrada estiver duplicada. Isso preserva a distinção: linha executada é observação de runtime, não prova de que o teste verificou o comportamento nem aresta `covers`. `pieRegressionResults`, `pieRunPersistence` e `pieExecutionAdmission`: 8 passaram, 2 skips previstos para PostgreSQL/Docker/plataforma; Git/SQLite reais. `check:fast` e `format:check` passaram. T4.1 avança na integridade de proveniência do resultado, mas vínculo semântico teste→capacidade, jornadas e cobertura completa permanecem parciais.

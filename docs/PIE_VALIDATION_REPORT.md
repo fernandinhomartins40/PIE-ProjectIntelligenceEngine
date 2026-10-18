@@ -19,6 +19,12 @@
 
 # PIE — Registro de validação contínua
 
+## Comparação de observação de linha por binding — schema v3 — 18/10/2026
+
+- O payload de comparação agora separa intenção (`interpretation: declared_unverified`) de `runtimeObservation`: linha observada/não observada, desconhecido ou não instrumentado; a prova referencia o Evidence do run. Alteração aditiva versionada em schema v3.
+- `npm.cmd run test:focused -- tests/boundary/pieRegressionResults.test.ts tests/boundary/mcp/toolSchemaValidity.test.ts`: 2 arquivos, 17/17. A boundary percorre resultado esperado via serviço, API autenticada, CLI e MCP e valida output schema com Ajv; testa linha before observada e after não observada. `toolSchemaValidity` validou schemas Ajv para ferramentas canônicas e catálogo gerado.
+- `npm.cmd run check:fast` passou (2 tarefas). Não houve execução PostgreSQL ou Docker: esta mudança apenas projeta resultados persistidos e não coleta runtime novo. Nenhuma linha observada foi promovida a cobertura semântica.
+
 ## Binding de locais de runtime em VERIFY — 18/10/2026
 
 - Alteração: `validateVerificationRun` confirma que linhas reportadas foram focalizadas por grant v2 de um único arquivo e correspondem exatamente a declarações vinculadas do snapshot; rejeita local externo, linha diferente, duplicata e localização quando há múltiplos testes autorizados sem instrumentação focal.

@@ -42,6 +42,15 @@ const declaredBindingSchema = z.strictObject({
     evidenceId: z.string().uuid(),
   }),
   interpretation: z.literal("declared_unverified"),
+  runtimeObservation: z.strictObject({
+    state: z.enum([
+      "unknown",
+      "not_instrumented",
+      "line_observed",
+      "line_not_observed",
+    ]),
+    evidenceId: z.string().uuid().nullable(),
+  }),
 });
 const declaredBindingSetSchema = z.strictObject({
   state: z.enum(["unknown", "declared_unverified"]),
@@ -49,7 +58,7 @@ const declaredBindingSetSchema = z.strictObject({
 });
 
 export const verificationComparisonOutput = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   engine: z.literal("regression"),
   state: z.enum([
     "regression_observed",
@@ -116,6 +125,7 @@ function declaredBindings(
   const facts = new Map(snapshot.declarations.map((fact) => [fact.id, fact]));
   const bindings = run.authorization.testBindings.map((binding) => {
     const fact = facts.get(binding.declarationId)!;
+    const runtimeObservation = bindingRuntimeObservation(run, fact.source);
     return {
       ...binding,
       declaration: {
@@ -128,11 +138,40 @@ function declaredBindings(
         evidenceId: fact.evidenceId,
       },
       interpretation: "declared_unverified" as const,
+      runtimeObservation,
     };
   });
   return {
     state: "declared_unverified" as const,
     bindings: page(bindings, paging),
+  };
+}
+
+function bindingRuntimeObservation(
+  run: VerificationRun,
+  source: Snapshot["declarations"][number]["source"],
+) {
+  if (
+    run.schemaVersion !== 2 ||
+    run.authorization.schemaVersion !== 2 ||
+    run.authorization.testFiles.length !== 1 ||
+    source.line === null
+  )
+    return { state: "not_instrumented" as const, evidenceId: null };
+  if (
+    run.result.schemaVersion !== 2 ||
+    !run.result.runtimeLocations.reportComplete
+  )
+    return { state: "unknown" as const, evidenceId: run.evidence.id };
+  const observed = run.result.runtimeLocations.locations.some(
+    (location) =>
+      location.sourcePath === source.path && location.line === source.line,
+  );
+  return {
+    state: observed
+      ? ("line_observed" as const)
+      : ("line_not_observed" as const),
+    evidenceId: run.evidence.id,
   };
 }
 
@@ -373,7 +412,7 @@ function compareVerifiedRuns(
         : "inconclusive";
 
   return verificationComparisonOutput.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     engine: "regression",
     state,
     before: {
@@ -394,6 +433,7 @@ function compareVerifiedRuns(
       after: afterBindings,
       limitations: [
         "Binding é declaração do operador entre arquivo autorizado e fato estático do snapshot; não é uma aresta `covers` comprovada por execução.",
+        "runtimeObservation registra somente linha do fato que foi observada no runner; `line_not_observed` não prova que o módulo ou comportamento não executou, e `line_observed` não prova que o teste validou a capacidade.",
         ...(beforeBindings.state === "unknown" ||
         afterBindings.state === "unknown"
           ? [
